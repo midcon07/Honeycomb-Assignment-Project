@@ -8,6 +8,7 @@ Goal: aircraft-specific control profiles for the Honeycomb Alpha and Bravo, cove
 - `notes/PMDG_event_codes.md` — the exact PMDG custom control codes for VNAV and HUD, pulled from PMDG's own SDK files.
 - `tools/Probe-HoneycombDevices.ps1` — reads the live axis and button state of the Alpha and Bravo straight from the HID input report, so profiles can be written against real identifiers. Dependency-free PowerShell (5.1, no modules, no admin); `-Watch` gives a live view for identifying one lever at a time, `-Json` writes a committable report. See Issue 2.
 - `notes/reverse_thrust.md` — why reverse is the most confusing part of this hardware. The axis does not extend into the reverse range, so one button per lever is the entire signal, and each aircraft needs something different built from that single bit.
+- `docs/setup-spec.md` — what the launcher must discover about a machine before it can be trusted to configure anything, why the Community folder has to be read from `UserCfg.opt` rather than guessed, and the list of things the development machine structurally cannot tell us about the target machine.
 - `data/lever-layouts.json` — the eleven physical lever layouts, the handle inventory, and the rule for choosing between them. Source of truth: the pre-flight caps card, the in-sim panel and the per-aircraft profiles are all meant to be generated from this rather than duplicate it. See `data/README.md`.
 
 ## What's in progress
