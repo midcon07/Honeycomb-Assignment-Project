@@ -8,24 +8,21 @@ Goal: aircraft-specific control profiles for the Honeycomb Alpha and Bravo, cove
 - `notes/PMDG_event_codes.md` — the exact PMDG custom control codes for VNAV and HUD, pulled from PMDG's own SDK files.
 - `tools/Probe-HoneycombDevices.ps1` — reads the live axis and button state of the Alpha and Bravo straight from the HID input report, so profiles can be written against real identifiers. Dependency-free PowerShell (5.1, no modules, no admin); `-Watch` gives a live view for identifying one lever at a time, `-Json` writes a committable report. See Issue 2.
 - `notes/reverse_thrust.md` — why reverse is the most confusing part of this hardware. The axis does not extend into the reverse range, so one button per lever is the entire signal, and each aircraft needs something different built from that single bit.
+- `data/lever-layouts.json` — the eleven physical lever layouts, the handle inventory, and the rule for choosing between them. Source of truth: the pre-flight caps card, the in-sim panel and the per-aircraft profiles are all meant to be generated from this rather than duplicate it. See `data/README.md`.
 
 ## What's in progress
-- A complete lever-assignment table for the whole MSFS 2024 fleet (95+ aircraft in Standard/Deluxe/Premium, plus the Aviator tier's vintage/warbird aircraft), following this scheme:
-  - SEP fixed-pitch: throttle, mixture
-  - SEP constant-speed: throttle, prop, mixture
-  - Piston twin (fixed-pitch analog): throttle x2, mixture x2
-  - Piston twin (constant-speed): throttle x2, prop x2, mixture x2
-  - FADEC single/twin: throttle only (x1 or x2)
-  - Single jet: spoiler, (blank), throttle, (blank x2), flaps
-  - Twin jet: spoiler, (blank), engine 1, engine 2, (blank), flaps
-  - Tri-jet: spoiler, (blank), engine 1, engine 2, engine 3, flaps
-  - Quad jet: spoiler, engine 1, engine 2, engine 3, engine 4, flaps
-  - Turboprops weren't covered by the original rule set — needs a decision (see Issues)
-- Aircraft that don't fit any of the above (helicopters, gliders, lighter-than-air, eVTOL/rotary, vintage multi-engine/tri-motor, amphibians, supersonic jets) — to be listed separately for manual review.
-- Actual installable files (MSFS XML / FSUIPC7.ini) — blocked on knowing the exact Bravo axis/button identifiers as detected by this specific Windows installation. See Issues.
+- Classifying the MSFS 2024 fleet (95+ aircraft in Standard/Deluxe/Premium, plus the Aviator tier's vintage/warbird aircraft) against the eleven layouts in `data/lever-layouts.json`.
+
+  Rather than a hand-written per-aircraft table, each layout carries a `match` describing the aircraft it applies to, so a classifier needs only four facts — category, engine count, whether there is a prop control, whether there is a mixture control. Those should be readable from each aircraft's own config files, which would cover the installed fleet automatically and pick up new aircraft as they are added. The exact config keys still need verifying against a real MSFS 2024 install.
+
+  An aircraft matching no layout must be reported as unclassified, not approximated. See `data/README.md` for the rule and the known gaps.
+- Aircraft that don't fit any layout (helicopters, lighter-than-air, eVTOL/rotary, vintage multi-engine/tri-motor, amphibians, supersonic jets) — to be listed separately for manual review.
+- Actual installable files (MSFS XML / FSUIPC7.ini) — the Bravo identifiers this was blocked on are now captured; see Issue 2.
 
 ## Issues / open questions
-1. **Turboprop lever scheme** — not covered by the original 6-lever rule set (King Air, TBM 930, Caravan, Saab 340B, ATR 42/72, etc.). Proposed default: power lever + condition/prop lever per engine, matching the constant-speed piston pattern. Needs confirmation.
+1. ~~**Turboprop lever scheme**~~ — **resolved.** Turboprops are not a special case. Layout is chosen by which controls an aircraft actually has, not by engine type: prop control *and* mixture control means the constant-speed arrangement (black, blue, red); mixture only means fixed-pitch (black, red); neither means FADEC (black only). A King Air's power/prop/condition levers satisfy the first test, so it takes the same layout as a Baron. Recorded in `data/lever-layouts.json`.
+
+   Still open, and deliberately not guessed at: an aircraft with a prop control but *no* mixture control matches no layout, and propeller aircraft with three or more engines cannot fit a six-lever quadrant at all. Both go to manual review.
 2. **Bravo axis/button identifiers** — partially answered by `tools/Probe-HoneycombDevices.ps1`. Verified against real hardware (levers driven to both stops and the readings confirmed to follow):
 
    | Property | Value |

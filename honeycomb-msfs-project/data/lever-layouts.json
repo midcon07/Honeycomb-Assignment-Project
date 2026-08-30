@@ -1,0 +1,116 @@
+{
+  "$comment": "Source of truth for Bravo physical lever layouts. Generates the pre-flight caps card, the in-sim panel, and the per-aircraft profiles. See data/README.md for the classification rule and the known gaps.",
+  "schemaVersion": 1,
+
+  "handles": {
+    "black": { "label": "Black",          "role": "Throttle / power",  "owned": 2, "shape": "flat block" },
+    "blue":  { "label": "Blue",           "role": "Propeller",         "owned": 2, "shape": "ribbed barrel" },
+    "red":   { "label": "Red",            "role": "Mixture / condition","owned": 2, "shape": "domed" },
+    "jet":   { "label": "White throttle", "role": "Jet thrust lever",  "owned": 4, "shape": "waisted" },
+    "sb":    { "label": "SPEED BRAKE",    "role": "Spoilers",          "owned": 1, "shape": "tall blade", "printed": true },
+    "flap":  { "label": "FLAP",           "role": "Flaps",             "owned": 1, "shape": "squat block", "printed": true }
+  },
+
+  "levers": [
+    { "position": 1, "hidAxis": "Y",  "detentButton": 24 },
+    { "position": 2, "hidAxis": "X",  "detentButton": 25 },
+    { "position": 3, "hidAxis": "Rz", "detentButton": 26 },
+    { "position": 4, "hidAxis": "Ry", "detentButton": 27 },
+    { "position": 5, "hidAxis": "Rx", "detentButton": 28 },
+    { "position": 6, "hidAxis": "Z",  "detentButton": 33 }
+  ],
+
+  "layouts": [
+    {
+      "id": "prop_1_fixed",
+      "group": "Props",
+      "name": "Single engine, fixed-pitch prop",
+      "match": { "category": "prop", "engines": 1, "propControl": false, "mixtureControl": true },
+      "caps": ["black", "red", null, null, null, null],
+      "functions": ["Throttle", "Mixture", null, null, null, null]
+    },
+    {
+      "id": "prop_1_cs",
+      "group": "Props",
+      "name": "Single engine, constant-speed prop",
+      "match": { "category": "prop", "engines": 1, "propControl": true, "mixtureControl": true },
+      "caps": ["black", "blue", "red", null, null, null],
+      "functions": ["Throttle", "Prop", "Mixture", null, null, null]
+    },
+    {
+      "id": "prop_2_fixed",
+      "group": "Props",
+      "name": "Twin engine, fixed-pitch prop",
+      "match": { "category": "prop", "engines": 2, "propControl": false, "mixtureControl": true },
+      "caps": ["black", "black", "red", "red", null, null],
+      "functions": ["Throttle 1", "Throttle 2", "Mixture 1", "Mixture 2", null, null]
+    },
+    {
+      "id": "prop_2_cs",
+      "group": "Props",
+      "name": "Twin engine, constant-speed prop",
+      "match": { "category": "prop", "engines": 2, "propControl": true, "mixtureControl": true },
+      "caps": ["black", "black", "blue", "blue", "red", "red"],
+      "functions": ["Throttle 1", "Throttle 2", "Prop 1", "Prop 2", "Mixture 1", "Mixture 2"]
+    },
+
+    {
+      "id": "fadec_1",
+      "group": "Props with FADEC",
+      "name": "Single engine",
+      "match": { "category": "prop", "engines": 1, "propControl": false, "mixtureControl": false },
+      "caps": ["black", null, null, null, null, null],
+      "functions": ["Throttle", null, null, null, null, null]
+    },
+    {
+      "id": "fadec_2",
+      "group": "Props with FADEC",
+      "name": "Twin engine",
+      "match": { "category": "prop", "engines": 2, "propControl": false, "mixtureControl": false },
+      "caps": ["black", "black", null, null, null, null],
+      "functions": ["Throttle 1", "Throttle 2", null, null, null, null]
+    },
+
+    {
+      "id": "jet_1",
+      "group": "Jets",
+      "name": "Single engine",
+      "match": { "category": "jet", "engines": 1 },
+      "caps": ["sb", null, "jet", null, null, "flap"],
+      "functions": ["Speed brake", null, "Engine 1", null, null, "Flaps"]
+    },
+    {
+      "id": "jet_2",
+      "group": "Jets",
+      "name": "Twin engine",
+      "match": { "category": "jet", "engines": 2 },
+      "caps": ["sb", null, "jet", "jet", null, "flap"],
+      "functions": ["Speed brake", null, "Engine 1", "Engine 2", null, "Flaps"]
+    },
+    {
+      "id": "jet_3",
+      "group": "Jets",
+      "name": "Tri engine",
+      "match": { "category": "jet", "engines": 3 },
+      "caps": ["sb", null, "jet", "jet", "jet", "flap"],
+      "functions": ["Speed brake", null, "Engine 1", "Engine 2", "Engine 3", "Flaps"]
+    },
+    {
+      "id": "jet_4",
+      "group": "Jets",
+      "name": "Four engine",
+      "match": { "category": "jet", "engines": 4 },
+      "caps": ["sb", "jet", "jet", "jet", "jet", "flap"],
+      "functions": ["Speed brake", "Engine 1", "Engine 2", "Engine 3", "Engine 4", "Flaps"]
+    },
+
+    {
+      "id": "glider",
+      "group": "Gliders",
+      "name": "All gliders",
+      "match": { "category": "glider" },
+      "caps": ["sb", null, null, null, null, null],
+      "functions": ["Speed brake", null, null, null, null, null]
+    }
+  ]
+}
