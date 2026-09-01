@@ -100,10 +100,9 @@
                     'Connected to a network, but the internet cannot be reached.' `
                     'Flying still works. The flight plan and the chart backgrounds will be unavailable until the connection is back.'
             }
-            # One problem, one message: do not also report the two services that
+            # One problem, one message: do not also report the service that
             # obviously cannot be reached either.
             Add-Result 'SimBrief' 'SKIP' 'Not checked - there is no internet connection.'
-            Add-Result 'Chart backgrounds' 'SKIP' 'Not checked - there is no internet connection.'
             return
         }
         Add-Result 'Internet connection' 'PASS' 'Reachable'
@@ -119,14 +118,12 @@
                 'Everything else works. You will need to pick the aircraft yourself instead of it being read from your flight plan.'
         }
 
-        # A tile known to exist: zoom 8 over southern California.
-        $faa = Test-Endpoint -Uri 'https://tiles.arcgis.com/tiles/ssFJjBXIUyZDrSYZ/arcgis/rest/services/VFR_Sectional/MapServer/tile/8/99/45'
-        if ($faa.Ok) {
-            Add-Result 'Chart backgrounds' 'PASS' 'FAA chart service reachable'
-        } else {
-            Add-Result 'Chart backgrounds' 'WARN' `
-                'The FAA chart service cannot be reached.' `
-                'Everything else works. The map will show the plain route without a chart behind it.'
-        }
+        # Nothing else is probed. Chart underlays were considered and dropped -
+        # see notes/chart_underlays.md - so there is no FAA tile service to
+        # check. A probe for something the program does not use can only ever
+        # produce a warning about a thing that does not matter, which is the
+        # fastest way to teach someone to ignore the whole report.
+        #
+        # Add a probe here when a new dependency is added, not before.
     }
 }

@@ -1,3 +1,12 @@
+> **Decision, 2026-09-01: not doing this.** SimBrief's own app already shows
+> charts well, and carrying tile services would mean a licence question outside
+> the US, coverage that stops at the American border, and one more thing to fail
+> when the internet is down. The route map draws itself from the flight plan.
+>
+> Kept because the findings below cost real effort to establish and would have
+> to be rediscovered if this is ever revisited. Nothing in the program depends
+> on any of it.
+
 # Chart underlays
 
 Putting the route on top of real aeronautical charts, the way SkyVector does.
