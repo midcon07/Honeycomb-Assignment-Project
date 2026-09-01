@@ -164,6 +164,43 @@ Other checks:
   own version, device GUIDs. With this recorded, "something changed" becomes a
   diff rather than a guess, and a broken Tuesday becomes explainable.
 
+## The launch flow, and what may block it
+
+1. **Preflight gate** — `tools/Preflight/`. Hardware, then FSUIPC, then whatever
+   else gets added. **May block.**
+2. **Flight plan** — `tools/Get-SimBriefPlan.ps1`. **May never block.**
+3. Cap layout shown, physical setup confirmed by the user.
+4. Add-ons started.
+5. MSFS started, last.
+
+The distinction between 1 and 2 is load-bearing. The gate answers *is this
+machine healthy* and can say NO-GO. SimBrief answers *what are we flying today*
+and is advisory only. Mixing them would let a network hiccup present itself as a
+broken installation, and would stop someone flying because a website was down.
+
+### SimBrief
+
+Fetching a user's own latest plan needs no API key; only generating plans does.
+
+Store the **Pilot ID**, not the username — usernames change, ids do not. Ask for
+the username once during setup because that is what the user knows, resolve it
+to the id, store the id, and never ask again.
+
+**SimBrief has no concept of a "current" plan.** The endpoint always returns the
+most recent one, with a success status, however old it is. Recency has to be
+judged from `params.time_generated`. This is not hypothetical: the first real
+fetch during development returned a plan **9.3 days old**, which a naive
+existence check would have presented as today's flight.
+
+Rather than asking whether it is current, show the route and let the user
+recognise it — *"KUDD to KVIS, Diamond DA62, made 9 days ago"*. Recognition
+beats judgement.
+
+**SimBrief identifies the aircraft, not the layout.** It returns an ICAO type
+code; `aircraft.engines` is the engine model, not a count. Choosing a lever
+layout still needs the four facts in `data/README.md`, which come from the
+aircraft's own config files. Two lookups, not one.
+
 ## Phase 5 — the machine report
 
 Setup's primary output is not a configured machine. It is **a record of what was
