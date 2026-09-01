@@ -154,17 +154,33 @@
             Add-Result 'Quadrant known to FSUIPC' 'TODO' 'FSUIPC has not scanned for controllers yet.' `
                 'Plug in the throttle quadrant and start FSUIPC7 once.'
         } else {
-            $bravo = @($joy | Where-Object { $_ -match 'Bravo' -and $_ -notmatch '\.GUID' })
-            if ($bravo) {
-                Add-Result 'Quadrant known to FSUIPC' 'PASS' ($bravo -join ' | ')
-            } else {
-                Add-Result 'Quadrant known to FSUIPC' 'FAIL' -Blocking `
-                    'FSUIPC has scanned for controllers but did not find the Bravo throttle quadrant.' `
-                    'Check the quadrant is plugged in and its lights are on, then start FSUIPC7 again.'
+            # Whether the hardware is physically attached is answered live by the
+            # Honeycomb check, which runs first. This is the different question
+            # of whether FSUIPC has a record of it - its [JoyNames] is a snapshot
+            # from its last run, so it can be out of date even when everything is
+            # plugged in. Different fault, different fix, different wording.
+            # If the device is not physically attached, the Honeycomb check has
+            # already said so and FSUIPC not knowing about it is a consequence,
+            # not a second thing to fix. Step aside and let the root cause stand
+            # alone - two instructions for one fault is worse than one.
+            foreach ($dev in @(
+                @{ Match = 'Bravo'; Label = 'quadrant'; Root = 'Bravo throttle quadrant connected'
+                   Detail = 'FSUIPC has no record of the throttle quadrant, so it cannot control the levers.' },
+                @{ Match = 'Alpha'; Label = 'yoke';     Root = 'Alpha yoke connected'
+                   Detail = 'FSUIPC has no record of the yoke, so it cannot control it.' }
+            )) {
+                $entry = @($joy | Where-Object { $_ -match $dev.Match -and $_ -notmatch '\.GUID' })
+                if ($entry) {
+                    Add-Result ("FSUIPC knows the {0}" -f $dev.Label) 'PASS' ($entry -join ' | ')
+                } elseif (Test-AlreadyFailed $dev.Root) {
+                    Add-Result ("FSUIPC knows the {0}" -f $dev.Label) 'SKIP' `
+                        ("Not checked - the {0} is not plugged in, which is already reported above." -f $dev.Label)
+                } else {
+                    Add-Result ("FSUIPC knows the {0}" -f $dev.Label) 'FAIL' -Blocking `
+                        $dev.Detail `
+                        ("Start FSUIPC7 once with the {0} plugged in. It looks for controllers as it starts up." -f $dev.Label)
+                }
             }
-            $alpha = @($joy | Where-Object { $_ -match 'Alpha' -and $_ -notmatch '\.GUID' })
-            if ($alpha) { Add-Result 'Yoke known to FSUIPC' 'PASS' ($alpha -join ' | ') }
-            else        { Add-Result 'Yoke known to FSUIPC' 'INFO' 'No Alpha yoke recorded' }
 
             # Anything else holding an id shifts the numbering of everything
             # else, which silently breaks assignments written against old ids.

@@ -41,9 +41,32 @@ Rules that follow, and none of them are negotiable:
   is worse than no report.
 - **Adding an add-on to the gate must not require editing the gate.** Checks are
   files in `Preflight/Checks/`; the host knows nothing about any of them.
+- **One problem, one message.** A check reporting a consequence of an earlier
+  failure defers to the root cause rather than adding a second instruction the
+  user cannot act on yet.
+- **A crash is not a verdict.** Any unexpected error is `CANNOT RUN`, never an
+  exit code that could be mistaken for a real answer.
 
-FSUIPC is the first check because it owns the Alpha and Bravo bindings. More
-add-ons follow the same contract.
+### Hardware presence
+
+**Both the Alpha and the Bravo missing are blocking.** Without the yoke or the
+quadrant there is no flight, and continuing would only produce a session where
+the controls do nothing and no message explains why.
+
+Presence is checked **live, against Windows** — not read from FSUIPC's
+`[JoyNames]`, which is a snapshot from its last run and will report hardware
+that was unplugged yesterday. The check also separates *not plugged in* from
+*plugged in but Windows reports a problem*, because those need different
+remedies.
+
+When hardware is missing the program prompts and **waits**, re-checking on a
+timer, so the user can plug it in and have the program continue by itself. No
+keypress: asking someone to press a key invites pressing it without doing the
+thing, and is one more instruction to give somebody already stuck.
+
+FSUIPC is checked after the hardware, because if the quadrant is not attached
+then FSUIPC's opinion of it is beside the point. More add-ons follow the same
+contract.
 
 Three entry points:
 

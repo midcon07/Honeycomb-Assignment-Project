@@ -50,11 +50,28 @@
 param(
     [string[]] $Only,
     [string]   $Json,
-    [switch]   $Quiet
+    [switch]   $Quiet,
+    # On NO-GO, print what is wrong and keep re-checking, so the user can put it
+    # right and have the program notice by itself. No keypress: "press any key"
+    # is one more thing to explain to someone who is already stuck.
+    [switch]   $Retry,
+    [int]      $RetryTimeoutSeconds = 300,
+    [int]      $RetryIntervalSeconds = 3
 )
 
 Set-StrictMode -Version 2.0
 $ErrorActionPreference = 'Stop'
+
+# An unexpected error means the gate verified nothing it can stand behind, and
+# that must be reported as CANNOT RUN. Without this the script dies with exit
+# code 1, which is indistinguishable from a legitimate NO-GO - a crash wearing
+# the costume of a verdict.
+trap {
+    Write-Host ''
+    Write-Host ("Preflight could not run: {0}" -f $_.Exception.Message) -ForegroundColor Red
+    Write-Host 'This is a fault in the program, not in your setup. Nothing was verified, so no verdict is possible.' -ForegroundColor Red
+    exit 2
+}
 
 # ------------------------------------------------------------------ shared --
 # Helpers live in the host scope. Check files are dot-sourced, so they run in
@@ -116,6 +133,24 @@ function Get-FirstMatch {
     return $null
 }
 
+<#
+    One problem, one message.
+
+    Checks run in order, and a later check often fails only because an earlier
+    one did - FSUIPC has no record of the yoke because the yoke is unplugged.
+    Reporting both gives the user two things to do when there is one thing
+    wrong, and the second instruction is impossible until the first is done.
+
+    A check that would be reporting a consequence asks this first, and steps
+    aside if the root cause is already on the list.
+#>
+function Test-AlreadyFailed {
+    param([Parameter(Mandatory)] [string] $CheckPattern)
+    return @($script:Results | Where-Object {
+        $_.State -eq 'FAIL' -and $_.Check -match $CheckPattern
+    }).Count -gt 0
+}
+
 # Every MSFS 2024 install we can evidence. A directory is not proof of an
 # install; only a UserCfg.opt that actually exists is.
 function Find-Msfs2024 {
@@ -157,35 +192,89 @@ if ($checkFiles.Count -eq 0) {
     exit 2
 }
 
-foreach ($file in $checkFiles) {
-    $provider = $null
-    try {
-        # Dot-sourced so the check runs in this scope and sees the helpers above.
-        $provider = . $file.FullName
-    } catch {
-        $script:CurrentProvider = $file.BaseName
-        Add-Result 'Check failed to load' 'SKIP' $_.Exception.Message `
-                   'This is a defect in the program, not in your setup. Report it.'
-        continue
+function Invoke-AllChecks {
+    $script:Results = New-Object System.Collections.ArrayList
+
+    foreach ($file in $checkFiles) {
+        $provider = $null
+        try {
+            # Dot-sourced so the check runs in this scope and sees the helpers above.
+            $provider = . $file.FullName
+        } catch {
+            $script:CurrentProvider = $file.BaseName
+            Add-Result 'Check failed to load' 'SKIP' $_.Exception.Message `
+                       'This is a defect in the program, not in your setup. Report it.'
+            continue
+        }
+
+        if (-not $provider -or -not $provider.Name -or -not $provider.Run) {
+            $script:CurrentProvider = $file.BaseName
+            Add-Result 'Malformed check' 'SKIP' "$($file.Name) did not return a valid provider" `
+                       'This is a defect in the program, not in your setup. Report it.'
+            continue
+        }
+
+        if ($Only -and ($Only -notcontains $provider.Name)) { continue }
+
+        $script:CurrentProvider = $provider.Name
+        try {
+            & $provider.Run
+        } catch {
+            # A check that throws must not take the gate down with it. A partial
+            # report is useful; a crash tells the user nothing.
+            Add-Result 'Check did not complete' 'SKIP' $_.Exception.Message `
+                       'This is a defect in the program, not in your setup. Report it.'
+        }
+    }
+}
+
+# The leading comma forces an array back even when there is exactly one match.
+# Without it PowerShell unwraps a single-element result to the element itself,
+# and under StrictMode the caller's .Count then throws - which killed the script
+# with exit code 1, indistinguishable from a legitimate NO-GO.
+function Get-Blockers {
+    return ,@($script:Results | Where-Object { $_.State -eq 'FAIL' -and $_.Blocking })
+}
+
+Invoke-AllChecks
+
+# Something the user can put right without leaving the screen - a device to
+# plug in, a program to start - deserves the chance to be put right. Re-check
+# on a timer rather than asking for a keypress: the program noticing by itself
+# is one less instruction to give someone who is already stuck.
+if ($Retry -and @(Get-Blockers).Count -gt 0) {
+    $deadline = (Get-Date).AddSeconds($RetryTimeoutSeconds)
+    $lastShown = ''
+
+    while ((Get-Date) -lt $deadline) {
+        $blockers = Get-Blockers
+        if ($blockers.Count -eq 0) { break }
+
+        $fingerprint = ($blockers | ForEach-Object { $_.Check }) -join '|'
+        if ($fingerprint -ne $lastShown) {
+            $lastShown = $fingerprint
+            if (-not $Quiet) {
+                ''
+                Write-Host 'Before we can carry on:' -ForegroundColor Yellow
+                foreach ($b in $blockers) {
+                    Write-Host ("  * {0}" -f $b.Detail) -ForegroundColor Red
+                    if ($b.Remedy) { Write-Host ("    {0}" -f $b.Remedy) -ForegroundColor Yellow }
+                }
+                ''
+                Write-Host 'Waiting - this will continue by itself once that is done.' -ForegroundColor DarkGray
+            }
+        }
+
+        Start-Sleep -Seconds $RetryIntervalSeconds
+        Invoke-AllChecks
     }
 
-    if (-not $provider -or -not $provider.Name -or -not $provider.Run) {
-        $script:CurrentProvider = $file.BaseName
-        Add-Result 'Malformed check' 'SKIP' "$($file.Name) did not return a valid provider" `
-                   'This is a defect in the program, not in your setup. Report it.'
-        continue
-    }
-
-    if ($Only -and ($Only -notcontains $provider.Name)) { continue }
-
-    $script:CurrentProvider = $provider.Name
-    try {
-        & $provider.Run
-    } catch {
-        # A check that throws must not take the gate down with it. A partial
-        # report is useful; a crash tells the user nothing.
-        Add-Result 'Check did not complete' 'SKIP' $_.Exception.Message `
-                   'This is a defect in the program, not in your setup. Report it.'
+    if (-not $Quiet -and @(Get-Blockers).Count -eq 0) {
+        ''
+        Write-Host 'That is sorted. Carrying on.' -ForegroundColor Green
+    } elseif (-not $Quiet) {
+        ''
+        Write-Host ("Still not resolved after {0} seconds. Stopping here rather than starting the simulator in a state that will not work." -f $RetryTimeoutSeconds) -ForegroundColor Red
     }
 }
 
