@@ -78,6 +78,16 @@ detent itself is in the quadrant, not in the handle.
    way with the jet handles fitted.
 3. Sweep the full travel — confirm the axis still pins at `0` below the detent.
 
+## Where the detent buttons are actually useful
+
+Not in the preflight gate. Lever position is live state that changes the moment
+the throttles are touched, so checking it before the simulator has even started
+tells you nothing about how the flight will begin.
+
+The moment worth catching is **in the sim, shortly before takeoff**: lined up on
+the runway with a reverser still deployed. That is the in-sim panel's job, and
+it is the same measurement used at a point where it means something.
+
 ## Consequence for this project
 
 Reverse is not a binding, it is a small per-aircraft state machine: detect the

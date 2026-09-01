@@ -46,6 +46,21 @@ Rules that follow, and none of them are negotiable:
   user cannot act on yet.
 - **A crash is not a verdict.** Any unexpected error is `CANNOT RUN`, never an
   exit code that could be mistaken for a real answer.
+- **The gate checks configuration that persists. Live state belongs in the sim.**
+  A thing is only worth checking here if it will still be true when the user is
+  sitting at the runway. Anything that changes the moment they touch the
+  hardware is being asked at the wrong time, and an always-green line that can
+  never be acted on dilutes the ones that matter.
+
+  Worked example, because this one nearly shipped: a reverser-position check
+  was added to the checklist purely because the detent buttons had just been
+  measured and there was somewhere to use them. It failed the test — lever
+  position changes constantly once the sim is running, so verifying it before
+  the sim has even started says nothing. The right home for that finding is the
+  in-sim panel a few seconds before takeoff, where "reverser 2 is deployed and
+  you are lined up on the runway" is worth saying.
+
+  Having a capability is not a reason to build a feature.
 
 ### Hardware presence
 
