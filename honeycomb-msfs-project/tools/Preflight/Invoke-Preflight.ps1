@@ -362,7 +362,20 @@ if (-not $Quiet) {
                 Write-Host ("  * {0}: {1}" -f $t.Check, $t.Detail) -ForegroundColor Yellow
             }
         }
-        default { Write-Host 'GO - everything the program depends on is in good shape.' -ForegroundColor Green }
+        default {
+            # GO means nothing is blocking, which is not the same as nothing
+            # being wrong. Saying "everything is in good shape" over the top of
+            # a warning is an overclaim, and a literal reader will believe it.
+            if ($counts['WARN'] -gt 0 -or $counts['SKIP'] -gt 0) {
+                Write-Host 'GO - nothing is stopping you flying, but read the notes above.' -ForegroundColor Green
+                foreach ($w in @($script:Results | Where-Object { $_.State -eq 'WARN' })) {
+                    Write-Host ("  * {0}" -f $w.Detail) -ForegroundColor Yellow
+                    if ($w.Remedy) { Write-Host ("    {0}" -f $w.Remedy) -ForegroundColor DarkYellow }
+                }
+            } else {
+                Write-Host 'GO - everything the program depends on is in good shape.' -ForegroundColor Green
+            }
+        }
     }
     ''
     ("{0} blocking, {1} failed, {2} warnings, {3} not yet configured, {4} not testable, {5} passed" -f
