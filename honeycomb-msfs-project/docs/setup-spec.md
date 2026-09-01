@@ -18,6 +18,33 @@ launcher re-verifies against that record on every start. One engine, two modes.
 That is what turns "correct when it was installed" into "correct every time",
 and it means the failure path is built before it is needed.
 
+### The preflight gate is not optional
+
+**Every launch runs the gate before anything else happens, and a blocking
+failure stops the launch.** Implemented in `tools/Preflight/`.
+
+This is a hard requirement, not a feature. An add-on that was healthy in
+September is not necessarily healthy in November — sim updates move files,
+installers rewrite each other's configuration, hardware gets unplugged. The only
+way the program can honestly claim to be working is to check, every time, and
+refuse to proceed when something it depends on is broken.
+
+Rules that follow, and none of them are negotiable:
+
+- **A gate that verified nothing must never report GO.** Zero results is
+  `CANNOT RUN`, not success.
+- **`TODO` is not `FAIL`.** A machine that has never been set up has no
+  assignments and no profiles. That is its expected state. Presenting it as a
+  fault teaches the user the report is noise.
+- **Prefer a missed warning to a false alarm.** The person reading it cannot
+  distinguish a spurious alert from a real one, and a report that gets ignored
+  is worse than no report.
+- **Adding an add-on to the gate must not require editing the gate.** Checks are
+  files in `Preflight/Checks/`; the host knows nothing about any of them.
+
+FSUIPC is the first check because it owns the Alpha and Bravo bindings. More
+add-ons follow the same contract.
+
 Three entry points:
 
 - **First-run wizard** — sequential, driven in person, does the mapping.
