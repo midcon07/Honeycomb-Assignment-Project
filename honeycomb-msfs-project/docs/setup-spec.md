@@ -247,6 +247,7 @@ masks:
 | Slower hardware | Any launch timeout tuned on a fast machine is wrong on a slow one. |
 | OneDrive-redirected folders, no admin rights, different display scaling | None of these are exercised by having fewer add-ons. |
 | Worn hardware, USB hubs, different topology | Fewer add-ons does not mean healthier hardware. |
+| How the native `SimConnect.dll` gets found | On the dev machine a SimConnect client built against the SDK reaches the native layer with no local copy of the DLL, so something already on that machine is providing it — Lorby Axis and Ohs, FSCopilot, StreamFlight and Add-On Linker are all installed and all are SimConnect clients. A clean machine may resolve it differently or not at all. What has to ship alongside the program cannot be determined here. |
 | **An operator who will not debug** | The variable that never reproduces. Every defect on the dev machine is found because someone notices and investigates. That condition is absent by definition on the target. |
 
 **Mitigation:** run a read-only survey on the target machine *before* building
