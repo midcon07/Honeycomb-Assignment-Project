@@ -26,6 +26,43 @@ is the report named by `-Json`.
 `CANNOT RUN` exists because a gate that verified nothing must never report
 success. Zero results is not zero problems.
 
+## The phases, and why the order is what it is
+
+Fail first: everything cheap and foundational is checked before anything
+expensive, and **nothing writes until every check has passed**.
+
+| File | Phase | Blocking |
+|---|---|---|
+| `00-Config` | Simulator not already running; configuration present, readable, current schema | yes |
+| `05-Honeycomb` | Alpha and Bravo connected and healthy | yes |
+| `07-Simulator` | Install still valid; Community folder taken from `UserCfg.opt` | yes |
+| `10-FSUIPC` | Installed, registered, knows both devices | yes |
+| `20-Internet` | Internet and SimBrief reachable | **no** |
+| `30-Fleet` | Has the installed fleet changed since it was last classified | **no** |
+
+Config comes first because nothing later can be compared against anything
+without it, and because rewriting settings underneath a running simulator makes
+a mess that is hard to explain afterwards.
+
+Hardware comes second, ahead of the configuration checks, because it is
+independent of all of them, instant to test, and **the thing most likely to be
+wrong on any given day**. A USB cable is what changes; an install path is not.
+Putting it early means the user is plugging the yoke in while the rest runs.
+
+## Verify, then work
+
+The gate is read-only. Checks answer questions; they never fix, write or scan.
+
+That is what makes failing early worth anything: when a check fails, nothing has
+been changed yet. A sequence that verified four things and then wrote a profile
+halfway through a fifth would leave the machine in a state nobody asked for.
+
+So a check may report that the Community folder has moved and say what the new
+value should be — but writing it back is setup's job, after the gate passes and
+after a snapshot. The same goes for classifying aircraft: `30-Fleet` takes a
+cheap fingerprint to decide whether a scan is *needed*; the scan itself happens
+later, because it writes.
+
 ## Adding a check
 
 Drop a `.ps1` in `Checks\`. It is dot-sourced and must return one hashtable:
@@ -128,7 +165,53 @@ The Honeycomb check asks Windows directly (`Win32_PnPEntity`, about a second, no
 admin), which also distinguishes *not plugged in* from *plugged in but Windows
 reports a problem* — two different faults with two different remedies.
 
-## PowerShell trap for check authors
+## Never wrap a block of work in a silent catch
+
+Guarding one optional read is fine, because a failure genuinely means "absent"
+and the fallback is correct:
+
+```powershell
+try { $when = $cfg.generatedUtc } catch { }     # fine - absent is a real answer
+```
+
+Wrapping a *block of work* is not:
+
+```powershell
+try { ...twenty lines of searching... } catch { }   # never
+```
+
+This already cost a real defect. The stray-folder search threw, the empty catch
+swallowed it, the search silently stopped finding anything, and the gate went on
+reporting that all was well. A check that quietly stops working is worse than
+one that fails loudly, because nobody goes looking for it.
+
+Report it as `SKIP` with the message, and say it is a fault in the program
+rather than in the user's setup.
+
+## PowerShell traps for check authors
+
+**`-f` inside a method call.** The comma is an argument separator there, not an
+array constructor, so the format string receives one value for two placeholders
+and throws. This is what caused the silent failure above.
+
+```powershell
+$list.Add('{0} ({1})' -f $path, $n)      # throws
+$list.Add(('{0} ({1})' -f $path, $n))    # correct
+```
+
+**`+` resolves by the type of the left operand.** A number followed by a string
+tries to parse the string as a number. Use format strings.
+
+```powershell
+$total + ' packages'                      # throws
+'{0} packages' -f $total                  # correct
+```
+
+**Array parameters through `-File`.** PowerShell does not split a comma-separated
+value into an array when the script is invoked with `-File`, so `-Only A,B`
+arrives as a single string matching nothing. The host splits it defensively.
+
+
 
 The host runs under `Set-StrictMode -Version 2.0`. A function returning `@(...)`
 with exactly **one** element has that element unwrapped on return, so

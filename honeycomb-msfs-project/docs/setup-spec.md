@@ -89,6 +89,58 @@ Three entry points:
 - **Setup menu** — re-openable, each item individually re-runnable.
 - **Status view** — the same checks, read-only.
 
+## The startup sequence
+
+Fail first. Check everything cheap and foundational before anything expensive,
+and **change nothing until every check has passed**. When a check fails, nothing
+has been modified yet — that is the whole value of failing early, and it is lost
+the moment verification and work are interleaved.
+
+| | Phase | Blocking |
+|---|---|---|
+| 0 | Simulator not already running; configuration present, readable, current schema | yes |
+| 1 | **Alpha and Bravo connected and healthy** | yes |
+| 2 | Simulator install still valid; Community folder read from `UserCfg.opt` | yes |
+| 3 | FSUIPC installed, registered, knows both devices | yes |
+| 4 | Internet and SimBrief reachable | **no** |
+| 5 | Has the installed fleet changed since it was last classified | **no** |
+| — | *everything above is read-only; the gate passes here* | |
+| 6 | Snapshot, then scan and write assignments if the fleet changed | — |
+
+**Why hardware sits above the configuration checks.** It is independent of them,
+instant to test, and the thing most likely to be wrong on any given day. A USB
+cable is what changes; an install path is not. Reporting it first means the user
+is plugging the yoke in while the rest of the sequence runs.
+
+**Why the aircraft scan is not in the sequence.** It is work, and it writes.
+Phase 5 only takes a cheap fingerprint — package counts and modification times,
+about 80 ms across 1387 folders — to decide whether a scan is *needed*. The scan
+happens after the gate passes, after a snapshot.
+
+### Three states of the configuration file, which are not the same thing
+
+- **Missing** — this machine has not been set up. Expected, not a fault. Run
+  setup.
+- **Unreadable** — the file exists but will not parse. **Blocking, and never
+  self-healing.** A file that will not parse may still hold a working setup, and
+  quietly replacing it destroys the only copy of what used to work. Offer the
+  backup.
+- **Written by another version** — needs migrating, not guessing at. Blocking.
+
+A configuration recorded on a *different computer* is also worth saying out
+loud: every path and hardware identifier in it belongs to that other machine.
+
+### Drift is not a question
+
+When the configuration and the simulator disagree about where packages live, the
+**simulator is right** — `InstalledPackagesPath` in `UserCfg.opt` is the
+authority. So a moved Community folder is a fact to be read, reported and
+written back, not a question to put to the user.
+
+Only ask when the answer genuinely cannot be determined: the path the simulator
+names does not exist, or there are two installations and no way to tell which is
+meant. Never ask a question you already have the answer to.
+
 ## Phase 1 — find the simulator
 
 Distribution first: MSFS 2024 ships as a Microsoft Store/Xbox package

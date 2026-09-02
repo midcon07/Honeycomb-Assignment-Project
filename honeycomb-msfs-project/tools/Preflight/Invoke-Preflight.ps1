@@ -62,6 +62,14 @@ param(
 Set-StrictMode -Version 2.0
 $ErrorActionPreference = 'Stop'
 
+# Invoked with -File, PowerShell does not split a comma-separated value into an
+# array, so -Only Config,Simulator arrives as one string and silently matches
+# nothing. Split it here rather than leaving that trap for whoever uses the flag.
+if ($Only) {
+    $Only = @($Only | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } |
+              Where-Object { $_ })
+}
+
 # An unexpected error means the gate verified nothing it can stand behind, and
 # that must be reported as CANNOT RUN. Without this the script dies with exit
 # code 1, which is indistinguishable from a legitimate NO-GO - a crash wearing
@@ -175,6 +183,42 @@ function Get-InstalledPackagesPath {
         if ($line -match '^\s*InstalledPackagesPath\s+"(.+)"\s*$') { return $Matches[1] }
     }
     return $null
+}
+
+<#
+    The program's own record of this machine, written by setup and re-verified
+    on every launch. Checks read it; nothing in a check ever writes it.
+
+    Loading distinguishes three states that are NOT the same thing:
+
+      Missing      - this machine has not been set up. Expected, not a fault.
+      Unreadable   - the file exists but will not parse. Never overwrite it;
+                     a working configuration is one bad write away from being
+                     destroyed, and the backup is the way out.
+      Wrong schema - written by a different version of the program. Needs
+                     migrating, not guessing at.
+#>
+$script:ConfigPath = Join-PathSafe $env:LOCALAPPDATA 'HoneycombAssignment\config.json'
+$script:ConfigSchema = 1
+
+function Get-AppConfig {
+    if (-not (Test-PathSafe $script:ConfigPath)) {
+        return @{ State = 'Missing'; Path = $script:ConfigPath; Config = $null }
+    }
+    $raw = $null
+    try { $raw = Get-Content -LiteralPath $script:ConfigPath -Raw -ErrorAction Stop } catch {
+        return @{ State = 'Unreadable'; Path = $script:ConfigPath; Config = $null; Why = $_.Exception.Message }
+    }
+    $cfg = $null
+    try { $cfg = $raw | ConvertFrom-Json } catch {
+        return @{ State = 'Unreadable'; Path = $script:ConfigPath; Config = $null; Why = 'not valid JSON' }
+    }
+    $ver = 0
+    try { if ($cfg.PSObject.Properties['schemaVersion']) { $ver = [int]$cfg.schemaVersion } } catch { }
+    if ($ver -ne $script:ConfigSchema) {
+        return @{ State = 'WrongSchema'; Path = $script:ConfigPath; Config = $cfg; Found = $ver }
+    }
+    return @{ State = 'Ok'; Path = $script:ConfigPath; Config = $cfg }
 }
 
 # ------------------------------------------------------------ run the gate --
