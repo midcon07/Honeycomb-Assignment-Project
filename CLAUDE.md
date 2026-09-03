@@ -147,5 +147,11 @@ several round trips in one session.
 - Bravo lever 5 letter unconfirmed. `R U V` fits both measurements; the naive
   reading says otherwise. One hand assignment settles it.
 - Reverse zones: `THROTTLEn_SET` supports them, syntax not yet worked out.
+- **Lever calibration routine** and **deep configuration mode** — both deferred,
+  both specified in `notes/deep-configuration.md`. Basic path stays as designed;
+  these are opt-in.
+- Lever 1 may be saturated at `0` across the bottom of its *forward* range, not
+  just below the detent. If confirmed it is a hardware fault for Honeycomb's own
+  configuration utility, **not** something to hide behind scale and offset.
 - Piggyback reverser levers: switches of their own, or mechanical?
 - Nothing has ever run on midcon07's machine.
