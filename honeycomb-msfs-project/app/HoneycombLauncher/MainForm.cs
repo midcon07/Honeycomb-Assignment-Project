@@ -48,6 +48,14 @@ internal sealed partial class MainForm : Form
 
     private bool _checking;
 
+    /// <summary>
+    /// Starting the simulator enumerates devices, which fires a long run of
+    /// WM_DEVICECHANGE messages. Without a floor between runs the gate would
+    /// re-run continuously for the whole of a sim launch.
+    /// </summary>
+    private DateTime _lastCheck = DateTime.MinValue;
+    private static readonly TimeSpan MinBetweenChecks = TimeSpan.FromSeconds(15);
+
     public MainForm()
     {
         Text = "Honeycomb Preflight";
@@ -250,7 +258,9 @@ internal sealed partial class MainForm : Form
     {
         _cfg = AppConfig.Load(out _cfgProblem);
         await PushConfigAsync();
-        await PushPreflightAsync();
+        // Forced: RefreshAll is either the first load or the user pressing
+        // refresh, and neither should be silently skipped by the throttle.
+        await PushPreflightAsync(true);
         await PushPlanAsync();
     }
 
@@ -265,14 +275,27 @@ internal sealed partial class MainForm : Form
         aircraftUse = _cfg?.AircraftUse ?? new Dictionary<string, int>()
     });
 
-    private async Task PushPreflightAsync()
+    private Task PushPreflightAsync() => PushPreflightAsync(false);
+
+    /// <param name="force">
+    /// True when the user asked directly. Their refresh button must never be
+    /// ignored because a timer happened to run a moment earlier.
+    /// </param>
+    private async Task PushPreflightAsync(bool force)
     {
         // The gate takes a few seconds and shells out; overlapping runs would
         // just queue up behind each other during a burst of device changes.
         if (_checking) { Program.Log("preflight already running - skipped"); return; }
+
+        if (!force && DateTime.UtcNow - _lastCheck < MinBetweenChecks)
+        {
+            Program.Log("preflight throttled - checked recently");
+            return;
+        }
+
         _checking = true;
         try { await RunPreflightAsync(); }
-        finally { _checking = false; }
+        finally { _checking = false; _lastCheck = DateTime.UtcNow; }
     }
 
     private async Task RunPreflightAsync()

@@ -860,8 +860,12 @@ function renderChecklist() {
   var rows = [];
   var a = craft(S.selectedId);
 
-  if (S.preflightBusy || !S.preflight) {
-    rows.push({ chal: "Preflight", resp: "CHECKING", lamp: "a", tone: "a" });
+  /* A re-check must not blank the list. The old code replaced everything with
+     a single CHECKING row and then repopulated, so every device change during
+     simulator startup made the whole panel flip and come back. The last known
+     result stays on screen and the header says it is refreshing. */
+  if (!S.preflight) {
+    rows.push({ chal: "Preflight", resp: "CHECKING", lamp: "c", tone: "d" });
   } else if (S.preflight.error) {
     rows.push({ chal: "Preflight", resp: "CANNOT RUN", lamp: "r", tone: "r", row: "stop",
                 note: String(S.preflight.error).slice(0, 240), noteTone: "bad" });
@@ -929,7 +933,8 @@ function renderChecklist() {
                  : v === "SETUP NEEDED" ? "— Setup Needed —"
                  : "— Hold —";
   var outstanding = rows.filter(function (r) { return r.lamp === "r" || r.lamp === "a"; }).length;
-  setText("clStamp", outstanding + " of " + rows.length + " items outstanding");
+  setText("clStamp", (S.preflightBusy ? "rechecking · " : "") +
+                     outstanding + " of " + rows.length + " items outstanding");
 }
 
 function canLaunch() {

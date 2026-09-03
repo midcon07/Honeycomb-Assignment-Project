@@ -23,12 +23,18 @@
         # rather than one being asserted.
         $sim = @(Get-Process -ErrorAction SilentlyContinue |
                  Where-Object { $_.ProcessName -match '(?i)FlightSimulator|Limitless' })
+        # INFO, not WARN. The gate never writes anything, so a running simulator
+        # is not a problem for it - and once the user has pressed Start, the
+        # simulator running is the expected state. Warning about it then is
+        # noise, and noise is what teaches people to ignore amber.
+        #
+        # The blocking version of this belongs to SETUP, which does write, and
+        # must refuse while the simulator holds its configuration in memory.
         if ($sim.Count -gt 0) {
-            Add-Result 'Simulator not running' 'WARN' `
-                ('Microsoft Flight Simulator is already open (' + (($sim | ForEach-Object { $_.ProcessName }) -join ', ') + ').') `
-                'Close the simulator before setting anything up. Settings changed while it is running may be overwritten or ignored.'
+            Add-Result 'Simulator' 'INFO' `
+                ('Running (' + (($sim | ForEach-Object { $_.ProcessName }) -join ', ') + ')')
         } else {
-            Add-Result 'Simulator not running' 'PASS' 'Not running'
+            Add-Result 'Simulator' 'INFO' 'Not running'
         }
 
         # --- the configuration file -------------------------------------------
