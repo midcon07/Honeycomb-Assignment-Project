@@ -1,0 +1,99 @@
+# Honeycomb Assignment Project — working notes for Claude
+
+Read this first. It exists so a session does not re-derive what is already known.
+
+## What this is
+
+A launcher for **midcon07** — 84, flies MSFS 2024 alone midweek, cannot get help
+until Saturday. Mark (Midcon113) builds it; they fly together on Saturdays.
+
+**The deliverable is not profiles. It is a system that is never *silently* wrong.**
+Being broken and saying so plainly beats being subtly wrong. Everything else
+follows from that.
+
+Repo `midcon07/Honeycomb-Assignment-Project`, working branch `add-device-prober`,
+PR #1. Code lives under `honeycomb-msfs-project/`.
+
+## The launch flow
+
+1. Preflight gate — `tools/Preflight/`. **May block.**
+2. Flight plan — `tools/Get-SimBriefPlan.ps1`. **May never block.**
+3. Aircraft chosen, cap layout shown, physical setup confirmed.
+4. Add-ons started.
+5. MSFS started, **last**.
+
+## Settled — do not re-litigate
+
+- **FSUIPC owns the Alpha/Bravo bindings**, not MSFS. MSFS rewrites its own
+  binding store; FSUIPC's ini is file-based and diffable.
+- **Layout follows capability, not engine type.** Prop control *and* mixture →
+  constant-speed; mixture alone → fixed-pitch; neither → FADEC. Turboprops need
+  no special case.
+- **Chart underlays: rejected.** SimBrief's own app does charts. See
+  `notes/chart_underlays.md`.
+- **Reverser check in preflight: rejected.** Live state, wrong moment.
+- **The gate checks configuration that persists. Live state belongs in the sim.**
+- **No constant may originate as an observation from Mark's machine.**
+
+## Verified facts — measured, not assumed
+
+| | |
+|---|---|
+| Bravo | `VID_294B`/`PID_1901`, Alpha `PID_1900` |
+| Levers 1–6 → HID axis | `Y X Rz Ry Rx Z` |
+| Reverse detent buttons | `24 25 26 27 28 33` |
+| Axis range | `0`–`1023`; **saturates at 0 at the detent**, so the button is the only reverse signal |
+| Handles | 2 black, 2 blue, 2 red, 4 white jet throttles, 1 SPEED BRAKE, 1 FLAP |
+| MSFS 2024 | Store `Microsoft.Limitless_8wekyb3d8bbwe`; `UserCfg.opt` in its `LocalCache` |
+| Live Community | from `InstalledPackagesPath` — **never** by folder name |
+| Launch the sim | `shell:AppsFolder\Microsoft.Limitless_8wekyb3d8bbwe!App -FastLaunch` |
+| SDK | `C:\MSFS 2024 SDK\` 1.7.3, `MSFS2024_SDK` set. **.NET 8 works** with the managed wrapper. |
+| WebView2 runtime | present (151.x) |
+| SimBrief Pilot ID | 24481. Fetching a user's own plan needs **no API key**. |
+
+## Hard-won lessons — these cost real time
+
+**My error handling defaults to optimism.** Five separate times a check reported
+a confident answer it had not earned. On this project a false alarm is as
+damaging as a missed fault, because the user cannot tell them apart. Test
+*positively* for the thing you want.
+
+**Build files with the Write tool; use the shell only to run them.** Inline
+PowerShell through bash mangles backticks, apostrophes and heredocs. This cost
+several round trips in one session.
+
+**PowerShell traps that have already bitten:**
+
+- `-f` inside a method call — the comma is an argument separator, so the format
+  string gets one value for two placeholders. Wrap it: `.Add(('{0}' -f $x))`.
+- `+` resolves by the **left** operand's type. Number + string throws.
+- A function returning `@()` with one element returns the element; `.Count` then
+  throws under StrictMode. Return `,@()`.
+- Negative numbers as *positional* arguments parse as parameter names. Use named
+  parameters.
+- `-Only A,B` through `-File` arrives as one string, not an array.
+- `Invoke-WebRequest` on 5.1 needs `-UseBasicParsing` or it fails on HTML.
+- Exceptions from .NET method calls are wrapped; the `WebException` carrying the
+  HTTP response is at `.InnerException`.
+- `Join-Path` throws on an unknown drive. Use `[System.IO.Path]::Combine`.
+- **Never wrap a block of work in an empty `catch`.** One already hid a real
+  defect: a search threw, stopped finding anything, and the gate reported all
+  was well.
+
+## Conventions
+
+- Dependency-free PowerShell 5.1 for tools; no modules, no admin.
+- Execution policy is Undefined on a stock machine — always invoke with
+  `-NoProfile -ExecutionPolicy Bypass -File`.
+- Checks are **read-only**. Setup writes. Nothing mutates during verification.
+- User-facing text: plain words, one action, written to be read aloud down a
+  telephone. Name what he can see and touch.
+- Commit messages explain *why*, including what was rejected and what a test
+  actually proved.
+
+## Open
+
+- FSUIPC axis letters unconfirmed — predicted `X Y Z R U V`, needs the sim.
+- Alpha never seen enumerated.
+- Piggyback reverser levers: switches of their own, or mechanical?
+- Nothing has ever run on midcon07's machine.
