@@ -69,8 +69,8 @@ PR #1. Code lives under `honeycomb-msfs-project/`.
 | Axis range | `0`–`1023`; **saturates at 0 at the detent**, so the button is the only reverse signal. Re-confirmed by sweep: full forward `1023`, resting on the detent `0` with no button, past the detent `0` with button `24`. Idle therefore lands on the detent for free. |
 | FSUIPC input direction | **Inverted from HID**: `+16383` at the detent, `-16384` full forward. Hence the `*-0.5` scale. Measured, not explained. |
 | Lever 1 detent button | `24` |
-| Dead travel below the detent | **~15–20% of total lever travel**, pot saturated at `0` throughout. Hardware. Reads as "nothing happens" if travel is judged from the back stop. Not a config fault and not recoverable. |
-| First sim response | at `Y=7` of 1023, i.e. **0.7%** above the detent. The input path has no meaningful dead zone. |
+| Axis is clean | **Verified by symmetry.** Sweeping detent↔full-forward, the reversal plateaus are 13/9/5/5/3/4 samples at `0` against 10/13/4/3/4/4 at `1023` — mean 6.5 vs 6.3. A pot dead at the bottom would make the zero plateaus much longer than their paired maxima. No dead band. |
+| First sim response | at `Y=7` of 1023. Alone this proves nothing — a pot pinned across the first fifth of travel gives the same `7` on release. It only counts alongside the symmetry above. |
 | MSFS's own binding | the user's working Bravo profile responds only after **50%** — the plain "Throttle Axis" (bottom half reverse) instead of "Throttle Axis (0 to 100%)". **It is not a clean baseline for A/B tests.** |
 | Bravo switch rest state | buttons `19 32 35 37 39 41 43 44 47` are switch *positions*, always down |
 | Handles | 2 black, 2 blue, 2 red, 4 white jet throttles, 1 SPEED BRAKE, 1 FLAP |
@@ -150,8 +150,9 @@ several round trips in one session.
 - **Lever calibration routine** and **deep configuration mode** — both deferred,
   both specified in `notes/deep-configuration.md`. Basic path stays as designed;
   these are opt-in.
-- Lever 1 may be saturated at `0` across the bottom of its *forward* range, not
-  just below the detent. If confirmed it is a hardware fault for Honeycomb's own
-  configuration utility, **not** something to hide behind scale and offset.
+- Throttle still feels dead over the first 15–20% of lever travel in the DA62.
+  **The axis, FSUIPC, arithmetic and control are all verified good**, so the
+  suspect is the aircraft — a FADEC diesel's power lever has its own idle gate.
+  Next test is one aircraft change (C172), not another number.
 - Piggyback reverser levers: switches of their own, or mechanical?
 - Nothing has ever run on midcon07's machine.
