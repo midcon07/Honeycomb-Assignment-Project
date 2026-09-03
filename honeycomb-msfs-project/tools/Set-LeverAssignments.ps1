@@ -108,17 +108,27 @@ param(
     # If a lever ever twitches while untouched, its pot is noisy and this is the
     # number to raise.
     [int]      $Delta          = 32,
-    # MEASURED, both of these, and both properties of the quadrant rather than
-    # of any one lever - all six sit on one device and travel the same way.
+    # Which family of sim controls to drive.
     #
-    # The negative scale reverses direction: forward on the lever gave idle.
-    # The halving and offset fold the full -16384..+16383 control range down to
-    # 0..16383, so the whole lever travel is forward thrust. Without it the
-    # bottom half of the travel sends negative values, which are the control's
-    # reverse zone and simply read as idle - the throttle did not begin to move
-    # until halfway up the lever.
-    [double]   $AxisScale      = -0.5,
-    [int]      $AxisOffset     = 8192,
+    #   Axis    AXIS_THROTTLE1_SET and friends. Range -16383 (idle) to +16383,
+    #           so the whole lever maps straight across with no folding.
+    #   Legacy  THROTTLE1_SET and friends. 0 to 16383 forward, negative being
+    #           the reverse zone, so the range has to be folded into its top
+    #           half to keep the reverse zone out of the lever's travel.
+    #
+    # The reverse zone is what separates them, and this quadrant does not use
+    # it - the axis saturates at 0 at the detent and the detent button is the
+    # reverse signal. FSUIPC's own UseAxisControlsForNRZ setting exists to
+    # switch to the AXIS_ family in exactly that no-reverse-zone case, which is
+    # why Axis is the default here.
+    [ValidateSet('Axis','Legacy')]
+    [string]   $ControlFamily  = 'Axis',
+
+    # Left unset these follow ControlFamily, because the right arithmetic is a
+    # property of the control's range rather than a free choice. Set them only
+    # to override.
+    [nullable[double]] $AxisScale  = $null,
+    [nullable[int]]    $AxisOffset = $null,
     [string]   $FsuipcRoot     = 'C:\FSUIPC7',
     [switch]   $WaitForExit,
     [int]      $TimeoutSeconds = 300
@@ -129,17 +139,38 @@ $ErrorActionPreference = 'Stop'
 
 # Control numbers, read from "Controls List for MSFS Build 122.txt".
 #
-# The plain _SET family, NOT the AXIS_ family. FSUIPC was asked to assign one
-# axis by hand and it chose THROTTLE1_SET (65820) rather than
-# AXIS_THROTTLE1_SET (66420). The two take different value ranges, so this is
-# not cosmetic - guessing the AXIS_ variant is why the first attempt did
-# nothing.
-$CTRL = @{
-    ThrottleAll = 65697; PropAll = 65767; MixtureAll = 65773
-    Throttle1   = 65820; Throttle2 = 65821; Throttle3 = 65822; Throttle4 = 65823
-    Prop1       = 65923; Prop2     = 65924; Prop3     = 65925; Prop4     = 65926
-    Mixture1    = 65919; Mixture2  = 65920; Mixture3  = 65921; Mixture4  = 65922
-    Spoiler     = 65786; Flaps     = 65698
+# The two families take different value ranges, so the family and the
+# arithmetic below have to move together. Picking a control from one and a
+# range from the other is silent: the lever moves, just not correctly.
+#
+#   Axis    -16383 idle .. +16383 max      scale -1,   offset 0
+#   Legacy       0 idle .. +16383 max      scale -0.5, offset +8192
+#           (negative being Legacy's reverse zone, which is why its range has
+#            to be folded into the top half)
+#
+# The negative scale in both is the measured direction of this quadrant:
+# FSUIPC reads +16383 at the detent and -16384 at full forward, opposite to
+# the HID numbers.
+$CTRL_BY_FAMILY = @{
+
+    # The modern direct-axis controls. Range -16383 (idle) to +16383 (max).
+    Axis = @{
+        ThrottleAll = 65765; PropAll = 66291; MixtureAll = 66292
+        Throttle1   = 66420; Throttle2 = 66423; Throttle3 = 66426; Throttle4 = 66429
+        Prop1       = 66421; Prop2     = 66424; Prop3     = 66427; Prop4     = 66430
+        Mixture1    = 66422; Mixture2  = 66425; Mixture3  = 66428; Mixture4  = 66431
+        Spoiler     = 66382; Flaps     = 66534
+    }
+
+    # The older family, which carries the reverse zone below zero. Kept so the
+    # two can be compared directly rather than swapped on a hunch.
+    Legacy = @{
+        ThrottleAll = 65697; PropAll = 65767; MixtureAll = 65773
+        Throttle1   = 65820; Throttle2 = 65821; Throttle3 = 65822; Throttle4 = 65823
+        Prop1       = 65923; Prop2     = 65924; Prop3     = 65925; Prop4     = 65926
+        Mixture1    = 65919; Mixture2  = 65920; Mixture3  = 65921; Mixture4  = 65922
+        Spoiler     = 65786; Flaps     = 65698
+    }
 }
 
 # Names for the trailing comment, matching FSUIPC's own style.
@@ -149,26 +180,39 @@ $CTRL_NAME = @{
     65923 = 'PROP_PITCH1_SET'; 65924 = 'PROP_PITCH2_SET'; 65925 = 'PROP_PITCH3_SET'; 65926 = 'PROP_PITCH4_SET'
     65919 = 'MIXTURE1_SET'; 65920 = 'MIXTURE2_SET'; 65921 = 'MIXTURE3_SET'; 65922 = 'MIXTURE4_SET'
     65786 = 'SPOILERS_SET'; 65698 = 'FLAPS_SET'
+
+    65765 = 'AXIS_THROTTLE_SET'; 66291 = 'AXIS_PROPELLER_SET'; 66292 = 'AXIS_MIXTURE_SET'
+    66420 = 'AXIS_THROTTLE1_SET'; 66423 = 'AXIS_THROTTLE2_SET'; 66426 = 'AXIS_THROTTLE3_SET'; 66429 = 'AXIS_THROTTLE4_SET'
+    66421 = 'AXIS_PROPELLER1_SET'; 66424 = 'AXIS_PROPELLER2_SET'; 66427 = 'AXIS_PROPELLER3_SET'; 66430 = 'AXIS_PROPELLER4_SET'
+    66422 = 'AXIS_MIXTURE1_SET'; 66425 = 'AXIS_MIXTURE2_SET'; 66428 = 'AXIS_MIXTURE3_SET'; 66431 = 'AXIS_MIXTURE4_SET'
+    66382 = 'AXIS_SPOILER_SET'; 66534 = 'AXIS_FLAPS_SET'
 }
 
 # What each lever drives, per layout. Index 0-5 is lever 1-6; $null means the
 # lever is unused and gets no assignment at all.
 $LAYOUTS = @{
-    prop_1_fixed = @($CTRL.ThrottleAll, $CTRL.MixtureAll, $null, $null, $null, $null)
-    prop_1_cs    = @($CTRL.ThrottleAll, $CTRL.PropAll, $CTRL.MixtureAll, $null, $null, $null)
-    prop_2_fixed = @($CTRL.Throttle1, $CTRL.Throttle2, $CTRL.Mixture1, $CTRL.Mixture2, $null, $null)
-    prop_2_cs    = @($CTRL.Throttle1, $CTRL.Throttle2, $CTRL.Prop1, $CTRL.Prop2, $CTRL.Mixture1, $CTRL.Mixture2)
-    fadec_1      = @($CTRL.ThrottleAll, $null, $null, $null, $null, $null)
-    fadec_2      = @($CTRL.Throttle1, $CTRL.Throttle2, $null, $null, $null, $null)
-    jet_1        = @($CTRL.Spoiler, $null, $CTRL.Throttle1, $null, $null, $CTRL.Flaps)
-    jet_2        = @($CTRL.Spoiler, $null, $CTRL.Throttle1, $CTRL.Throttle2, $null, $CTRL.Flaps)
-    jet_3        = @($CTRL.Spoiler, $null, $CTRL.Throttle1, $CTRL.Throttle2, $CTRL.Throttle3, $CTRL.Flaps)
-    jet_4        = @($CTRL.Spoiler, $CTRL.Throttle1, $CTRL.Throttle2, $CTRL.Throttle3, $CTRL.Throttle4, $CTRL.Flaps)
-    glider       = @($CTRL.Spoiler, $null, $null, $null, $null, $null)
+    prop_1_fixed = @('ThrottleAll', 'MixtureAll', $null, $null, $null, $null)
+    prop_1_cs    = @('ThrottleAll', 'PropAll', 'MixtureAll', $null, $null, $null)
+    prop_2_fixed = @('Throttle1', 'Throttle2', 'Mixture1', 'Mixture2', $null, $null)
+    prop_2_cs    = @('Throttle1', 'Throttle2', 'Prop1', 'Prop2', 'Mixture1', 'Mixture2')
+    fadec_1      = @('ThrottleAll', $null, $null, $null, $null, $null)
+    fadec_2      = @('Throttle1', 'Throttle2', $null, $null, $null, $null)
+    jet_1        = @('Spoiler', $null, 'Throttle1', $null, $null, 'Flaps')
+    jet_2        = @('Spoiler', $null, 'Throttle1', 'Throttle2', $null, 'Flaps')
+    jet_3        = @('Spoiler', $null, 'Throttle1', 'Throttle2', 'Throttle3', 'Flaps')
+    jet_4        = @('Spoiler', 'Throttle1', 'Throttle2', 'Throttle3', 'Throttle4', 'Flaps')
+    glider       = @('Spoiler', $null, $null, $null, $null, $null)
 }
 
 
 if ($AxisLetters.Count -ne 6) { throw "AxisLetters needs exactly 6 entries, one per lever." }
+
+$CTRL = $CTRL_BY_FAMILY[$ControlFamily]
+
+# Defaulted here rather than in the param block because they depend on the
+# family. An explicit value always wins, so an override is still possible.
+if ($null -eq $AxisScale)  { $AxisScale  = if ($ControlFamily -eq 'Axis') { -1.0 } else { -0.5 } }
+if ($null -eq $AxisOffset) { $AxisOffset = if ($ControlFamily -eq 'Axis') {    0 } else {  8192 } }
 
 $ini = [System.IO.Path]::Combine($FsuipcRoot, 'FSUIPC7.ini')
 if (-not (Test-Path -LiteralPath $ini)) { throw "No FSUIPC7.ini at $ini" }
@@ -216,8 +260,9 @@ $lines = New-Object System.Collections.ArrayList
 
 $n = 0
 for ($lever = 0; $lever -lt 6; $lever++) {
-    $c = $controls[$lever]
-    if ($null -eq $c) { continue }
+    $role = $controls[$lever]
+    if ($null -eq $role) { continue }
+    $c = $CTRL[$role]
     # Documented format, FSUIPC7 for Advanced Users, "Axis Assignments":
     #   n=ja,(R)delta(/delay),ForD,ctl1,ctl2,ctl3,ctl4
     # An R prefix on the delta means Raw mode; no prefix means calibrated.
@@ -250,7 +295,10 @@ $section = $lines -join "`r`n"
 
 Write-Host ''
 Write-Host ('Layout: {0}' -f $Layout)
-Write-Host ('Quadrant is joystick "{0}"; lever letters {1}' -f $JoystickLetter, ($AxisLetters -join ' '))
+Write-Host ('Controls: {0} family, scale {1}, offset {2}, delta {3}' -f `
+    $ControlFamily, $AxisScale.ToString([cultureinfo]::InvariantCulture), $AxisOffset, $Delta)
+Write-Host ('Quadrant is joystick "{0}"; lever letters {1}' -f `
+    $JoystickLetter, ($AxisLetters -join ' '))
 Write-Host ''
 Write-Host $section
 Write-Host ''
