@@ -42,6 +42,10 @@ PR #1. Code lives under `honeycomb-msfs-project/`.
 - **Chart underlays: rejected.** SimBrief's own app does charts. See
   `notes/chart_underlays.md`.
 - **Reverser check in preflight: rejected.** Live state, wrong moment.
+- **FSUIPC has two axis forms and they are not interchangeable.**
+  `F` sends a sim control and does **no scaling** — a `0`–`1023` lever into a
+  `0`–`16383` control gives 6.2% of travel. `D` sends to FSUIPC's calibration,
+  which maps the ranges. Assigning is not calibrating; they are separate steps.
 - **The gate checks configuration that persists. Live state belongs in the sim.**
 - **No constant may originate as an observation from Mark's machine.**
 
@@ -52,6 +56,8 @@ PR #1. Code lives under `honeycomb-msfs-project/`.
 | Bravo | `VID_294B`/`PID_1901`, Alpha `PID_1900` |
 | Rudder pedals | **WINWING Orion Combat Rudder Pedals (Metal)**, `VID_4098`/`PID_BEF0`. 3 axes, no buttons: `Rz` rudder (centres at 32768), `Rx` and `Ry` toe brakes. **Range 0-65535, not the Bravo's 0-1023.** |
 | Levers 1–6 → HID axis | `Y X Rz Ry Rx Z` |
+| Levers 1–6 → FSUIPC letter | `Y X R U V Z`. Levers 1 and 3 **measured**. Not the obvious convention: `Rz` is `R`, not `V`. Linear axes keep their usage letter; rotational ones are lettered in report-descriptor order. |
+| FSUIPC joystick letters | Bravo `B`, pedals `C`, **Alpha `D`** |
 | Reverse detent buttons | `24 25 26 27 28 33` |
 | Axis range | `0`–`1023`; **saturates at 0 at the detent**, so the button is the only reverse signal |
 | Handles | 2 black, 2 blue, 2 red, 4 white jet throttles, 1 SPEED BRAKE, 1 FLAP |
@@ -68,6 +74,17 @@ PR #1. Code lives under `honeycomb-msfs-project/`.
 a confident answer it had not earned. On this project a false alarm is as
 damaging as a missed fault, because the user cannot tell them apart. Test
 *positively* for the thing you want.
+
+**Never guess FSUIPC ini syntax — make FSUIPC write it.** Assign one thing by
+hand, close FSUIPC, run `tools/Read-FsuipcConfig.ps1`, copy what it wrote. A
+wrong format is *silently discarded*, so it looks exactly like a lever that does
+nothing. Guessing has failed twice here; this technique has worked every time.
+
+**When a mistake gets written down, write down the right thing.** The first bad
+`[Axes]` line was recorded as "invented syntax". It was the real `D` form with a
+control number in the wrong field — and `D` is the form actually needed. That
+note would have steered the next reader away from the answer. A wrong
+post-mortem outlasts the bug it describes.
 
 **Build files with the Write tool; use the shell only to run them.** Inline
 PowerShell through bash mangles backticks, apostrophes and heredocs. This cost
@@ -104,7 +121,8 @@ several round trips in one session.
 
 ## Open
 
-- FSUIPC axis letters unconfirmed — predicted `X Y Z R U V`, needs the sim.
-- Alpha never seen enumerated.
+- Bravo lever 5 letter unconfirmed. `R U V` fits both measurements; the naive
+  reading says otherwise. One hand assignment settles it.
+- Throttle scaling: `D` form + calibration, syntax to be read off FSUIPC.
 - Piggyback reverser levers: switches of their own, or mechanical?
 - Nothing has ever run on midcon07's machine.
