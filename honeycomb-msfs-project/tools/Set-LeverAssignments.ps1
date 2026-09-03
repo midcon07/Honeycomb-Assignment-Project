@@ -23,11 +23,31 @@
         and drops what it cannot resolve, without saying so - so a wrong format
         looks exactly like a lever that does nothing.
 
-    That hand assignment also confirmed lever 1 is axis letter Y, which matches
-    the DirectInput convention the remaining letters are predicted from: X, Y, Z
-    map to X, Y, Z and Rx, Ry, Rz map to R, U, V. Any still-unconfirmed letter
-    fails loudly - a lever visibly drives the wrong thing - and -AxisLetters
-    corrects it without editing this file.
+    THE AXIS LETTERS ARE NOT WHAT THE OBVIOUS CONVENTION PREDICTS.
+
+    Two levers were assigned by hand and read back:
+
+        lever 1  ->  BY      (HID usage Y)
+        lever 3  ->  BR      (HID usage Rz)
+
+    Lever 1 matches usage. Lever 3 does not: the naive reading of the
+    DirectInput convention says Rz becomes V, and it is R.
+
+    What fits both measurements is that the linear axes keep their usage
+    letters while the ROTATIONAL axes are lettered in the order they appear in
+    the report descriptor. The prober reads the Bravo's axes in the order
+    Y, X, Rz, Ry, Rx, Z - so the rotational ones appear as Rz, Ry, Rx and take
+    R, U, V in that order.
+
+    That gives lever letters  Y  X  R  U  V  Z.
+
+    Levers 1 and 3 are measured. Levers 2, 4, 5 and 6 follow from the theory
+    that explains those two, and are not yet confirmed. Levers 3 and 5 are the
+    ones that swap between the two theories, so assigning lever 5 by hand would
+    settle it: R-U-V predicts V there, the naive reading predicts R.
+
+    Any wrong letter fails loudly - a lever visibly drives the wrong thing - and
+    -AxisLetters corrects it without editing this file.
 
 .PARAMETER Layout
     Which of the eleven layouts to write. See data/lever-layouts.json.
@@ -58,7 +78,8 @@ param(
                  'fadec_1','fadec_2','jet_1','jet_2','jet_3','jet_4','glider')]
     [string]   $Layout,
     [string]   $JoystickLetter = 'B',
-    [string[]] $AxisLetters    = @('Y','X','V','U','R','Z'),
+    # MEASURED, not predicted, for levers 1 and 3. See the notes below.
+    [string[]] $AxisLetters    = @('Y','X','R','U','V','Z'),
     [string]   $FsuipcRoot     = 'C:\FSUIPC7'
 )
 
