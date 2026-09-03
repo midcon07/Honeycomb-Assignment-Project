@@ -95,11 +95,13 @@ No poppler here, so convert with Word: open the PDF, read `$doc.Content.Text`.
 by hand, close FSUIPC, run `tools/Read-FsuipcConfig.ps1`. A wrong format is
 *silently discarded*, so it looks exactly like a lever that does nothing.
 
-**When a mistake gets written down, write down the right thing.** The first bad
-`[Axes]` line was recorded as "invented syntax". It was the real `D` form with a
-control number in the wrong field — and `D` is the form actually needed. That
-note would have steered the next reader away from the answer. A wrong
-post-mortem outlasts the bug it describes.
+**A wrong post-mortem outlasts the bug it describes.** This one bug got written
+up wrongly *twice* before the manual settled it — first as "invented syntax"
+(it was the real `D` form, misfielded), then as "`F` does no scaling, use `D`"
+(`F` was always fine; Raw was the fault). Both were inference recorded as fact,
+in the file every session loads and believes. Say which parts of a write-up were
+measured and which were reasoned, or a later session inherits the guess as
+settled knowledge.
 
 **Build files with the Write tool; use the shell only to run them.** Inline
 PowerShell through bash mangles backticks, apostrophes and heredocs. This cost
