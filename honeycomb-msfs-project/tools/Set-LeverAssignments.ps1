@@ -143,14 +143,29 @@ $ErrorActionPreference = 'Stop'
 # arithmetic below have to move together. Picking a control from one and a
 # range from the other is silent: the lever moves, just not correctly.
 #
-#   Axis    -16383 idle .. +16383 max      scale -1,   offset 0
-#   Legacy       0 idle .. +16383 max      scale -0.5, offset +8192
+#   Axis    -16383 idle .. +16383 max      scale -0.5,  offset 0
+#   Legacy       0 idle .. +16383 max      scale -0.25, offset +8192
 #           (negative being Legacy's reverse zone, which is why its range has
 #            to be folded into the top half)
 #
-# The negative scale in both is the measured direction of this quadrant:
-# FSUIPC reads +16383 at the detent and -16384 at full forward, opposite to
-# the HID numbers.
+# THE INPUT RANGE IS +-32768, NOT +-16384. The manual says both. Its worked
+# example for these parameters says "if the normal input range of an axis is
+# -16384 to +16383", but its description of calibrated DirectInput values says
+# they "vary enormously between large numbers like -32767 and +32767". The
+# second one is true here, and the hardware settled it:
+#
+#   scale -1 on Legacy    dead below halfway          reported as such
+#   scale -0.5            dead over the outer quarter reported at both ends
+#
+# Output is clamped - "constrained to be in the range -16384 to +16383" - so a
+# scale twice too large pins the outer quarter of the travel at each end and
+# leaves only the middle live. Dead at BOTH extremes with a responsive middle
+# is the signature of that, and is what distinguishes it from a dead pot,
+# which is dead at one end only.
+#
+# The negative sign is the measured direction of this quadrant: FSUIPC reads
+# positive at the detent and negative at full forward, opposite to the HID
+# numbers.
 $CTRL_BY_FAMILY = @{
 
     # The modern direct-axis controls. Range -16383 (idle) to +16383 (max).
@@ -211,8 +226,8 @@ $CTRL = $CTRL_BY_FAMILY[$ControlFamily]
 
 # Defaulted here rather than in the param block because they depend on the
 # family. An explicit value always wins, so an override is still possible.
-if ($null -eq $AxisScale)  { $AxisScale  = if ($ControlFamily -eq 'Axis') { -1.0 } else { -0.5 } }
-if ($null -eq $AxisOffset) { $AxisOffset = if ($ControlFamily -eq 'Axis') {    0 } else {  8192 } }
+if ($null -eq $AxisScale)  { $AxisScale  = if ($ControlFamily -eq 'Axis') { -0.5 } else { -0.25 } }
+if ($null -eq $AxisOffset) { $AxisOffset = if ($ControlFamily -eq 'Axis') {     0 } else {   8192 } }
 
 $ini = [System.IO.Path]::Combine($FsuipcRoot, 'FSUIPC7.ini')
 if (-not (Test-Path -LiteralPath $ini)) { throw "No FSUIPC7.ini at $ini" }
