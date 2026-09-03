@@ -96,6 +96,10 @@ param(
     # MEASURED, not predicted, for levers 1 and 3. See the notes below.
     [string[]] $AxisLetters    = @('Y','X','R','U','V','Z'),
     [int]      $Delta          = 256,
+    # MEASURED: the quadrant reads backwards - forward on the lever gave idle.
+    # Every lever is on the same device and travels the same way, so this is a
+    # property of the quadrant, not of any one lever.
+    [bool]     $ReverseAxes    = $true,
     [string]   $FsuipcRoot     = 'C:\FSUIPC7',
     [switch]   $WaitForExit,
     [int]      $TimeoutSeconds = 300
@@ -199,9 +203,15 @@ for ($lever = 0; $lever -lt 6; $lever++) {
     #   n=ja,(R)delta(/delay),ForD,ctl1,ctl2,ctl3,ctl4
     # An R prefix on the delta means Raw mode; no prefix means calibrated.
     # F sends an FS control, D sends to FSUIPC's calibration.
+    #
+    # A trailing ",*<number>" multiplies the axis value before it is sent, and
+    # the documentation is explicit that it "can be negative, to reverse the
+    # axis direction". The input range is symmetric about zero, so *-1 is the
+    # whole reversal - no offset term is needed.
     $axis = '{0}{1}' -f $JoystickLetter, $AxisLetters[$lever]
-    [void]$lines.Add(("{0}={1},{2},F,{3},0,0,0`t-{{ TO SIM: {4} }}-" -f `
-        $n, $axis, $Delta, $c, $CTRL_NAME[$c]))
+    $rev  = if ($ReverseAxes) { ',*-1' } else { '' }
+    [void]$lines.Add(("{0}={1},{2},F,{3},0,0,0{4}`t-{{ TO SIM: {5} }}-" -f `
+        $n, $axis, $Delta, $c, $rev, $CTRL_NAME[$c]))
     $n++
 }
 
