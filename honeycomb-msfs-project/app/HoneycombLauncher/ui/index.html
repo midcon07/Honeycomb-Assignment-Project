@@ -575,7 +575,7 @@
       <!-- ============ RIGHT: flight plan ============ -->
       <section class="plate">
         <div class="plate-title">
-          <span>Flight Plan</span>
+          <span>Flight Plan &mdash; <span id="craftName" style="letter-spacing:.06em">&mdash;</span></span>
           <span class="sub" id="mapStamp"></span>
         </div>
         <div class="map-wrap">
@@ -675,6 +675,23 @@ function el(tag, cls, text) {
   return n;
 }
 function byId(id) { return document.getElementById(id); }
+
+/* A missing element must not be able to stop everything else drawing. One
+   invented id - craftName - threw inside render() and silently killed every
+   renderer after it, so the map, the profile and the caps diagram never ran.
+   Writes go through here, which reports the mistake and carries on. */
+function setText(id, value) {
+  var n = document.getElementById(id);
+  if (!n) {
+    if (!setText.warned) { setText.warned = {}; }
+    if (!setText.warned[id]) {
+      setText.warned[id] = true;
+      post({ action: "uiWarning", detail: "no element with id " + id });
+    }
+    return;
+  }
+  n.textContent = value;
+}
 function craft(id) {
   for (var i = 0; i < FLEET.length; i++) { if (FLEET[i].id === id) { return FLEET[i]; } }
   return null;
@@ -803,6 +820,10 @@ function renderAlert() {
     return;
   }
   if (st === "busy")   { show("warn", "·", "Checking your flight plan", "One moment.", false); return; }
+  // Config always arrives before the plan, so this state happens on every
+  // start. Without it the code fell through to the success branch and read a
+  // null plan, which threw and stopped every renderer after it.
+  if (st === "none")   { show("warn", "·", "Flight plan not loaded yet", "Press refresh if this stays.", false); return; }
   if (st === "nopilot") {
     show("warn", "?", "SimBrief is not set up yet",
          "Enter your SimBrief Pilot ID below and your flight plan will be checked automatically.", true);
@@ -897,7 +918,7 @@ function renderChecklist() {
                  : v === "SETUP NEEDED" ? "— Setup Needed —"
                  : "— Hold —";
   var outstanding = rows.filter(function (r) { return r.lamp === "r" || r.lamp === "a"; }).length;
-  byId("clStamp").textContent = outstanding + " of " + rows.length + " items outstanding";
+  setText("clStamp", outstanding + " of " + rows.length + " items outstanding");
 }
 
 function canLaunch() {
@@ -919,11 +940,11 @@ function renderLaunch() {
 
 function renderPlanPane() {
   var a = craft(S.selectedId);
-  byId("craftName").textContent = a ? a.name : "—";
+  setText("craftName", a ? a.name : "—");
   var L = a ? LAYOUTS[a.layout] : null;
-  byId("mapStamp").textContent = S.plan && S.plan.OriginIcao
+  setText("mapStamp", S.plan && S.plan.OriginIcao
     ? (S.plan.OriginIcao + " → " + S.plan.DestIcao)
-    : (L ? L.name : "");
+    : (L ? L.name : ""));
 
   var strip = byId("strip");
   strip.textContent = "";
@@ -1076,7 +1097,7 @@ function renderQuadrant() {
   host.textContent = "";
   var a = craft(S.selectedId);
   var L = a ? LAYOUTS[a.layout] : null;
-  byId("capsStamp").textContent = L ? L.name : "choose an aircraft";
+  setText("capsStamp", L ? L.name : "choose an aircraft");
   if (!L) {
     var m = el("div", "cl-note", "Choose an aircraft and the lever setup will be shown here.");
     m.style.gridColumn = "1 / -1";
@@ -1110,9 +1131,9 @@ function render() {
   renderChart();
   renderProfile();
   renderQuadrant();
-  byId("foot").textContent = S.config && S.config.problem
+  setText("foot", S.config && S.config.problem
     ? S.config.problem
-    : "Preflight and flight plan read live from this computer.";
+    : "Preflight and flight plan read live from this computer.");
 }
 
 /* ---------------------------------------------------------------- wiring -- */
