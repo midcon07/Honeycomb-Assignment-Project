@@ -40,7 +40,7 @@ PR #1. Code lives under `honeycomb-msfs-project/`.
 | | |
 |---|---|
 | Bravo | `VID_294B`/`PID_1901`, Alpha `PID_1900` |
-| Rudder pedals | **WINWING Orion Combat Rudder Pedals (Metal)**, `VID_4098`/`PID_BEF0`. 3 axes, no buttons: `Rz` rudder (centres at 32768), `Rx` and `Ry` toe brakes. **Range 0-65535, not the Bravos 0-1023.** |
+| Rudder pedals | **WINWING Orion Combat Rudder Pedals (Metal)**, `VID_4098`/`PID_BEF0`. 3 axes, no buttons: `Rz` rudder (centres at 32768), `Rx` and `Ry` toe brakes. **Range 0-65535, not the Bravo's 0-1023.** |
 | Levers 1–6 → HID axis | `Y X Rz Ry Rx Z` |
 | Reverse detent buttons | `24 25 26 27 28 33` |
 | Axis range | `0`–`1023`; **saturates at 0 at the detent**, so the button is the only reverse signal |
