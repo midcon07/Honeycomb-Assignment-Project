@@ -444,6 +444,61 @@
     fill: var(--placard-faint);
   }
 
+  /* ---- lever caps diagram ------------------------------------------ */
+  /* Handle silhouettes follow the real parts: the black throttle is a tall
+     flat block, the blue prop head a ribbed barrel, the red mixture head
+     domed, the jet throttle waisted, SPEED BRAKE a tall blade and FLAP a
+     squat block. Shape carries the same information as colour, which matters
+     because on jets every handle is white. */
+  .capsblock { margin-top: 12px; }
+  .capsblock .plate-title { margin-bottom: 10px; }
+  .quadrant {
+    display: grid; grid-template-columns: repeat(6, 1fr);
+    gap: 6px; padding: 10px 4px 4px;
+    background: var(--recess-deep); border-radius: 3px;
+    box-shadow: inset 0 2px 7px rgba(0,0,0,.8);
+    overflow-x: auto;
+  }
+  .lever { display: flex; flex-direction: column; align-items: center;
+           padding: 4px 2px 8px; border-radius: 2px; }
+  .lever.is-empty { opacity: .55; }
+  .cap-slot { position: relative; height: 46px;
+              display: flex; align-items: flex-end; justify-content: center; }
+  .cap { border: 2px solid; }
+  .cap[data-cap="black"] { width: 48px; height: 38px; border-radius: 4px 4px 3px 3px;
+    background: #12151A; border-color: #767F8B;
+    background-image: linear-gradient(180deg, rgba(255,255,255,.16), transparent 42%); }
+  .cap[data-cap="blue"] { width: 40px; height: 30px; border-radius: 5px;
+    background-color: #3B85E8; border-color: #7FB2F2;
+    background-image: repeating-linear-gradient(90deg, rgba(0,0,0,.26) 0 2px, rgba(255,255,255,.10) 2px 6px); }
+  .cap[data-cap="red"] { width: 38px; height: 30px; border-radius: 11px 11px 8px 8px;
+    background-color: #E14848; border-color: #F08A8A;
+    background-image: radial-gradient(120% 90% at 35% 22%, rgba(255,255,255,.30), transparent 58%); }
+  .cap[data-cap="jet"] { width: 44px; height: 36px; background: #F2F5F8; border: none;
+    clip-path: polygon(0 0, 100% 0, 70% 33%, 70% 67%, 100% 100%, 0 100%, 30% 67%, 30% 33%);
+    filter: drop-shadow(1.5px 0 0 #AEB7C2) drop-shadow(-1.5px 0 0 #AEB7C2)
+            drop-shadow(0 1.5px 0 #AEB7C2) drop-shadow(0 -1.5px 0 #AEB7C2); }
+  .cap[data-cap="sb"]   { width: 18px; height: 44px; border-radius: 3px;
+    background: #F2F5F8; border-color: #AEB7C2; }
+  .cap[data-cap="flap"] { width: 46px; height: 26px; border-radius: 3px;
+    background: #F2F5F8; border-color: #AEB7C2; }
+  .cap[data-cap="none"] { width: 38px; height: 22px; border-radius: 4px;
+    background: transparent; border-color: #565E69; border-style: dashed; }
+  .stem { width: 7px; height: 22px;
+          background: linear-gradient(90deg, var(--plate-slot), var(--rule-strong) 45%, var(--plate-slot)); }
+  .lever.is-empty .stem { opacity: .35; }
+  .plate-bar { width: 100%; height: 12px; background: var(--plate); border-radius: 2px;
+               display: grid; place-items: center; }
+  .plate-bar span { display: block; width: 18px; height: 4px;
+                    background: var(--plate-slot); border-radius: 3px; }
+  .lv-pos { font-family: var(--f-readout); font-size: 10px; letter-spacing: .1em;
+            color: var(--placard-faint); margin-top: 8px; }
+  .lv-cap { font-weight: 700; text-transform: uppercase; letter-spacing: .08em;
+            font-size: 12px; color: var(--placard-dim); margin-top: 2px; text-align: center; }
+  .lv-fn  { font-weight: 700; font-size: 14px; line-height: 1.1; margin-top: 4px;
+            text-align: center; color: var(--placard); text-wrap: balance; }
+  .lever.is-empty .lv-fn, .lever.is-empty .lv-cap { color: var(--placard-faint); font-weight: 500; }
+
   /* ---- data strip -------------------------------------------------- */
   .strip {
     display: grid; grid-template-columns: repeat(auto-fit, minmax(94px, 1fr));
@@ -530,6 +585,14 @@
         <div class="map-wrap" style="margin-top:8px"><svg id="profile" viewBox="0 0 620 96" role="img"
              aria-label="Vertical profile"></svg></div>
         <div class="strip" id="strip"></div>
+
+        <div class="capsblock">
+          <div class="plate-title">
+            <span>Lever Caps</span>
+            <span class="sub" id="capsStamp"></span>
+          </div>
+          <div class="quadrant" id="quadrant"></div>
+        </div>
       </section>
 
     </div>
@@ -545,19 +608,36 @@
 /* Data-driven console. Everything comes from the host application; nothing
    here is hardcoded state. The PowerShell tools remain the source of truth. */
 
+/* The eleven layouts. caps/fns are per lever, 1 to 6, so the diagram is drawn
+   from the same data the summary line is written from. Mirrors
+   data/lever-layouts.json; that file is the source of truth. */
+var B = "black", U = "blue", R = "red", J = "jet", SB = "sb", FL = "flap", X = "none";
 var LAYOUTS = {
-  prop_1_fixed: { name: "Single engine, fixed-pitch prop",   caps: "BLACK and RED on levers 1 and 2" },
-  prop_1_cs:    { name: "Single engine, constant-speed prop", caps: "BLACK, BLUE, RED on levers 1 to 3" },
-  prop_2_fixed: { name: "Twin engine, fixed-pitch prop",      caps: "2 x BLACK, 2 x RED on levers 1 to 4" },
-  prop_2_cs:    { name: "Twin engine, constant-speed prop",   caps: "2 x BLACK, 2 x BLUE, 2 x RED - all six" },
-  fadec_1:      { name: "Single engine, FADEC",               caps: "BLACK on lever 1, the rest empty" },
-  fadec_2:      { name: "Twin engine, FADEC",                 caps: "2 x BLACK on levers 1 and 2, the rest empty" },
-  jet_1:        { name: "Single engine jet",                  caps: "SPEED BRAKE, 1 throttle, FLAP" },
-  jet_2:        { name: "Twin engine jet",                    caps: "SPEED BRAKE, 2 throttles, FLAP" },
-  jet_3:        { name: "Tri engine jet",                     caps: "SPEED BRAKE, 3 throttles, FLAP" },
-  jet_4:        { name: "Four engine jet",                    caps: "SPEED BRAKE, 4 throttles, FLAP" },
-  glider:       { name: "Glider",                             caps: "SPEED BRAKE only, the rest empty" }
+  prop_1_fixed: { name: "Single engine, fixed-pitch prop", caps: "BLACK and RED on levers 1 and 2",
+    lv: [B,R,X,X,X,X], fns: ["Throttle","Mixture",null,null,null,null] },
+  prop_1_cs: { name: "Single engine, constant-speed prop", caps: "BLACK, BLUE, RED on levers 1 to 3",
+    lv: [B,U,R,X,X,X], fns: ["Throttle","Prop","Mixture",null,null,null] },
+  prop_2_fixed: { name: "Twin engine, fixed-pitch prop", caps: "2 x BLACK, 2 x RED on levers 1 to 4",
+    lv: [B,B,R,R,X,X], fns: ["Throttle 1","Throttle 2","Mixture 1","Mixture 2",null,null] },
+  prop_2_cs: { name: "Twin engine, constant-speed prop", caps: "2 x BLACK, 2 x BLUE, 2 x RED - all six",
+    lv: [B,B,U,U,R,R], fns: ["Throttle 1","Throttle 2","Prop 1","Prop 2","Mixture 1","Mixture 2"] },
+  fadec_1: { name: "Single engine, FADEC", caps: "BLACK on lever 1, the rest empty",
+    lv: [B,X,X,X,X,X], fns: ["Throttle",null,null,null,null,null] },
+  fadec_2: { name: "Twin engine, FADEC", caps: "2 x BLACK on levers 1 and 2, the rest empty",
+    lv: [B,B,X,X,X,X], fns: ["Throttle 1","Throttle 2",null,null,null,null] },
+  jet_1: { name: "Single engine jet", caps: "SPEED BRAKE, 1 throttle, FLAP",
+    lv: [SB,X,J,X,X,FL], fns: ["Speed brake",null,"Engine 1",null,null,"Flaps"] },
+  jet_2: { name: "Twin engine jet", caps: "SPEED BRAKE, 2 throttles, FLAP",
+    lv: [SB,X,J,J,X,FL], fns: ["Speed brake",null,"Engine 1","Engine 2",null,"Flaps"] },
+  jet_3: { name: "Tri engine jet", caps: "SPEED BRAKE, 3 throttles, FLAP",
+    lv: [SB,X,J,J,J,FL], fns: ["Speed brake",null,"Engine 1","Engine 2","Engine 3","Flaps"] },
+  jet_4: { name: "Four engine jet", caps: "SPEED BRAKE, 4 throttles, FLAP",
+    lv: [SB,J,J,J,J,FL], fns: ["Speed brake","Engine 1","Engine 2","Engine 3","Engine 4","Flaps"] },
+  glider: { name: "Glider", caps: "SPEED BRAKE only, the rest empty",
+    lv: [SB,X,X,X,X,X], fns: ["Speed brake",null,null,null,null,null] }
 };
+var CAP_LABEL = { black:"Black", blue:"Blue", red:"Red",
+                  jet:"White", sb:"SPEED BRAKE", flap:"FLAP", none:"No cap" };
 
 var FLEET = [
   { id: "c152", name: "Cessna 152",               type: "C152", layout: "prop_1_fixed" },
@@ -864,6 +944,162 @@ function renderPlanPane() {
   }
 }
 
+function svgEl(tag, attrs) {
+  var n = document.createElementNS("http://www.w3.org/2000/svg", tag);
+  for (var k in attrs) { n.setAttribute(k, attrs[k]); }
+  return n;
+}
+
+/* ---- route chart ----
+   Web Mercator, the projection charts use, scaled freely to fill the plate
+   rather than snapped to any zoom level. Drawn from the flight plan's own
+   waypoints, so it follows whatever plan is loaded. */
+function renderChart() {
+  var s = byId("chart");
+  s.textContent = "";
+  var f = (S.plan && S.plan.Fixes) ? S.plan.Fixes : [];
+  if (f.length < 2) {
+    var t = svgEl("text", { x: 310, y: 300, "text-anchor": "middle", class: "prof-lbl" });
+    t.textContent = S.planBusy ? "Loading flight plan…" : "No flight plan loaded";
+    s.appendChild(t);
+    return;
+  }
+
+  var W = 620, H = 600, PAD = 44;
+  function merc(lat, lon) {
+    var lr = lat * Math.PI / 180;
+    return [lon, Math.log(Math.tan(lr) + 1 / Math.cos(lr)) * 180 / Math.PI];
+  }
+  var pts = f.map(function (p) { return merc(p.lat, p.lon); });
+  var xs = pts.map(function (p) { return p[0]; }), ys = pts.map(function (p) { return p[1]; });
+  var minX = Math.min.apply(null, xs), maxX = Math.max.apply(null, xs);
+  var minY = Math.min.apply(null, ys), maxY = Math.max.apply(null, ys);
+  var scale = Math.min((W - PAD * 2) / Math.max(maxX - minX, 1e-9),
+                       (H - PAD * 2) / Math.max(maxY - minY, 1e-9));
+  var cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
+  function px(p) { return W / 2 + (merc(p.lat, p.lon)[0] - cx) * scale; }
+  function py(p) { return H / 2 - (merc(p.lat, p.lon)[1] - cy) * scale; }
+
+  var lats = f.map(function (p) { return p.lat; }), lons = f.map(function (p) { return p.lon; });
+  for (var la = Math.floor(Math.min.apply(null, lats)); la <= Math.ceil(Math.max.apply(null, lats)); la++) {
+    var y = H / 2 - (merc(la, 0)[1] - cy) * scale;
+    if (y < 8 || y > H - 8) { continue; }
+    s.appendChild(svgEl("line", { x1: 0, y1: y, x2: W, y2: y, class: "grid-line" }));
+    var gl = svgEl("text", { x: 5, y: y - 4, class: "prof-lbl" });
+    gl.textContent = la + "°N"; s.appendChild(gl);
+  }
+  for (var lo = Math.floor(Math.min.apply(null, lons)); lo <= Math.ceil(Math.max.apply(null, lons)); lo++) {
+    var x = W / 2 + (lo - cx) * scale;
+    if (x < 8 || x > W - 8) { continue; }
+    s.appendChild(svgEl("line", { x1: x, y1: 0, x2: x, y2: H, class: "grid-line" }));
+  }
+
+  var d = f.map(function (p, i) { return (i ? "L" : "M") + px(p).toFixed(1) + "," + py(p).toFixed(1); }).join(" ");
+  s.appendChild(svgEl("path", { d: d, class: "rt-glow" }));
+  s.appendChild(svgEl("path", { d: d, class: "rt-line" }));
+
+  var last = null;
+  f.forEach(function (p) {
+    var x = px(p), y = py(p), g = svgEl("g", {});
+    if (p.type === "apt") {
+      g.appendChild(svgEl("circle", { cx: x, cy: y, r: 5.5, class: "fix-apt" }));
+      g.appendChild(svgEl("circle", { cx: x, cy: y, r: 1.6, fill: "#8CF39B" }));
+    } else if (p.type === "vor") {
+      var r = 5.2, poly = [];
+      for (var i = 0; i < 6; i++) {
+        var ang = Math.PI / 180 * (60 * i - 90);
+        poly.push((x + r * Math.cos(ang)).toFixed(1) + "," + (y + r * Math.sin(ang)).toFixed(1));
+      }
+      g.appendChild(svgEl("polygon", { points: poly.join(" "), class: "fix-sym" }));
+    } else if (p.type === "ltlg") {
+      g.appendChild(svgEl("path", { d: "M" + (x - 4) + "," + y + " L" + (x + 4) + "," + y +
+                                       " M" + x + "," + (y - 4) + " L" + x + "," + (y + 4),
+                                    stroke: "#F0A81E", "stroke-width": 1.3 }));
+    } else {
+      g.appendChild(svgEl("polygon", {
+        points: [x + "," + (y - 5), (x + 4.4) + "," + (y + 3), (x - 4.4) + "," + (y + 3)].join(" "),
+        class: "fix-sym" }));
+    }
+    // Close-spaced fixes collide; alternate sides so both stay readable.
+    var isApt = p.type === "apt", left = false;
+    if (last && Math.hypot(x - last.x, y - last.y) < 34) { left = !last.left; }
+    var lbl = svgEl("text", {
+      x: left ? x - (isApt ? 10 : 8) : x + (isApt ? 10 : 8), y: y + (isApt ? 4 : 3),
+      "text-anchor": left ? "end" : "start",
+      class: "fix-lbl" + (isApt ? " apt" : p.type === "ltlg" ? " tp" : "") });
+    lbl.textContent = p.id;
+    g.appendChild(lbl);
+    s.appendChild(g);
+    last = { x: x, y: y, left: left };
+  });
+}
+
+/* ---- vertical profile ---- */
+function renderProfile() {
+  var s = byId("profile");
+  s.textContent = "";
+  var f = (S.plan && S.plan.Fixes) ? S.plan.Fixes : [];
+  if (f.length < 2) { return; }
+
+  var W = 620, H = 96, L = 40, Rr = 12, T = 12, Bm = 20;
+  var maxD = f[f.length - 1].dist || 1;
+  var maxA = Math.max.apply(null, f.map(function (p) { return p.alt || 0; })) * 1.15 || 1000;
+  function px(d) { return L + (d / maxD) * (W - L - Rr); }
+  function py(a) { return H - Bm - (a / maxA) * (H - T - Bm); }
+
+  [0, maxA / 2, maxA].forEach(function (a) {
+    var y = py(a);
+    s.appendChild(svgEl("line", { x1: L, y1: y, x2: W - Rr, y2: y, class: "prof-axis" }));
+    var t = svgEl("text", { x: L - 5, y: y + 3, class: "prof-lbl", "text-anchor": "end" });
+    t.textContent = a < 100 ? "SFC" : Math.round(a / 1000) + "k";
+    s.appendChild(t);
+  });
+
+  var line = f.map(function (p, i) {
+    return (i ? "L" : "M") + px(p.dist).toFixed(1) + "," + py(p.alt || 0).toFixed(1); }).join(" ");
+  s.appendChild(svgEl("path", { d: line + " L" + px(maxD).toFixed(1) + "," + py(0) +
+                                   " L" + px(0) + "," + py(0) + " Z", class: "prof-fill" }));
+  s.appendChild(svgEl("path", { d: line, class: "prof-line" }));
+
+  f.forEach(function (p) {
+    if (p.type !== "ltlg" && p.type !== "apt") { return; }
+    var x = px(p.dist), y = py(p.alt || 0);
+    s.appendChild(svgEl("circle", { cx: x, cy: y, r: 2.2, fill: "#F0A81E" }));
+    var t = svgEl("text", { x: x, y: y - 6, class: "prof-lbl", "text-anchor": "middle" });
+    t.textContent = p.id; s.appendChild(t);
+  });
+}
+
+/* ---- the lever caps, drawn ---- */
+function renderQuadrant() {
+  var host = byId("quadrant");
+  host.textContent = "";
+  var a = craft(S.selectedId);
+  var L = a ? LAYOUTS[a.layout] : null;
+  byId("capsStamp").textContent = L ? L.name : "choose an aircraft";
+  if (!L) {
+    var m = el("div", "cl-note", "Choose an aircraft and the lever setup will be shown here.");
+    m.style.gridColumn = "1 / -1";
+    host.appendChild(m);
+    return;
+  }
+  for (var i = 0; i < 6; i++) {
+    var capId = L.lv[i], fn = L.fns[i];
+    var col = el("div", "lever" + (capId === "none" ? " is-empty" : ""));
+    var slot = el("div", "cap-slot");
+    var cap = el("div", "cap");
+    cap.setAttribute("data-cap", capId);
+    slot.appendChild(cap);
+    col.appendChild(slot);
+    col.appendChild(el("div", "stem"));
+    var bar = el("div", "plate-bar"); bar.appendChild(el("span")); col.appendChild(bar);
+    col.appendChild(el("div", "lv-pos", "LEVER " + (i + 1)));
+    col.appendChild(el("div", "lv-cap", CAP_LABEL[capId]));
+    col.appendChild(el("div", "lv-fn", fn || "Not used"));
+    host.appendChild(col);
+  }
+}
+
 function render() {
   renderAnnunciators();
   renderAircraftBar();
@@ -871,6 +1107,9 @@ function render() {
   renderChecklist();
   renderLaunch();
   renderPlanPane();
+  renderChart();
+  renderProfile();
+  renderQuadrant();
   byId("foot").textContent = S.config && S.config.problem
     ? S.config.problem
     : "Preflight and flight plan read live from this computer.";

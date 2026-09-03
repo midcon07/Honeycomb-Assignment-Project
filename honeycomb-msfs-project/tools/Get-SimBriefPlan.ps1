@@ -137,7 +137,34 @@ if (-not $result) {
     $depUtc = $null
     try { $depUtc = [DateTimeOffset]::FromUnixTimeSeconds([int64]$plan.times.sched_out).UtcDateTime } catch { }
 
+    # The route itself, so a caller can draw it. navlog.fix does not include the
+    # departure airport and its distances are per-leg, so the origin is
+    # prepended and the distances accumulated into a running total.
+    $fixes = New-Object System.Collections.ArrayList
+    try {
+        [void]$fixes.Add([ordered]@{
+            id = $plan.origin.icao_code; type = 'apt'
+            lat = [double]$plan.origin.pos_lat; lon = [double]$plan.origin.pos_long
+            alt = [int]$plan.origin.elevation; dist = 0; stage = 'DEP'
+        })
+        $run = 0.0
+        foreach ($f in $plan.navlog.fix) {
+            $run += [double]$f.distance
+            [void]$fixes.Add([ordered]@{
+                id    = $f.ident
+                type  = $f.type
+                lat   = [double]$f.pos_lat
+                lon   = [double]$f.pos_long
+                alt   = [int]$f.altitude_feet
+                dist  = [math]::Round($run, 1)
+                stage = $f.stage
+                airway = $f.via_airway
+            })
+        }
+    } catch { }
+
     $result = New-PlanResult $freshness $msg @{
+        Fixes         = @($fixes)
         PilotId       = $plan.fetch.userid
         GeneratedUtc  = $generatedUtc.ToString('yyyy-MM-dd HH:mm:ss')
         AgeHours      = $ageHours
