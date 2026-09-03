@@ -40,7 +40,21 @@ internal sealed partial class MainForm : Form
         // Keeps a taskbar entry and Alt-Tab behaviour despite having no frame.
         ShowInTaskbar = true;
         Controls.Add(_web);
-        Shown += async (_, _) => await StartAsync();
+        // An exception inside an async void handler takes the whole process
+        // down with no window and no message. Everything the startup does is
+        // caught and reported instead.
+        Shown += async (_, _) =>
+        {
+            try { await StartAsync(); }
+            catch (Exception ex)
+            {
+                Program.LogError("StartAsync", ex);
+                MessageBox.Show(
+                    "The panel could not start.\n\n" + ex.GetType().Name + ": " + ex.Message +
+                    "\n\nDetails: " + Program.LogPath,
+                    "Honeycomb Preflight", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        };
     }
 
     private async Task StartAsync()
@@ -61,7 +75,11 @@ internal sealed partial class MainForm : Form
 
         _web.DefaultBackgroundColor = Color.FromArgb(10, 12, 13);
         _web.CoreWebView2.WebMessageReceived += OnMessage;
-        _web.CoreWebView2.NavigationCompleted += async (_, _) => await RefreshAllAsync();
+        _web.CoreWebView2.NavigationCompleted += async (_, _) =>
+        {
+            try { await RefreshAllAsync(); }
+            catch (Exception ex) { Program.LogError("RefreshAll", ex); }
+        };
 
         var ui = Path.Combine(AppContext.BaseDirectory, "ui", "index.html");
         _web.CoreWebView2.Navigate(new Uri(ui).AbsoluteUri);
@@ -69,11 +87,33 @@ internal sealed partial class MainForm : Form
 
     // ---- messages from the page -------------------------------------------
 
+    /// <summary>
+    /// async void, because that is what an event handler must be - so it has to
+    /// swallow nothing and catch everything. An exception escaping here kills
+    /// the process outright: no window, no message, nothing written down. That
+    /// is almost certainly what made the window disappear when a button was
+    /// pressed.
+    /// </summary>
     private async void OnMessage(object sender, CoreWebView2WebMessageReceivedEventArgs e)
+    {
+        try { await HandleMessageAsync(e); }
+        catch (Exception ex)
+        {
+            Program.LogError("OnMessage", ex);
+            try
+            {
+                await Send(new { kind = "hostError", message = ex.Message });
+            }
+            catch { /* the page may be gone; the log already has it */ }
+        }
+    }
+
+    private async Task HandleMessageAsync(CoreWebView2WebMessageReceivedEventArgs e)
     {
         JsonElement msg;
         try { msg = JsonDocument.Parse(e.WebMessageAsJson).RootElement; } catch { return; }
         var action = msg.TryGetProperty("action", out var a) ? a.GetString() : null;
+        Program.Log("message: " + (action ?? "(none)"));
 
         switch (action)
         {
