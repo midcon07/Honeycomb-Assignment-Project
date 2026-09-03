@@ -1,11 +1,29 @@
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.WinForms;
 
 namespace HoneycombLauncher;
 
-internal sealed class MainForm : Form
+/// <summary>
+/// Borderless by design, matching CommPanel and ClaudeSoundtrack. The window
+/// IS the panel - a Windows title bar sitting above a drawn instrument panel
+/// breaks the illusion the whole visual language depends on. Dragging,
+/// minimising and closing are handled by the page's own chrome.
+/// </summary>
+internal sealed partial class MainForm : Form
 {
+    private const int WM_NCLBUTTONDOWN = 0x00A1;
+    private const int HTCAPTION = 0x2;
+    private const int HTBOTTOMRIGHT = 17;
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool ReleaseCapture();
+
+    [LibraryImport("user32.dll", EntryPoint = "SendMessageW")]
+    private static partial IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
+
     private readonly WebView2 _web = new() { Dock = DockStyle.Fill };
     private AppConfig _cfg;
     private string _cfgProblem;
@@ -13,10 +31,14 @@ internal sealed class MainForm : Form
     public MainForm()
     {
         Text = "Honeycomb Preflight";
+        FormBorderStyle = FormBorderStyle.None;
         Width = 1400;
         Height = 980;
+        MinimumSize = new Size(1000, 700);
         StartPosition = FormStartPosition.CenterScreen;
         BackColor = Color.FromArgb(10, 12, 13);
+        // Keeps a taskbar entry and Alt-Tab behaviour despite having no frame.
+        ShowInTaskbar = true;
         Controls.Add(_web);
         Shown += async (_, _) => await StartAsync();
     }
@@ -31,13 +53,18 @@ internal sealed class MainForm : Form
         var env = await CoreWebView2Environment.CreateAsync(null, userData);
         await _web.EnsureCoreWebView2Async(env);
 
-        _web.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
-        _web.CoreWebView2.Settings.IsStatusBarEnabled = false;
+        var s = _web.CoreWebView2.Settings;
+        s.AreDefaultContextMenusEnabled = false;
+        s.IsStatusBarEnabled = false;
+        s.AreBrowserAcceleratorKeysEnabled = false;
+        s.IsZoomControlEnabled = false;
+
+        _web.DefaultBackgroundColor = Color.FromArgb(10, 12, 13);
         _web.CoreWebView2.WebMessageReceived += OnMessage;
+        _web.CoreWebView2.NavigationCompleted += async (_, _) => await RefreshAllAsync();
 
         var ui = Path.Combine(AppContext.BaseDirectory, "ui", "index.html");
         _web.CoreWebView2.Navigate(new Uri(ui).AbsoluteUri);
-        _web.CoreWebView2.NavigationCompleted += async (_, _) => await RefreshAllAsync();
     }
 
     // ---- messages from the page -------------------------------------------
@@ -50,6 +77,27 @@ internal sealed class MainForm : Form
 
         switch (action)
         {
+            // --- window chrome, since there is no title bar ---
+            case "drag":
+                ReleaseCapture();
+                SendMessage(Handle, WM_NCLBUTTONDOWN, (IntPtr)HTCAPTION, IntPtr.Zero);
+                break;
+            case "resize":
+                ReleaseCapture();
+                SendMessage(Handle, WM_NCLBUTTONDOWN, (IntPtr)HTBOTTOMRIGHT, IntPtr.Zero);
+                break;
+            case "minimise":
+                WindowState = FormWindowState.Minimized;
+                break;
+            case "maximise":
+                WindowState = WindowState == FormWindowState.Maximized
+                    ? FormWindowState.Normal : FormWindowState.Maximized;
+                break;
+            case "close":
+                Close();
+                break;
+
+            // --- application ---
             case "refresh":
                 await RefreshAllAsync();
                 break;
@@ -75,8 +123,9 @@ internal sealed class MainForm : Form
             case "confirmCaps":
                 {
                     var layout = msg.TryGetProperty("layout", out var v) ? v.GetString() : null;
-                    if (_cfg != null && !string.IsNullOrEmpty(layout))
+                    if (!string.IsNullOrEmpty(layout))
                     {
+                        _cfg ??= new AppConfig();
                         _cfg.CapsSetForLayout = layout;
                         _cfg.Save();
                         await PushConfigAsync();
@@ -90,6 +139,7 @@ internal sealed class MainForm : Form
                     _cfg ??= new AppConfig();
                     _cfg.SimBriefPilotId = (id ?? "").Trim();
                     _cfg.Save();
+                    await PushConfigAsync();
                     await PushPlanAsync();
                     break;
                 }
@@ -134,9 +184,12 @@ internal sealed class MainForm : Form
             await Send(new
             {
                 kind = "preflight",
-                verdict = "CANNOT RUN",
-                error = string.IsNullOrWhiteSpace(raw.StdErr) ? raw.StdOut : raw.StdErr,
-                results = Array.Empty<object>()
+                data = new
+                {
+                    verdict = "CANNOT RUN",
+                    error = string.IsNullOrWhiteSpace(raw.StdErr) ? raw.StdOut : raw.StdErr,
+                    results = Array.Empty<object>()
+                }
             });
             return;
         }
@@ -148,19 +201,22 @@ internal sealed class MainForm : Form
         var pid = _cfg?.SimBriefPilotId;
         if (string.IsNullOrWhiteSpace(pid))
         {
-            await Send(new { kind = "plan", status = "NoPilotId" });
+            await Send(new { kind = "plan", data = new { Status = "NoPilotId" } });
             return;
         }
         await Send(new { kind = "planBusy" });
         var (json, _) = await Runner.SimBriefAsync(pid);
-        if (json is null) { await Send(new { kind = "plan", status = "Unavailable" }); return; }
+        if (json is null)
+        {
+            await Send(new { kind = "plan", data = new { Status = "Unavailable" } });
+            return;
+        }
         await SendRaw("plan", json.Value);
     }
 
     private async Task LaunchAsync()
     {
-        // Start FSUIPC first so it is waiting when the simulator comes up, then
-        // the simulator last, which is the whole point of the sequence.
+        // FSUIPC first so it is already waiting, then the simulator last.
         if (!string.IsNullOrWhiteSpace(_cfg?.FsuipcRoot))
             Runner.LaunchFsuipc(_cfg.FsuipcRoot);
 
@@ -173,14 +229,12 @@ internal sealed class MainForm : Form
     private async Task Send(object payload)
     {
         var json = JsonSerializer.Serialize(payload);
-        await _web.CoreWebView2.ExecuteScriptAsync(
-            $"window.APP && window.APP.receive({json});");
+        await _web.CoreWebView2.ExecuteScriptAsync($"window.APP && window.APP.receive({json});");
     }
 
     private async Task SendRaw(string kind, JsonElement body)
     {
         var json = $"{{\"kind\":\"{kind}\",\"data\":{body.GetRawText()}}}";
-        await _web.CoreWebView2.ExecuteScriptAsync(
-            $"window.APP && window.APP.receive({json});");
+        await _web.CoreWebView2.ExecuteScriptAsync($"window.APP && window.APP.receive({json});");
     }
 }
