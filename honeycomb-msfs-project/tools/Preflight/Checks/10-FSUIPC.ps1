@@ -194,8 +194,10 @@
         $axisLines = @($text | Select-String -Pattern '^\d+=.*(?i)axis')
         $profiles  = @($text | Select-String -Pattern '^\[Profile\.')
         if ($axisLines.Count) { Add-Result 'Lever assignments' 'PASS' ("{0} assignment line(s)" -f $axisLines.Count) }
-        else { Add-Result 'Lever assignments' 'TODO' 'No lever assignments yet.' 'The setup step will write these.' }
+        else { Add-Result 'Lever assignments' 'TODO' 'No lever assignments written yet.' `
+                 'Nothing is wrong. This is the part that tells FSUIPC what each lever does, and it has not been built yet. Set the levers up in FSUIPC by hand in the meantime.' }
         if ($profiles.Count) { Add-Result 'Aircraft profiles' 'PASS' ("{0} profile(s)" -f $profiles.Count) }
-        else { Add-Result 'Aircraft profiles' 'TODO' 'No per-aircraft profiles yet.' 'The setup step will write these.' }
+        else { Add-Result 'Aircraft profiles' 'TODO' 'No per-aircraft profiles yet.' `
+                 'Nothing is wrong. Per-aircraft switching has not been built yet, so FSUIPC uses one set of assignments for everything.' }
     }
 }

@@ -873,16 +873,27 @@ function renderChecklist() {
          return (rank[x.State] || 9) - (rank[y.State] || 9);
        })
        .forEach(function (r) {
-         var lamp = r.State === "PASS" ? "g" : r.State === "FAIL" ? "r"
-                  : r.State === "WARN" || r.State === "TODO" ? "a" : "off";
+         /* TODO is not WARN and must not look like it. Amber says "something
+            is wrong, deal with it"; TODO means "this has not been set up
+            yet", which on a half-built program is true of several things and
+            will stay true for weeks. Showing both in amber taught the reader
+            that amber means nothing - which is exactly what happened. */
+         var lamp = r.State === "PASS" ? "g"
+                  : r.State === "FAIL" ? "r"
+                  : r.State === "WARN" ? "a"
+                  : r.State === "TODO" ? "c"
+                  : "off";
+         var resp = r.State === "PASS" ? "OK"
+                  : r.State === "TODO" ? "NOT SET UP"
+                  : r.State;
          rows.push({
            chal: r.Check,
-           resp: r.State === "PASS" ? "OK" : r.State,
+           resp: resp,
            lamp: lamp,
            tone: lamp === "g" ? "g" : lamp === "r" ? "r" : lamp === "a" ? "a" : "d",
            row: r.Blocking && r.State === "FAIL" ? "stop" : (lamp === "a" ? "attn" : ""),
            note: r.Remedy || (r.State === "PASS" ? null : r.Detail),
-           noteTone: r.State === "FAIL" ? "bad" : "warn"
+           noteTone: r.State === "FAIL" ? "bad" : r.State === "WARN" ? "warn" : ""
          });
        });
   }
