@@ -24,9 +24,29 @@ internal sealed partial class MainForm : Form
     [LibraryImport("user32.dll", EntryPoint = "SendMessageW")]
     private static partial IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
 
+    // Windows broadcasts this to every top-level window when the device tree
+    // changes, so no registration is needed to hear about a USB plug or unplug.
+    private const int WM_DEVICECHANGE = 0x0219;
+    private const int DBT_DEVNODES_CHANGED = 0x0007;
+
     private readonly WebView2 _web = new() { Dock = DockStyle.Fill };
     private AppConfig _cfg;
     private string _cfgProblem;
+
+    /// <summary>
+    /// A device change arrives as a burst of messages, so re-checking is
+    /// deferred until they stop rather than run once per message.
+    /// </summary>
+    private readonly System.Windows.Forms.Timer _deviceSettle = new() { Interval = 1200 };
+
+    /// <summary>
+    /// Safety net for anything that is not a device change - FSUIPC being
+    /// started or stopped, the network coming back. Slow on purpose: the gate
+    /// takes a few seconds and there is no need to run it often.
+    /// </summary>
+    private readonly System.Windows.Forms.Timer _slowPoll = new() { Interval = 30000 };
+
+    private bool _checking;
 
     public MainForm()
     {
@@ -40,6 +60,23 @@ internal sealed partial class MainForm : Form
         // Keeps a taskbar entry and Alt-Tab behaviour despite having no frame.
         ShowInTaskbar = true;
         Controls.Add(_web);
+
+        // The remedy text promises "this screen will notice on its own - there
+        // is nothing to press". It has to be true. Unplugging the quadrant and
+        // still being told it is connected is worse than no check at all.
+        _deviceSettle.Tick += async (_, _) =>
+        {
+            _deviceSettle.Stop();
+            Program.Log("device change settled - re-checking");
+            try { await PushPreflightAsync(); }
+            catch (Exception ex) { Program.LogError("device re-check", ex); }
+        };
+        _slowPoll.Tick += async (_, _) =>
+        {
+            try { await PushPreflightAsync(); }
+            catch (Exception ex) { Program.LogError("slow poll", ex); }
+        };
+
         // An exception inside an async void handler takes the whole process
         // down with no window and no message. Everything the startup does is
         // caught and reported instead.
@@ -79,10 +116,23 @@ internal sealed partial class MainForm : Form
         {
             try { await RefreshAllAsync(); }
             catch (Exception ex) { Program.LogError("RefreshAll", ex); }
+            _slowPoll.Start();
         };
 
         var ui = Path.Combine(AppContext.BaseDirectory, "ui", "index.html");
         _web.CoreWebView2.Navigate(new Uri(ui).AbsoluteUri);
+    }
+
+    protected override void WndProc(ref Message m)
+    {
+        if (m.Msg == WM_DEVICECHANGE && (int)m.WParam == DBT_DEVNODES_CHANGED)
+        {
+            // Restart the timer on every message so the burst collapses into
+            // one re-check once the device tree has settled.
+            _deviceSettle.Stop();
+            _deviceSettle.Start();
+        }
+        base.WndProc(ref m);
     }
 
     // ---- messages from the page -------------------------------------------
@@ -216,6 +266,16 @@ internal sealed partial class MainForm : Form
     });
 
     private async Task PushPreflightAsync()
+    {
+        // The gate takes a few seconds and shells out; overlapping runs would
+        // just queue up behind each other during a burst of device changes.
+        if (_checking) { Program.Log("preflight already running - skipped"); return; }
+        _checking = true;
+        try { await RunPreflightAsync(); }
+        finally { _checking = false; }
+    }
+
+    private async Task RunPreflightAsync()
     {
         await Send(new { kind = "preflightBusy" });
         var (json, raw) = await Runner.PreflightAsync();

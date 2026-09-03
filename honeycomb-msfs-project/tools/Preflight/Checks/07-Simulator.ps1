@@ -136,9 +136,15 @@
             }
             $decoys = @($decoys | Select-Object -Unique)
             if ($decoys.Count) {
-                Add-Result 'Inactive add-on folders' 'WARN' `
+                # INFO, not WARN, and deliberately so. This is true on every
+                # launch and there is nothing to do about it at launch time - a
+                # permanent amber line that can never be acted on only teaches
+                # the user that amber means nothing. It stays in the machine
+                # report, where someone hunting a missing add-on will find it,
+                # and out of the panel.
+                Add-Result 'Inactive add-on folders' 'INFO' `
                     (($decoys -join ' | ') + ' - the simulator does not read these') `
-                    'Anything installed into those folders has no effect. Worth knowing if an add-on seems to be missing.'
+                    'Only relevant if an add-on seems to be missing; that is the first place to look. Otherwise it is housekeeping, not a flying problem.'
             }
         } catch {
             # Never swallow this. An empty catch here already hid a real defect
