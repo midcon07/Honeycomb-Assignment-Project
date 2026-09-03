@@ -69,6 +69,9 @@ PR #1. Code lives under `honeycomb-msfs-project/`.
 | Axis range | `0`–`1023`; **saturates at 0 at the detent**, so the button is the only reverse signal. Re-confirmed by sweep: full forward `1023`, resting on the detent `0` with no button, past the detent `0` with button `24`. Idle therefore lands on the detent for free. |
 | FSUIPC input direction | **Inverted from HID**: `+16383` at the detent, `-16384` full forward. Hence the `*-0.5` scale. Measured, not explained. |
 | Lever 1 detent button | `24` |
+| Dead travel below the detent | **~15–20% of total lever travel**, pot saturated at `0` throughout. Hardware. Reads as "nothing happens" if travel is judged from the back stop. Not a config fault and not recoverable. |
+| First sim response | at `Y=7` of 1023, i.e. **0.7%** above the detent. The input path has no meaningful dead zone. |
+| MSFS's own binding | the user's working Bravo profile responds only after **50%** — the plain "Throttle Axis" (bottom half reverse) instead of "Throttle Axis (0 to 100%)". **It is not a clean baseline for A/B tests.** |
 | Bravo switch rest state | buttons `19 32 35 37 39 41 43 44 47` are switch *positions*, always down |
 | Handles | 2 black, 2 blue, 2 red, 4 white jet throttles, 1 SPEED BRAKE, 1 FLAP |
 | MSFS 2024 | Store `Microsoft.Limitless_8wekyb3d8bbwe`; `UserCfg.opt` in its `LocalCache` |
