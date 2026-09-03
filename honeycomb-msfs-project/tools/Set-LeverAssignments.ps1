@@ -13,15 +13,30 @@
       * The joystick letter came from FSUIPC's own [JoyNames].
       * The control numbers came from the Controls List that ships with
         FSUIPC, not from memory.
-      * The line format was taken from a line FSUIPC wrote itself, after one
-        axis was assigned by hand:
+      * The line format is documented in "FSUIPC7 for Advanced Users", under
+        Axis Assignments:
 
-            0=BY,R0,F,65820,0,0,0	-{ TO SIM: THROTTLE1_SET }-
+            n=ja,(R)delta(/delay),ForD,ctl1,ctl2,ctl3,ctl4
 
-        The first attempt invented ",256,D," and used the AXIS_ control family,
-        and FSUIPC silently discarded every line. It validates what it loads
-        and drops what it cannot resolve, without saying so - so a wrong format
-        looks exactly like a lever that does nothing.
+        j is the joystick, a the axis letter from XYZRUVSTPQMN, and ForD is F
+        for an FS control or D for FSUIPC's own calibration.
+
+    NOT RAW MODE. An R before the delta selects Raw mode, and a hand assignment
+    produced exactly that - "BY,R0,F,..." - which drove the throttle over only a
+    fraction of the lever's travel. The User Guide is explicit about why:
+
+        "When FSUIPC is asked to apply RAW input to a normal analogue control,
+         it scales it by a factor of 256 or 512 to bring it up from its 7 or 8
+         bit range to a full 16 bit value."
+
+    The Bravo is 10-bit, 0-1023, so that assumption is simply wrong for it. The
+    guide's advice for any ordinary lever is to avoid Raw, and the default delta
+    for calibrated input is 256 - Raw's default is 1.
+
+    Raw is a property of the whole joystick, not of one axis: "All 6 axes on a
+    specific joystick must be read in the one mode." Every line written here is
+    calibrated, so that holds by construction - but a hand-assigned Raw axis on
+    the same device would break it, and FSUIPC will not say so.
 
     THE AXIS LETTERS ARE NOT WHAT THE OBVIOUS CONVENTION PREDICTS.
 
@@ -80,7 +95,10 @@ param(
     [string]   $JoystickLetter = 'B',
     # MEASURED, not predicted, for levers 1 and 3. See the notes below.
     [string[]] $AxisLetters    = @('Y','X','R','U','V','Z'),
-    [string]   $FsuipcRoot     = 'C:\FSUIPC7'
+    [int]      $Delta          = 256,
+    [string]   $FsuipcRoot     = 'C:\FSUIPC7',
+    [switch]   $WaitForExit,
+    [int]      $TimeoutSeconds = 300
 )
 
 Set-StrictMode -Version 2.0
@@ -137,6 +155,25 @@ if (-not (Test-Path -LiteralPath $ini)) { throw "No FSUIPC7.ini at $ini" }
 # simply undone later, with no error and no clue as to why the assignments
 # vanished. Refuse instead.
 $running = Get-Process -Name 'FSUIPC7' -ErrorAction SilentlyContinue
+
+if ($running -and $WaitForExit -and -not $WhatIfPreference) {
+    Write-Host ''
+    Write-Host 'Waiting for FSUIPC7 to close. Close it from its tray icon.' -ForegroundColor Yellow
+    Write-Host 'The simulator can stay running - only FSUIPC needs to go.' -ForegroundColor Yellow
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    while (Get-Process -Name 'FSUIPC7' -ErrorAction SilentlyContinue) {
+        if ((Get-Date) -gt $deadline) {
+            Write-Host ("Gave up after {0} seconds. Nothing written." -f $TimeoutSeconds) -ForegroundColor Red
+            exit 2
+        }
+        Start-Sleep -Milliseconds 500
+    }
+    # FSUIPC writes its settings during shutdown, not before it.
+    Start-Sleep -Milliseconds 750
+    $running = $null
+    Write-Host 'FSUIPC7 closed.' -ForegroundColor Green
+}
+
 if ($running -and -not $WhatIfPreference) {
     Write-Host ''
     Write-Host 'FSUIPC7 is running, so nothing was written.' -ForegroundColor Red
@@ -158,13 +195,13 @@ $n = 0
 for ($lever = 0; $lever -lt 6; $lever++) {
     $c = $controls[$lever]
     if ($null -eq $c) { continue }
-    # Format copied exactly from a line FSUIPC wrote itself:
-    #   0=BY,R0,F,65820,0,0,0	-{ TO SIM: THROTTLE1_SET }-
-    # R0 is the range field and F means "send to sim". The first attempt used
-    # 256 and D, both invented, and FSUIPC silently discarded every line.
+    # Documented format, FSUIPC7 for Advanced Users, "Axis Assignments":
+    #   n=ja,(R)delta(/delay),ForD,ctl1,ctl2,ctl3,ctl4
+    # An R prefix on the delta means Raw mode; no prefix means calibrated.
+    # F sends an FS control, D sends to FSUIPC's calibration.
     $axis = '{0}{1}' -f $JoystickLetter, $AxisLetters[$lever]
-    [void]$lines.Add(("{0}={1},R0,F,{2},0,0,0`t-{{ TO SIM: {3} }}-" -f `
-        $n, $axis, $c, $CTRL_NAME[$c]))
+    [void]$lines.Add(("{0}={1},{2},F,{3},0,0,0`t-{{ TO SIM: {4} }}-" -f `
+        $n, $axis, $Delta, $c, $CTRL_NAME[$c]))
     $n++
 }
 
@@ -220,6 +257,8 @@ if (-not $replaced) {
     (New-Object System.Text.UTF8Encoding($false)))
 Write-Host ("Wrote {0} assignments to {1}" -f $n, $ini) -ForegroundColor Green
 Write-Host ''
-Write-Host 'The axis letters are the one part not yet measured. Move each lever in' -ForegroundColor Yellow
-Write-Host 'the simulator and check it drives what the comment says. If one is wrong,' -ForegroundColor Yellow
-Write-Host 're-run with -AxisLetters and the corrected order.' -ForegroundColor Yellow
+Write-Host 'Start FSUIPC7 again - it reads this file at startup.' -ForegroundColor Yellow
+Write-Host ''
+Write-Host 'Then move each lever and check it drives what the comment says, over its' -ForegroundColor Yellow
+Write-Host 'whole travel. Levers 1 and 3 are measured; 2, 4, 5 and 6 are inferred. If' -ForegroundColor Yellow
+Write-Host 'one drives the wrong thing, re-run with -AxisLetters in the right order.' -ForegroundColor Yellow
