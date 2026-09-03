@@ -42,10 +42,17 @@ PR #1. Code lives under `honeycomb-msfs-project/`.
 - **Chart underlays: rejected.** SimBrief's own app does charts. See
   `notes/chart_underlays.md`.
 - **Reverser check in preflight: rejected.** Live state, wrong moment.
-- **FSUIPC has two axis forms and they are not interchangeable.**
-  `F` sends a sim control and does **no scaling** — a `0`–`1023` lever into a
-  `0`–`16383` control gives 6.2% of travel. `D` sends to FSUIPC's calibration,
-  which maps the ranges. Assigning is not calibrating; they are separate steps.
+- **`[Axes]` line format** (Advanced Users, *Axis Assignments*):
+  `n=ja,(R)delta(/delay),ForD,ctl1..ctl4`. `F` = FS control, `D` = FSUIPC
+  calibration (ctl is then a calibration index, not a control number).
+- **Never write Raw mode.** An `R` before the delta selects it, and FSUIPC
+  assumes a 7–8-bit device, scaling by 256 or 512. The Bravo is 10-bit
+  (`0`–`1023`), so a Raw axis drives only part of its travel. Delta `256` is the
+  documented default for calibrated input; `1` is Raw's. **Raw is per-joystick,
+  not per-axis** — one hand-assigned Raw axis silently breaks every other lever
+  on that device, and changing it means clearing all assignments on it first.
+- `THROTTLEn_SET` is the family FSUIPC uses for **reverse zones on the same
+  axis** — which is why it, not `AXIS_THROTTLEn_SET`, is right here.
 - **The gate checks configuration that persists. Live state belongs in the sim.**
 - **No constant may originate as an observation from Mark's machine.**
 
@@ -75,10 +82,18 @@ a confident answer it had not earned. On this project a false alarm is as
 damaging as a missed fault, because the user cannot tell them apart. Test
 *positively* for the thing you want.
 
-**Never guess FSUIPC ini syntax — make FSUIPC write it.** Assign one thing by
-hand, close FSUIPC, run `tools/Read-FsuipcConfig.ps1`, copy what it wrote. A
-wrong format is *silently discarded*, so it looks exactly like a lever that does
-nothing. Guessing has failed twice here; this technique has worked every time.
+**Read the manual before designing an experiment.** The full FSUIPC docs are at
+`C:\Users\markl\OneDrive\Documents\FSUIPC7\*.pdf` — *FSUIPC7 for Advanced Users*
+specifies the whole ini. This project guessed the `[Axes]` format, then built a
+measure-and-read-back procedure to recover it, while the specification sat on
+disk. "Don't guess" and "don't look it up" are not the same rule.
+
+No poppler here, so convert with Word: open the PDF, read `$doc.Content.Text`.
+`SaveAs2` fails on the two big guides with a bare "Command failed".
+
+**When FSUIPC syntax is genuinely undocumented, make FSUIPC write it.** Assign
+by hand, close FSUIPC, run `tools/Read-FsuipcConfig.ps1`. A wrong format is
+*silently discarded*, so it looks exactly like a lever that does nothing.
 
 **When a mistake gets written down, write down the right thing.** The first bad
 `[Axes]` line was recorded as "invented syntax". It was the real `D` form with a
@@ -123,6 +138,6 @@ several round trips in one session.
 
 - Bravo lever 5 letter unconfirmed. `R U V` fits both measurements; the naive
   reading says otherwise. One hand assignment settles it.
-- Throttle scaling: `D` form + calibration, syntax to be read off FSUIPC.
+- Reverse zones: `THROTTLEn_SET` supports them, syntax not yet worked out.
 - Piggyback reverser levers: switches of their own, or mechanical?
 - Nothing has ever run on midcon07's machine.
