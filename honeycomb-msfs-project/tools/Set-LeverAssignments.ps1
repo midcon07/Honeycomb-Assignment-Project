@@ -96,10 +96,17 @@ param(
     # MEASURED, not predicted, for levers 1 and 3. See the notes below.
     [string[]] $AxisLetters    = @('Y','X','R','U','V','Z'),
     [int]      $Delta          = 256,
-    # MEASURED: the quadrant reads backwards - forward on the lever gave idle.
-    # Every lever is on the same device and travels the same way, so this is a
-    # property of the quadrant, not of any one lever.
-    [bool]     $ReverseAxes    = $true,
+    # MEASURED, both of these, and both properties of the quadrant rather than
+    # of any one lever - all six sit on one device and travel the same way.
+    #
+    # The negative scale reverses direction: forward on the lever gave idle.
+    # The halving and offset fold the full -16384..+16383 control range down to
+    # 0..16383, so the whole lever travel is forward thrust. Without it the
+    # bottom half of the travel sends negative values, which are the control's
+    # reverse zone and simply read as idle - the throttle did not begin to move
+    # until halfway up the lever.
+    [double]   $AxisScale      = -0.5,
+    [int]      $AxisOffset     = 8192,
     [string]   $FsuipcRoot     = 'C:\FSUIPC7',
     [switch]   $WaitForExit,
     [int]      $TimeoutSeconds = 300
@@ -204,14 +211,26 @@ for ($lever = 0; $lever -lt 6; $lever++) {
     # An R prefix on the delta means Raw mode; no prefix means calibrated.
     # F sends an FS control, D sends to FSUIPC's calibration.
     #
-    # A trailing ",*<number>" multiplies the axis value before it is sent, and
-    # the documentation is explicit that it "can be negative, to reverse the
-    # axis direction". The input range is symmetric about zero, so *-1 is the
-    # whole reversal - no offset term is needed.
+    # A trailing ",*<number>" multiplies the axis value before it is sent and
+    # ",+<number>" or ",-<number>" then shifts it. The manual requires the
+    # multiply to come first, and performs it first.
+    #
+    # Formatted invariantly on purpose. This is a config file another program
+    # parses, and a machine with a comma decimal separator would write "*-0,5",
+    # which would be read as two parameters rather than one number.
     $axis = '{0}{1}' -f $JoystickLetter, $AxisLetters[$lever]
-    $rev  = if ($ReverseAxes) { ',*-1' } else { '' }
+
+    $adj = ''
+    if ($AxisScale -ne 1) {
+        $adj += ',*' + $AxisScale.ToString([cultureinfo]::InvariantCulture)
+    }
+    if ($AxisOffset -ne 0) {
+        $sign = if ($AxisOffset -gt 0) { '+' } else { '-' }
+        $adj += ',' + $sign + [math]::Abs($AxisOffset)
+    }
+
     [void]$lines.Add(("{0}={1},{2},F,{3},0,0,0{4}`t-{{ TO SIM: {5} }}-" -f `
-        $n, $axis, $Delta, $c, $rev, $CTRL_NAME[$c]))
+        $n, $axis, $Delta, $c, $adj, $CTRL_NAME[$c]))
     $n++
 }
 
