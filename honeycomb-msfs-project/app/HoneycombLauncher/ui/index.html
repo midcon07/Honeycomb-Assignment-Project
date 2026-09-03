@@ -1,0 +1,852 @@
+<title>Preflight Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<style>
+  /* ------------------------------------------------------------------
+     737-200 flight deck. Single committed visual world, so no theme
+     switching - every colour is painted explicitly and the page holds on
+     either host ground.
+
+     Structure is carried over from CommPanel and ClaudeSoundtrack: a metal
+     chassis, recessed plates, visible screws, engraved labels sitting on a
+     dark shadow, lamps with bloom, monospace readouts. Only the palette
+     changes - Boeing cockpit grey and annunciator amber in place of brass.
+     ------------------------------------------------------------------ */
+  :root {
+    /* chassis */
+    --chassis-hi:   #6E7478;
+    --chassis:      #565C60;
+    --chassis-lo:   #41464A;
+    --recess:       #22262A;
+    --recess-deep:  #191D20;
+    --bezel:        #131618;
+    --glass:        #0D1012;
+    --edge-hi:      #7E858A;
+    --edge-sh:      #0B0D0E;
+    --screw:        #8C9296;
+    --screw-lo:     #4A4F53;
+
+    /* placard text - aged white, never pure */
+    --placard:      #E4E2DA;
+    --placard-dim:  #98A0A4;
+    --placard-faint:#697276;
+    --engrave:      #0B0D0E;
+
+    /* annunciators and lamps */
+    --amber:        #F0A81E;
+    --amber-bright: #FFC44D;
+    --amber-dim:    #6B4C10;
+    --green:        #4FD964;
+    --green-dim:    #1C4423;
+    --red:          #FF543E;
+    --red-dim:      #4E1912;
+    --cyan:         #5AC8FF;
+    --cyan-dim:     #14384A;
+
+    /* chart */
+    --chart-ground: #0E1315;
+    --chart-grid:   #1E2A2E;
+    --chart-route:  #F0A81E;
+    --chart-fix:    #C8D2D6;
+
+    --f-placard: "Barlow Semi Condensed", "Arial Narrow", sans-serif;
+    --f-readout: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: #0A0C0D;
+    color: var(--placard);
+    font-family: var(--f-placard);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .deck {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: clamp(10px, 2vw, 22px);
+  }
+
+  /* ---- chassis ---------------------------------------------------- */
+  .chassis {
+    background: linear-gradient(180deg, var(--chassis-hi) 0%, var(--chassis) 14%, var(--chassis-lo) 100%);
+    border-radius: 5px;
+    padding: clamp(10px, 1.6vw, 18px);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.22),
+      inset 0 -2px 6px rgba(0,0,0,.55),
+      0 18px 44px rgba(0,0,0,.6);
+    position: relative;
+  }
+  /* brushed-metal grain, cheap and subtle */
+  .chassis::before {
+    content: ""; position: absolute; inset: 0; border-radius: 5px; pointer-events: none;
+    background: repeating-linear-gradient(90deg,
+      rgba(255,255,255,.020) 0 1px, rgba(0,0,0,.020) 1px 3px);
+    mix-blend-mode: overlay;
+  }
+
+  .screw {
+    position: absolute; width: 13px; height: 13px; border-radius: 50%;
+    background: radial-gradient(circle at 34% 30%, var(--screw), var(--screw-lo) 68%, #2C3033 100%);
+    box-shadow: 0 1px 2px rgba(0,0,0,.75), inset 0 0 0 1px rgba(0,0,0,.45);
+  }
+  .screw::after {
+    content: ""; position: absolute; left: 50%; top: 50%;
+    width: 8px; height: 1.6px; background: rgba(0,0,0,.72);
+    transform: translate(-50%,-50%) rotate(var(--slot, 28deg));
+    border-radius: 1px;
+  }
+  .screw.tl { top: 7px;    left: 7px;  --slot: 22deg; }
+  .screw.tr { top: 7px;    right: 7px; --slot: -46deg; }
+  .screw.bl { bottom: 7px; left: 7px;  --slot: 71deg; }
+  .screw.br { bottom: 7px; right: 7px; --slot: 12deg; }
+
+  /* ---- annunciator strip ------------------------------------------ */
+  .annun {
+    display: flex; flex-wrap: wrap; align-items: stretch; gap: 4px;
+    background: var(--recess-deep);
+    border-radius: 3px;
+    padding: 5px;
+    box-shadow: inset 0 2px 6px rgba(0,0,0,.85), 0 1px 0 rgba(255,255,255,.14);
+    margin-bottom: clamp(10px, 1.6vw, 16px);
+  }
+  .ann {
+    flex: 1 1 auto; min-width: 104px;
+    text-align: center;
+    font-weight: 700; letter-spacing: .1em; font-size: 12px;
+    text-transform: uppercase;
+    padding: 9px 8px 7px;
+    border-radius: 2px;
+    border: 1px solid #000;
+    background: #101416;
+    color: #2C3236;
+    text-shadow: 0 1px 0 rgba(0,0,0,.9);
+    line-height: 1.1;
+  }
+  .ann.lit-amber {
+    background: linear-gradient(180deg, #4A3408, #2E2007);
+    color: var(--amber-bright);
+    text-shadow: 0 0 9px rgba(240,168,30,.85), 0 1px 0 #000;
+    box-shadow: inset 0 0 14px rgba(240,168,30,.30);
+  }
+  .ann.lit-red {
+    background: linear-gradient(180deg, #4A1611, #2C0D0A);
+    color: #FF8B79;
+    text-shadow: 0 0 9px rgba(255,84,62,.9), 0 1px 0 #000;
+    box-shadow: inset 0 0 14px rgba(255,84,62,.30);
+  }
+  .ann.lit-green {
+    background: linear-gradient(180deg, #113D1B, #0A2411);
+    color: #8CF39B;
+    text-shadow: 0 0 9px rgba(79,217,100,.8), 0 1px 0 #000;
+    box-shadow: inset 0 0 14px rgba(79,217,100,.26);
+  }
+
+  /* ---- aircraft selector bar --------------------------------------- */
+  .acbar {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px;
+    background: linear-gradient(180deg, var(--recess) 0%, var(--recess-deep) 100%);
+    border-radius: 4px; padding: 12px 14px;
+    margin-bottom: clamp(10px, 1.6vw, 16px);
+    box-shadow:
+      inset 0 2px 7px rgba(0,0,0,.8),
+      inset 0 -1px 0 rgba(255,255,255,.07),
+      0 1px 0 rgba(255,255,255,.15);
+  }
+  .acbar-label {
+    font-weight: 700; letter-spacing: .2em; font-size: 12px;
+    text-transform: uppercase; color: var(--placard);
+    text-shadow: 0 -1px 0 var(--engrave);
+    white-space: nowrap;
+  }
+
+  /* A native select on purpose. It behaves the way every other program on his
+     computer behaves, works with the keyboard, and cannot be got wrong. A
+     hand-built dropdown would look more like the panel and be worse to use. */
+  #acSelect {
+    flex: 1 1 260px; min-width: 220px;
+    font-family: var(--f-placard); font-size: 16px; font-weight: 600;
+    letter-spacing: .05em;
+    color: var(--placard);
+    background: #11161A;
+    border: 1px solid #000; border-radius: 2px;
+    padding: 10px 12px;
+    box-shadow: inset 0 2px 5px rgba(0,0,0,.8);
+  }
+  #acSelect:focus-visible { outline: 2px solid var(--cyan); outline-offset: 1px; }
+  #acSelect optgroup { font-style: normal; color: var(--placard-faint); background: #0D1114; }
+  #acSelect option { color: var(--placard); background: #11161A; font-weight: 500; }
+
+  .pbtn {
+    font-family: var(--f-placard); font-weight: 700;
+    letter-spacing: .12em; text-transform: uppercase; font-size: 12px;
+    padding: 11px 16px; cursor: pointer; white-space: nowrap;
+    color: var(--placard);
+    background: linear-gradient(180deg, #3E4448, #2A2F32);
+    border: 1px solid #0A0C0D; border-radius: 2px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.10), 0 2px 3px rgba(0,0,0,.5);
+    text-shadow: 0 -1px 0 rgba(0,0,0,.8);
+    text-decoration: none; display: inline-block;
+  }
+  .pbtn:hover { color: var(--amber-bright); }
+  .pbtn:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+  .pbtn.go {
+    color: #07110A;
+    background: linear-gradient(180deg, #7BE08C, #3FA451);
+    text-shadow: 0 1px 0 rgba(255,255,255,.25);
+  }
+  .pbtn.go:hover { color: #07110A; filter: brightness(1.08); }
+
+  /* ---- mismatch / plan alert --------------------------------------- */
+  .alert {
+    display: flex; align-items: flex-start; gap: 12px;
+    border-radius: 3px; padding: 13px 15px;
+    margin-bottom: clamp(10px, 1.6vw, 16px);
+    border: 1px solid;
+  }
+  .alert.hidden { display: none; }
+  .alert.warn { background: rgba(240,168,30,.10); border-color: var(--amber-dim); }
+  .alert.ok   { background: rgba(79,217,100,.08); border-color: var(--green-dim); }
+  .alert-mark {
+    flex: none; width: 26px; height: 26px; border-radius: 50%;
+    display: grid; place-items: center;
+    border: 2px solid currentColor;
+    font-weight: 700; font-size: 16px; line-height: 1;
+  }
+  .alert.warn .alert-mark { color: var(--amber); }
+  .alert.ok   .alert-mark { color: var(--green); }
+  .alert-body { min-width: 0; flex: 1 1 auto; }
+  .alert-head {
+    font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+    font-size: 15px; margin: 0 0 3px;
+  }
+  .alert.warn .alert-head { color: var(--amber-bright); }
+  .alert.ok   .alert-head { color: #8CF39B; }
+  .alert-text {
+    margin: 0; font-family: var(--f-readout); font-size: 11.5px;
+    line-height: 1.6; color: var(--placard-dim);
+  }
+  .alert-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+
+  /* ---- two-pane layout -------------------------------------------- */
+  .panes {
+    display: grid;
+    grid-template-columns: minmax(320px, 400px) 1fr;
+    gap: clamp(10px, 1.6vw, 16px);
+    align-items: start;
+  }
+  @media (max-width: 900px) { .panes { grid-template-columns: 1fr; } }
+
+  /* ---- recessed plate --------------------------------------------- */
+  .plate {
+    position: relative;
+    background: linear-gradient(180deg, var(--recess) 0%, var(--recess-deep) 100%);
+    border-radius: 4px;
+    padding: 14px 14px 16px;
+    box-shadow:
+      inset 0 2px 7px rgba(0,0,0,.8),
+      inset 0 -1px 0 rgba(255,255,255,.07),
+      0 1px 0 rgba(255,255,255,.15);
+  }
+  .plate-title {
+    font-weight: 700; letter-spacing: .22em; font-size: 12px;
+    text-transform: uppercase; color: var(--placard);
+    text-shadow: 0 -1px 0 var(--engrave), 0 1px 0 rgba(255,255,255,.10);
+    padding-bottom: 8px; margin-bottom: 12px;
+    border-bottom: 1px solid rgba(0,0,0,.6);
+    box-shadow: 0 1px 0 rgba(255,255,255,.07);
+    display: flex; justify-content: space-between; align-items: baseline; gap: 10px;
+  }
+  .plate-title .sub {
+    font-family: var(--f-readout); font-size: 10px; letter-spacing: .08em;
+    color: var(--placard-faint); font-weight: 400;
+  }
+
+  /* ---- checklist --------------------------------------------------- */
+  /* Boeing normal-procedures format: CHALLENGE .... RESPONSE, leader dots
+     between, response set apart. The dot leader is what makes it read as a
+     checklist rather than a list of settings. */
+  .cl { display: flex; flex-direction: column; gap: 1px; }
+
+  .cl-row {
+    display: flex; align-items: baseline; gap: 7px;
+    padding: 7px 6px;
+    border-radius: 2px;
+  }
+  .cl-row + .cl-row { border-top: 1px solid rgba(0,0,0,.35); }
+  .cl-row.attn { background: rgba(240,168,30,.07); }
+  .cl-row.stop { background: rgba(255,84,62,.09); }
+
+  .lamp {
+    flex: none; width: 11px; height: 11px; border-radius: 50%;
+    background: #0C0F10;
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,.9), inset 0 1px 2px rgba(0,0,0,.8);
+    position: relative; top: -1px;
+  }
+  .lamp.g { background: var(--green);  box-shadow: 0 0 8px rgba(79,217,100,.85),  inset 0 0 0 1px rgba(0,0,0,.5); }
+  .lamp.a { background: var(--amber);  box-shadow: 0 0 8px rgba(240,168,30,.85),  inset 0 0 0 1px rgba(0,0,0,.5); }
+  .lamp.r { background: var(--red);    box-shadow: 0 0 9px rgba(255,84,62,.9),    inset 0 0 0 1px rgba(0,0,0,.5); }
+  .lamp.c { background: var(--cyan);   box-shadow: 0 0 8px rgba(90,200,255,.8),   inset 0 0 0 1px rgba(0,0,0,.5); }
+  .lamp.off { background: #171B1D; }
+
+  .cl-chal {
+    font-weight: 600; letter-spacing: .085em; font-size: 14px;
+    text-transform: uppercase; color: var(--placard);
+    text-shadow: 0 -1px 0 var(--engrave);
+    white-space: nowrap;
+  }
+  /* The leader dots are what make this read as a checklist rather than a list
+     of settings, so they have to be clearly visible, not a hairline. */
+  .cl-lead {
+    flex: 1 1 auto; min-width: 14px;
+    align-self: center;
+    height: 5px;
+    background-image: radial-gradient(circle, var(--placard-dim) 1px, transparent 1.2px);
+    background-size: 5px 5px;
+    background-position: center;
+    background-repeat: repeat-x;
+    opacity: .85;
+  }
+  .cl-resp {
+    font-family: var(--f-readout); font-size: 12.5px; font-weight: 500;
+    letter-spacing: .04em; white-space: nowrap;
+    color: var(--placard);
+  }
+  .cl-resp.g { color: #8CF39B; }
+  .cl-resp.a { color: var(--amber-bright); }
+  .cl-resp.r { color: #FF8B79; }
+  .cl-resp.d { color: var(--placard-faint); }
+
+  .cl-note {
+    font-family: var(--f-readout); font-size: 10.5px; line-height: 1.5;
+    color: var(--placard-dim);
+    padding: 0 6px 8px 25px;
+    margin-top: -2px;
+  }
+  .cl-note.warn { color: var(--amber); }
+  .cl-note.bad  { color: #FF8B79; }
+
+  .cl-complete {
+    margin-top: 14px; padding-top: 11px;
+    border-top: 1px solid rgba(0,0,0,.6);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.07);
+    text-align: center;
+    font-weight: 700; letter-spacing: .2em; font-size: 12px;
+    text-transform: uppercase;
+  }
+  .cl-complete.hold { color: #FF8B79; text-shadow: 0 0 10px rgba(255,84,62,.5); }
+
+  /* ---- start button ------------------------------------------------ */
+  .start {
+    margin-top: 12px; width: 100%;
+    font-family: var(--f-placard); font-weight: 700;
+    letter-spacing: .18em; text-transform: uppercase; font-size: 15px;
+    padding: 14px; border-radius: 3px; cursor: not-allowed;
+    color: #6B7276;
+    background: linear-gradient(180deg, #3E4448, #2A2F32);
+    border: 1px solid #0A0C0D;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.10), 0 2px 4px rgba(0,0,0,.5);
+    text-shadow: 0 -1px 0 rgba(0,0,0,.8);
+  }
+  .start:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+
+  /* ---- map --------------------------------------------------------- */
+  /* Drawn chart only. Real FAA underlays were built and then dropped -
+     SimBrief's own app already does charts well, and carrying tile services
+     meant a licence question, a US-only coverage limit and another thing to
+     fail when the internet is down. See notes/chart_underlays.md. */
+  .map-wrap {
+    background: var(--chart-ground);
+    border-radius: 3px;
+    box-shadow: inset 0 0 0 1px #000, inset 0 3px 12px rgba(0,0,0,.9);
+    overflow: hidden;
+  }
+  svg { display: block; width: 100%; height: auto; }
+
+  .rt-line   { stroke: var(--chart-route); stroke-width: 1.6; fill: none; }
+  .rt-glow   { stroke: var(--chart-route); stroke-width: 5; fill: none; opacity: .13; }
+  .fix-sym   { stroke: var(--chart-fix); stroke-width: 1.2; fill: none; }
+  .fix-apt   { stroke: #8CF39B; stroke-width: 1.6; fill: none; }
+  .fix-lbl {
+    font-family: "IBM Plex Mono", monospace; font-size: 8.5px;
+    fill: var(--chart-fix); letter-spacing: .04em;
+  }
+  .fix-lbl.apt { fill: #8CF39B; font-weight: 600; font-size: 10px; }
+  .fix-lbl.tp  { fill: var(--amber); }
+  .grid-line { stroke: var(--chart-grid); stroke-width: .6; }
+  .awy-lbl {
+    font-family: "IBM Plex Mono", monospace; font-size: 8px;
+    fill: var(--amber); letter-spacing: .1em;
+  }
+
+  /* ---- profile ----------------------------------------------------- */
+  .prof-fill { fill: rgba(240,168,30,.12); }
+  .prof-line { stroke: var(--amber); stroke-width: 1.4; fill: none; }
+  .prof-axis { stroke: var(--chart-grid); stroke-width: .6; }
+  .prof-lbl {
+    font-family: "IBM Plex Mono", monospace; font-size: 8px;
+    fill: var(--placard-faint);
+  }
+
+  /* ---- data strip -------------------------------------------------- */
+  .strip {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(94px, 1fr));
+    gap: 1px; margin-top: 12px;
+    background: rgba(0,0,0,.5); border-radius: 2px; overflow: hidden;
+  }
+  .cell { background: var(--recess-deep); padding: 8px 9px; }
+  .cell .k {
+    font-size: 9.5px; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--placard-faint); font-weight: 600;
+  }
+  .cell .v {
+    font-family: var(--f-readout); font-size: 14px; font-weight: 500;
+    color: var(--amber-bright); margin-top: 2px;
+    text-shadow: 0 0 7px rgba(240,168,30,.35);
+  }
+  .cell .v.plain { color: var(--placard); text-shadow: none; }
+
+  .footnote {
+    margin-top: 14px; text-align: center;
+    font-family: var(--f-readout); font-size: 10px; line-height: 1.6;
+    color: #5C6367;
+  }
+</style>
+
+<div class="deck">
+  <div class="chassis">
+    <span class="screw tl"></span><span class="screw tr"></span>
+    <span class="screw bl"></span><span class="screw br"></span>
+
+    <div class="annun" id="annun"></div>
+
+    <div class="acbar">
+      <label class="acbar-label" for="acSelect">Aircraft</label>
+      <select id="acSelect"></select>
+      <button class="pbtn" id="refreshBtn" type="button">Refresh Flight Plan</button>
+    </div>
+
+    <div class="alert hidden" id="planAlert" role="status" aria-live="polite">
+      <div class="alert-mark" id="alertMark">!</div>
+      <div class="alert-body">
+        <p class="alert-head" id="alertHead"></p>
+        <p class="alert-text" id="alertText"></p>
+        <div class="alert-actions hidden" id="alertActions">
+          <a class="pbtn go" id="sbLink" href="https://dispatch.simbrief.com/options/new"
+             target="_blank" rel="noopener noreferrer">Open SimBrief</a>
+          <button class="pbtn" id="alertRefresh" type="button">I have made the plan &mdash; refresh</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="panes">
+
+      <!-- ============ LEFT: checklist ============ -->
+      <section class="plate">
+        <div class="plate-title">
+          <span>Before Start</span>
+          <span class="sub" id="clStamp"></span>
+        </div>
+        <div class="cl" id="checklist"></div>
+        <div class="cl-complete hold" id="clVerdict"></div>
+        <button class="start" id="startBtn" type="button" disabled>Start Simulator</button>
+      </section>
+
+      <!-- ============ RIGHT: flight plan ============ -->
+      <section class="plate">
+        <div class="plate-title">
+          <span>Flight Plan</span>
+          <span class="sub" id="mapStamp"></span>
+        </div>
+        <div class="map-wrap">
+          <svg id="chart" viewBox="0 0 620 600" role="img"
+               aria-label="Route from Bermuda Dunes to Visalia Municipal"></svg>
+        </div>
+        <div class="map-wrap" style="margin-top:8px"><svg id="profile" viewBox="0 0 620 96" role="img"
+             aria-label="Vertical profile"></svg></div>
+        <div class="strip" id="strip"></div>
+      </section>
+
+    </div>
+  </div>
+
+  <p class="footnote" id="foot"></p>
+</div>
+
+<script>
+"use strict";
+
+/* Data-driven console. Everything comes from the host application; nothing
+   here is hardcoded state. The PowerShell tools remain the source of truth. */
+
+var LAYOUTS = {
+  prop_1_fixed: { name: "Single engine, fixed-pitch prop",   caps: "BLACK and RED on levers 1 and 2" },
+  prop_1_cs:    { name: "Single engine, constant-speed prop", caps: "BLACK, BLUE, RED on levers 1 to 3" },
+  prop_2_fixed: { name: "Twin engine, fixed-pitch prop",      caps: "2 x BLACK, 2 x RED on levers 1 to 4" },
+  prop_2_cs:    { name: "Twin engine, constant-speed prop",   caps: "2 x BLACK, 2 x BLUE, 2 x RED - all six" },
+  fadec_1:      { name: "Single engine, FADEC",               caps: "BLACK on lever 1, the rest empty" },
+  fadec_2:      { name: "Twin engine, FADEC",                 caps: "2 x BLACK on levers 1 and 2, the rest empty" },
+  jet_1:        { name: "Single engine jet",                  caps: "SPEED BRAKE, 1 throttle, FLAP" },
+  jet_2:        { name: "Twin engine jet",                    caps: "SPEED BRAKE, 2 throttles, FLAP" },
+  jet_3:        { name: "Tri engine jet",                     caps: "SPEED BRAKE, 3 throttles, FLAP" },
+  jet_4:        { name: "Four engine jet",                    caps: "SPEED BRAKE, 4 throttles, FLAP" },
+  glider:       { name: "Glider",                             caps: "SPEED BRAKE only, the rest empty" }
+};
+
+var FLEET = [
+  { id: "c152", name: "Cessna 152",               type: "C152", layout: "prop_1_fixed" },
+  { id: "c172", name: "Cessna 172 Skyhawk",       type: "C172", layout: "prop_1_fixed" },
+  { id: "da40", name: "Diamond DA40 NG",          type: "DA40", layout: "fadec_1" },
+  { id: "be36", name: "Beechcraft Bonanza G36",   type: "BE36", layout: "prop_1_cs" },
+  { id: "c208", name: "Cessna 208B Caravan",      type: "C208", layout: "prop_1_cs" },
+  { id: "tbm9", name: "Daher TBM 930",            type: "TBM9", layout: "fadec_1" },
+  { id: "da62", name: "Diamond DA62",             type: "DA62", layout: "fadec_2" },
+  { id: "be58", name: "Beechcraft Baron G58",     type: "BE58", layout: "prop_2_cs" },
+  { id: "b350", name: "Beechcraft King Air 350i", type: "B350", layout: "prop_2_cs" },
+  { id: "c25c", name: "Cessna Citation CJ4",      type: "C25C", layout: "jet_2" },
+  { id: "a20n", name: "Airbus A320neo",           type: "A20N", layout: "jet_2" },
+  { id: "b738", name: "PMDG 737-800",             type: "B738", layout: "jet_2" },
+  { id: "b77l", name: "PMDG 777F",                type: "B77L", layout: "jet_2" },
+  { id: "b78x", name: "Boeing 787-10",            type: "B78X", layout: "jet_2" },
+  { id: "b748", name: "Boeing 747-8i",            type: "B748", layout: "jet_4" },
+  { id: "disc", name: "Discus-2c Glider",         type: "DISC", layout: "glider" }
+];
+
+var S = {
+  config: null,
+  preflight: null,
+  preflightBusy: false,
+  plan: null,
+  planBusy: false,
+  selectedId: null,
+  launched: false
+};
+
+function el(tag, cls, text) {
+  var n = document.createElement(tag);
+  if (cls) { n.className = cls; }
+  if (text != null) { n.textContent = text; }
+  return n;
+}
+function byId(id) { return document.getElementById(id); }
+function craft(id) {
+  for (var i = 0; i < FLEET.length; i++) { if (FLEET[i].id === id) { return FLEET[i]; } }
+  return null;
+}
+function post(msg) {
+  if (window.chrome && window.chrome.webview) { window.chrome.webview.postMessage(msg); }
+}
+
+/* ------------------------------------------------------------------ host -- */
+
+window.APP = {
+  receive: function (msg) {
+    switch (msg.kind) {
+      case "config":
+        S.config = msg;
+        if (!S.selectedId && msg.lastAircraftId) { S.selectedId = msg.lastAircraftId; }
+        break;
+      case "preflightBusy": S.preflightBusy = true; break;
+      case "preflight":     S.preflightBusy = false; S.preflight = msg.data || msg; break;
+      case "planBusy":      S.planBusy = true; break;
+      case "plan":          S.planBusy = false; S.plan = msg.data || msg; break;
+      case "launched":      S.launched = true; break;
+    }
+    render();
+  }
+};
+
+/* --------------------------------------------------------------- render -- */
+
+function verdict() {
+  if (S.preflightBusy || !S.preflight) { return "CHECKING"; }
+  return S.preflight.verdict || "CANNOT RUN";
+}
+
+function renderAnnunciators() {
+  var host = byId("annun");
+  host.textContent = "";
+  var v = verdict();
+  var tiles = [
+    { t: "Master Caution", lit: (v === "NO-GO" || v === "CANNOT RUN") ? "lit-amber" : "" },
+    { t: "Preflight", lit: v === "GO" ? "lit-green" : (v === "CHECKING" ? "" : "lit-red") },
+    { t: "Aircraft", lit: S.selectedId ? "lit-green" : "lit-amber" },
+    { t: "Lever Caps", lit: capsConfirmed() ? "lit-green" : "lit-amber" },
+    { t: "Flight Plan", lit: planTone() },
+    { t: "Sim Ready", lit: canLaunch() ? "lit-green" : "" }
+  ];
+  tiles.forEach(function (x) { host.appendChild(el("div", "ann " + x.lit, x.t)); });
+}
+
+function capsConfirmed() {
+  var a = craft(S.selectedId);
+  return !!(a && S.config && S.config.capsSetForLayout === a.layout);
+}
+
+// PowerShell writes Status with a capital; the host sends status lowercase for
+// its own synthetic cases. Tolerate both in one place.
+function planStatus() { return S.plan ? (S.plan.Status || S.plan.status || null) : null; }
+
+function planTone() {
+  if (!S.plan) { return ""; }
+  if (planStatus() === "Fresh") { return "lit-green"; }
+  if (planStatus() === "Stale" || planStatus() === "Recent") { return "lit-amber"; }
+  return "lit-amber";
+}
+
+function renderAircraftBar() {
+  var sel = byId("acSelect");
+  sel.textContent = "";
+  var use = (S.config && S.config.aircraftUse) || {};
+  var used = FLEET.filter(function (a) { return (use[a.id] || 0) > 0; })
+                  .sort(function (x, y) {
+                    var d = (use[y.id] || 0) - (use[x.id] || 0);
+                    return d !== 0 ? d : x.name.localeCompare(y.name);
+                  });
+  if (used.length) {
+    var g1 = document.createElement("optgroup");
+    g1.label = "Your aircraft — most flown first";
+    used.forEach(function (a) {
+      var o = document.createElement("option");
+      o.value = a.id; o.textContent = a.name + "   (" + use[a.id] + ")";
+      g1.appendChild(o);
+    });
+    sel.appendChild(g1);
+  }
+  var g2 = document.createElement("optgroup");
+  g2.label = used.length ? "All aircraft" : "Choose an aircraft";
+  FLEET.slice().sort(function (x, y) { return x.name.localeCompare(y.name); })
+    .forEach(function (a) {
+      var o = document.createElement("option");
+      o.value = a.id; o.textContent = a.name;
+      g2.appendChild(o);
+    });
+  sel.appendChild(g2);
+  if (S.selectedId) { sel.value = S.selectedId; }
+}
+
+function planState() {
+  var a = craft(S.selectedId);
+  if (S.planBusy) { return "busy"; }
+  if (!S.plan) { return "none"; }
+  var ps = planStatus();
+  if (ps === "NoPilotId") { return "nopilot"; }
+  if (ps === "Unavailable" || ps === "NoSuchUser" ||
+      ps === "NoPlan") { return "noplan"; }
+  if (a && S.plan.AircraftIcao && S.plan.AircraftIcao !== a.type) { return "mismatch"; }
+  if (ps === "Stale") { return "stale"; }
+  return "ok";
+}
+
+function renderAlert() {
+  var box = byId("planAlert"), mark = byId("alertMark"),
+      head = byId("alertHead"), text = byId("alertText"), acts = byId("alertActions");
+  var st = planState();
+  var a = craft(S.selectedId);
+
+  function show(cls, m, h, t, showActions) {
+    box.className = "alert " + cls;
+    mark.textContent = m; head.textContent = h; text.textContent = t;
+    acts.classList.toggle("hidden", !showActions);
+    box.classList.remove("hidden");
+  }
+
+  if (!S.selectedId) {
+    show("warn", "?", "Choose the aircraft you are flying",
+         "Pick it from the list above.", false);
+    return;
+  }
+  if (st === "busy")   { show("warn", "·", "Checking your flight plan", "One moment.", false); return; }
+  if (st === "nopilot") {
+    show("warn", "?", "SimBrief is not set up yet",
+         "Enter your SimBrief Pilot ID below and your flight plan will be checked automatically.", true);
+    return;
+  }
+  if (st === "noplan") {
+    show("warn", "!", "No flight plan on file",
+         "Make one on SimBrief for the " + a.name + ", then press refresh. You can fly without a plan.", true);
+    return;
+  }
+  if (st === "mismatch") {
+    show("warn", "!", "This plan is for a different aircraft",
+         "You chose the " + a.name + " (" + a.type + "), but the plan is for a " +
+         (S.plan.AircraftName || S.plan.AircraftIcao) + " (" + S.plan.AircraftIcao + "), " +
+         S.plan.OriginIcao + " to " + S.plan.DestIcao +
+         ". Either fly that one instead, or make a new plan.", true);
+    return;
+  }
+  if (st === "stale") {
+    show("warn", "!", "That flight plan is " + S.plan.AgeHours / 24 > 1
+           ? ("That flight plan is " + Math.round(S.plan.AgeHours / 24 * 10) / 10 + " days old")
+           : "That flight plan is old",
+         S.plan.OriginIcao + " to " + S.plan.DestIcao + ", made " + S.plan.GeneratedUtc +
+         " UTC. Still the flight you want?", true);
+    return;
+  }
+  show("ok", "✓", "Flight plan matches",
+       S.plan.OriginIcao + " to " + S.plan.DestIcao + " in the " + a.name + ".", false);
+}
+
+function renderChecklist() {
+  var host = byId("checklist");
+  host.textContent = "";
+  var rows = [];
+  var a = craft(S.selectedId);
+
+  if (S.preflightBusy || !S.preflight) {
+    rows.push({ chal: "Preflight", resp: "CHECKING", lamp: "a", tone: "a" });
+  } else if (S.preflight.error) {
+    rows.push({ chal: "Preflight", resp: "CANNOT RUN", lamp: "r", tone: "r", row: "stop",
+                note: String(S.preflight.error).slice(0, 240), noteTone: "bad" });
+  } else {
+    var res = S.preflight.results || [];
+    res.filter(function (r) { return r.State !== "INFO"; })
+       .sort(function (x, y) {
+         var rank = { FAIL: 0, WARN: 1, TODO: 2, SKIP: 3, PASS: 4 };
+         return (rank[x.State] || 9) - (rank[y.State] || 9);
+       })
+       .forEach(function (r) {
+         var lamp = r.State === "PASS" ? "g" : r.State === "FAIL" ? "r"
+                  : r.State === "WARN" || r.State === "TODO" ? "a" : "off";
+         rows.push({
+           chal: r.Check,
+           resp: r.State === "PASS" ? "OK" : r.State,
+           lamp: lamp,
+           tone: lamp === "g" ? "g" : lamp === "r" ? "r" : lamp === "a" ? "a" : "d",
+           row: r.Blocking && r.State === "FAIL" ? "stop" : (lamp === "a" ? "attn" : ""),
+           note: r.Remedy || (r.State === "PASS" ? null : r.Detail),
+           noteTone: r.State === "FAIL" ? "bad" : "warn"
+         });
+       });
+  }
+
+  rows.push({ chal: "Aircraft", resp: a ? a.type : "NOT CHOSEN",
+              lamp: a ? "g" : "a", tone: a ? "g" : "a", row: a ? "" : "attn",
+              note: a ? a.name : "Choose from the list at the top.", noteTone: "warn" });
+
+  if (a) {
+    var L = LAYOUTS[a.layout];
+    rows.push({ chal: "Lever Caps", resp: capsConfirmed() ? "SET" : "CHECK",
+                lamp: capsConfirmed() ? "g" : "c",
+                tone: capsConfirmed() ? "g" : "d",
+                row: capsConfirmed() ? "" : "attn",
+                note: L ? L.caps : "No layout known for this aircraft." });
+  }
+
+  rows.forEach(function (c) {
+    var row = el("div", "cl-row" + (c.row ? " " + c.row : ""));
+    row.appendChild(el("span", "lamp " + c.lamp));
+    row.appendChild(el("span", "cl-chal", c.chal));
+    row.appendChild(el("span", "cl-lead"));
+    row.appendChild(el("span", "cl-resp " + (c.tone || ""), c.resp));
+    host.appendChild(row);
+    if (c.note) { host.appendChild(el("div", "cl-note " + (c.noteTone || ""), c.note)); }
+  });
+
+  var v = verdict();
+  var vb = byId("clVerdict");
+  vb.className = "cl-complete" + (v === "GO" ? "" : " hold");
+  vb.textContent = v === "GO" ? "— Ready —"
+                 : v === "CHECKING" ? "— Checking —"
+                 : v === "SETUP NEEDED" ? "— Setup Needed —"
+                 : "— Hold —";
+  var outstanding = rows.filter(function (r) { return r.lamp === "r" || r.lamp === "a"; }).length;
+  byId("clStamp").textContent = outstanding + " of " + rows.length + " items outstanding";
+}
+
+function canLaunch() {
+  var v = verdict();
+  return (v === "GO" || v === "SETUP NEEDED") && !!S.selectedId && capsConfirmed();
+}
+
+function renderLaunch() {
+  var b = byId("startBtn");
+  b.disabled = !canLaunch();
+  if (S.launched) { b.textContent = "Simulator Starting"; return; }
+  var a = craft(S.selectedId);
+  if (!S.selectedId) { b.textContent = "Choose an aircraft first"; }
+  else if (!capsConfirmed()) { b.textContent = "Confirm the lever caps first"; }
+  else if (verdict() === "NO-GO") { b.textContent = "Fix the items above first"; }
+  else if (verdict() === "CHECKING") { b.textContent = "Checking"; }
+  else { b.textContent = "Start Simulator"; }
+}
+
+function renderPlanPane() {
+  var a = craft(S.selectedId);
+  byId("craftName").textContent = a ? a.name : "—";
+  var L = a ? LAYOUTS[a.layout] : null;
+  byId("mapStamp").textContent = S.plan && S.plan.OriginIcao
+    ? (S.plan.OriginIcao + " → " + S.plan.DestIcao)
+    : (L ? L.name : "");
+
+  var strip = byId("strip");
+  strip.textContent = "";
+  function cell(k, v, plain) {
+    var d = el("div", "cell");
+    d.appendChild(el("div", "k", k));
+    d.appendChild(el("div", "v" + (plain ? " plain" : ""), v));
+    strip.appendChild(d);
+  }
+  if (S.plan && S.plan.OriginIcao) {
+    cell("From", S.plan.OriginIcao); cell("To", S.plan.DestIcao);
+    cell("Aircraft", S.plan.AircraftIcao || "—", true);
+    if (S.plan.DistanceNm) { cell("Distance", S.plan.DistanceNm + " NM"); }
+    if (S.plan.CruiseAlt) { cell("Cruise", S.plan.CruiseAlt + " FT"); }
+    if (S.plan.AgeHours != null) { cell("Plan Age", Math.round(S.plan.AgeHours) + " HRS"); }
+  } else if (a) {
+    cell("Aircraft", a.type); cell("Layout", L ? L.name : "—", true);
+  }
+}
+
+function render() {
+  renderAnnunciators();
+  renderAircraftBar();
+  renderAlert();
+  renderChecklist();
+  renderLaunch();
+  renderPlanPane();
+  byId("foot").textContent = S.config && S.config.problem
+    ? S.config.problem
+    : "Preflight and flight plan read live from this computer.";
+}
+
+/* ---------------------------------------------------------------- wiring -- */
+
+byId("acSelect").addEventListener("change", function (e) {
+  S.selectedId = e.target.value;
+  post({ action: "selectAircraft", id: S.selectedId });
+  render();
+  post({ action: "refreshPlan" });
+});
+
+byId("refreshBtn").addEventListener("click", function () { post({ action: "refresh" }); });
+byId("alertRefresh").addEventListener("click", function () { post({ action: "refreshPlan" }); });
+byId("sbLink").addEventListener("click", function (e) {
+  e.preventDefault();
+  post({ action: "openSimBrief" });
+});
+byId("startBtn").addEventListener("click", function () {
+  if (canLaunch()) { post({ action: "launch" }); }
+});
+
+/* Confirming the caps is a deliberate act - it is the one step no software can
+   verify, so it must not be something that happens by itself. */
+(function addConfirm() {
+  var bar = document.querySelector(".acbar");
+  var b = el("button", "pbtn go", "Lever caps are set");
+  b.type = "button";
+  b.id = "capsBtn";
+  b.addEventListener("click", function () {
+    var a = craft(S.selectedId);
+    if (a) { post({ action: "confirmCaps", layout: a.layout }); }
+  });
+  bar.appendChild(b);
+})();
+
+render();
+</script>
