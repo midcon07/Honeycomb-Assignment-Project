@@ -95,7 +95,19 @@ param(
     [string]   $JoystickLetter = 'B',
     # MEASURED, not predicted, for levers 1 and 3. See the notes below.
     [string[]] $AxisLetters    = @('Y','X','R','U','V','Z'),
-    [int]      $Delta          = 256,
+    # Delta is the smallest change FSUIPC will act on, not a timing value, but
+    # it reads as lag: move the lever slowly and nothing happens until the
+    # threshold is crossed, then it jumps.
+    #
+    # 256 is the documented default for calibrated input, chosen for devices in
+    # general. This one is 10-bit, and FSUIPC's input spans about 32768, so one
+    # physical step of the lever is 32 units - and 256 means ignoring movement
+    # until eight steps have gone by. 32 is therefore the finest value that
+    # still corresponds to something real on the hardware.
+    #
+    # If a lever ever twitches while untouched, its pot is noisy and this is the
+    # number to raise.
+    [int]      $Delta          = 32,
     # MEASURED, both of these, and both properties of the quadrant rather than
     # of any one lever - all six sit on one device and travel the same way.
     #
