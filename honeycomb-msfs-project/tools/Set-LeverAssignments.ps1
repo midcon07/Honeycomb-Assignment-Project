@@ -143,25 +143,27 @@ $ErrorActionPreference = 'Stop'
 # arithmetic below have to move together. Picking a control from one and a
 # range from the other is silent: the lever moves, just not correctly.
 #
-#   Axis    -16383 idle .. +16383 max      scale -0.5,  offset 0
-#   Legacy       0 idle .. +16383 max      scale -0.25, offset +8192
+#   Axis    -16383 idle .. +16383 max      scale -1,   offset 0
+#   Legacy       0 idle .. +16383 max      scale -0.5, offset +8192
 #           (negative being Legacy's reverse zone, which is why its range has
 #            to be folded into the top half)
 #
-# THE INPUT RANGE IS +-32768, NOT +-16384. The manual says both. Its worked
-# example for these parameters says "if the normal input range of an axis is
-# -16384 to +16383", but its description of calibrated DirectInput values says
-# they "vary enormously between large numbers like -32767 and +32767". The
-# second one is true here, and the hardware settled it:
+# THE INPUT RANGE IS +-16384. The manual says this in its worked example for
+# these parameters, and it is correct. Elsewhere it describes calibrated
+# DirectInput values as varying "between large numbers like -32767 and +32767",
+# and that sentence does not apply here.
 #
-#   scale -1 on Legacy    dead below halfway          reported as such
-#   scale -0.5            dead over the outer quarter reported at both ends
+# Halving these scales was tried and is a regression: it sends only the middle
+# half of the control's range, giving a throttle that jumps straight to about
+# 15% and stops around 85%. Do not repeat it. The theory behind it was that
+# output clamping explained a dead zone at both ends of the travel; the test
+# disproved it in one attempt.
 #
-# Output is clamped - "constrained to be in the range -16384 to +16383" - so a
-# scale twice too large pins the outer quarter of the travel at each end and
-# leaves only the middle live. Dead at BOTH extremes with a responsive middle
-# is the signature of that, and is what distinguishes it from a dead pot,
-# which is dead at one end only.
+# The small dead regions at both extremes are not from this arithmetic, which
+# covers the full range to within one unit at each end. They are mechanical -
+# the lever keeps moving after the pot has reached its electrical limit - plus
+# whatever idle and full-power detents the aircraft models. Neither is
+# reachable from this file.
 #
 # The negative sign is the measured direction of this quadrant: FSUIPC reads
 # positive at the detent and negative at full forward, opposite to the HID
@@ -226,8 +228,8 @@ $CTRL = $CTRL_BY_FAMILY[$ControlFamily]
 
 # Defaulted here rather than in the param block because they depend on the
 # family. An explicit value always wins, so an override is still possible.
-if ($null -eq $AxisScale)  { $AxisScale  = if ($ControlFamily -eq 'Axis') { -0.5 } else { -0.25 } }
-if ($null -eq $AxisOffset) { $AxisOffset = if ($ControlFamily -eq 'Axis') {     0 } else {   8192 } }
+if ($null -eq $AxisScale)  { $AxisScale  = if ($ControlFamily -eq 'Axis') { -1.0 } else { -0.5 } }
+if ($null -eq $AxisOffset) { $AxisOffset = if ($ControlFamily -eq 'Axis') {    0 } else {  8192 } }
 
 $ini = [System.IO.Path]::Combine($FsuipcRoot, 'FSUIPC7.ini')
 if (-not (Test-Path -LiteralPath $ini)) { throw "No FSUIPC7.ini at $ini" }
