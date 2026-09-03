@@ -24,8 +24,18 @@ PR #1. Code lives under `honeycomb-msfs-project/`.
 
 ## Settled — do not re-litigate
 
-- **FSUIPC owns the Alpha/Bravo bindings**, not MSFS. MSFS rewrites its own
-  binding store; FSUIPC's ini is file-based and diffable.
+- **FSUIPC owns the Alpha/Bravo bindings**, not MSFS. Not a preference — the
+  only workable option. **MSFS 2024 does not store controller profiles as XML.**
+  They live in the Xbox-style WGS container at
+  `…\Microsoft.Limitless_8wekyb3d8bbwe\SystemAppData\wgs\…` as GUID-named
+  binary blobs that are cloud-synced. Verified: one 1.1 MB blob contains 529
+  occurrences of `inputprofile` and 8 of `Bravo`, and does not begin with XML.
+  There is no profile file to write. That was the MSFS 2020 model.
+
+  Consequence: **MSFS and FSUIPC must not both bind the same axis.** They fight,
+  and the symptom is a lever that appears to ignore whatever you just changed.
+  To let FSUIPC drive, select an *empty* Bravo profile in MSFS — create a new
+  one rather than clearing the working one, so it stays one click away.
 - **Layout follows capability, not engine type.** Prop control *and* mixture →
   constant-speed; mixture alone → fixed-pitch; neither → FADEC. Turboprops need
   no special case.
