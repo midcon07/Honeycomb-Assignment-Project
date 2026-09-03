@@ -66,7 +66,10 @@ PR #1. Code lives under `honeycomb-msfs-project/`.
 | Levers 1–6 → FSUIPC letter | `Y X R U V Z`. Levers 1 and 3 **measured**. Not the obvious convention: `Rz` is `R`, not `V`. Linear axes keep their usage letter; rotational ones are lettered in report-descriptor order. |
 | FSUIPC joystick letters | Bravo `B`, pedals `C`, **Alpha `D`** |
 | Reverse detent buttons | `24 25 26 27 28 33` |
-| Axis range | `0`–`1023`; **saturates at 0 at the detent**, so the button is the only reverse signal |
+| Axis range | `0`–`1023`; **saturates at 0 at the detent**, so the button is the only reverse signal. Re-confirmed by sweep: full forward `1023`, resting on the detent `0` with no button, past the detent `0` with button `24`. Idle therefore lands on the detent for free. |
+| FSUIPC input direction | **Inverted from HID**: `+16383` at the detent, `-16384` full forward. Hence the `*-0.5` scale. Measured, not explained. |
+| Lever 1 detent button | `24` |
+| Bravo switch rest state | buttons `19 32 35 37 39 41 43 44 47` are switch *positions*, always down |
 | Handles | 2 black, 2 blue, 2 red, 4 white jet throttles, 1 SPEED BRAKE, 1 FLAP |
 | MSFS 2024 | Store `Microsoft.Limitless_8wekyb3d8bbwe`; `UserCfg.opt` in its `LocalCache` |
 | Live Community | from `InstalledPackagesPath` — **never** by folder name |
