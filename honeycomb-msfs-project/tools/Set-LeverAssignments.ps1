@@ -13,14 +13,21 @@
       * The joystick letter came from FSUIPC's own [JoyNames].
       * The control numbers came from the Controls List that ships with
         FSUIPC, not from memory.
-      * The ini line format is  <n>=<joy><axis>,256,D,<control>,0,0,0
+      * The line format was taken from a line FSUIPC wrote itself, after one
+        axis was assigned by hand:
 
-    ONE THING IS STILL A PREDICTION. Which FSUIPC axis LETTER corresponds to
-    each HID axis follows the standard DirectInput ordering - X, Y, Z map to
-    X, Y, Z and Rx, Ry, Rz map to R, U, V. That is a documented convention
-    rather than a wild guess, and if it is wrong it is wrong loudly: a lever
-    visibly drives the wrong thing and the fix is one letter. It is exposed as
-    -AxisLetters so it can be corrected without editing this file.
+            0=BY,R0,F,65820,0,0,0	-{ TO SIM: THROTTLE1_SET }-
+
+        The first attempt invented ",256,D," and used the AXIS_ control family,
+        and FSUIPC silently discarded every line. It validates what it loads
+        and drops what it cannot resolve, without saying so - so a wrong format
+        looks exactly like a lever that does nothing.
+
+    That hand assignment also confirmed lever 1 is axis letter Y, which matches
+    the DirectInput convention the remaining letters are predicted from: X, Y, Z
+    map to X, Y, Z and Rx, Ry, Rz map to R, U, V. Any still-unconfirmed letter
+    fails loudly - a lever visibly drives the wrong thing - and -AxisLetters
+    corrects it without editing this file.
 
 .PARAMETER Layout
     Which of the eleven layouts to write. See data/lever-layouts.json.
@@ -59,12 +66,27 @@ Set-StrictMode -Version 2.0
 $ErrorActionPreference = 'Stop'
 
 # Control numbers, read from "Controls List for MSFS Build 122.txt".
+#
+# The plain _SET family, NOT the AXIS_ family. FSUIPC was asked to assign one
+# axis by hand and it chose THROTTLE1_SET (65820) rather than
+# AXIS_THROTTLE1_SET (66420). The two take different value ranges, so this is
+# not cosmetic - guessing the AXIS_ variant is why the first attempt did
+# nothing.
 $CTRL = @{
-    ThrottleAll = 65765; PropAll = 66291; MixtureAll = 66292
-    Throttle1   = 66420; Throttle2 = 66423; Throttle3 = 66426; Throttle4 = 66429
-    Prop1       = 66421; Prop2     = 66424; Prop3     = 66427; Prop4     = 66430
-    Mixture1    = 66422; Mixture2  = 66425; Mixture3  = 66428; Mixture4  = 66431
-    Spoiler     = 66382; Flaps     = 66534
+    ThrottleAll = 65697; PropAll = 65767; MixtureAll = 65773
+    Throttle1   = 65820; Throttle2 = 65821; Throttle3 = 65822; Throttle4 = 65823
+    Prop1       = 65923; Prop2     = 65924; Prop3     = 65925; Prop4     = 65926
+    Mixture1    = 65919; Mixture2  = 65920; Mixture3  = 65921; Mixture4  = 65922
+    Spoiler     = 65786; Flaps     = 65698
+}
+
+# Names for the trailing comment, matching FSUIPC's own style.
+$CTRL_NAME = @{
+    65697 = 'THROTTLE_SET';  65767 = 'PROP_PITCH_SET'; 65773 = 'MIXTURE_SET'
+    65820 = 'THROTTLE1_SET'; 65821 = 'THROTTLE2_SET';  65822 = 'THROTTLE3_SET'; 65823 = 'THROTTLE4_SET'
+    65923 = 'PROP_PITCH1_SET'; 65924 = 'PROP_PITCH2_SET'; 65925 = 'PROP_PITCH3_SET'; 65926 = 'PROP_PITCH4_SET'
+    65919 = 'MIXTURE1_SET'; 65920 = 'MIXTURE2_SET'; 65921 = 'MIXTURE3_SET'; 65922 = 'MIXTURE4_SET'
+    65786 = 'SPOILERS_SET'; 65698 = 'FLAPS_SET'
 }
 
 # What each lever drives, per layout. Index 0-5 is lever 1-6; $null means the
@@ -83,8 +105,6 @@ $LAYOUTS = @{
     glider       = @($CTRL.Spoiler, $null, $null, $null, $null, $null)
 }
 
-$NAMES = @{}
-foreach ($k in $CTRL.Keys) { $NAMES[$CTRL[$k]] = $k }
 
 if ($AxisLetters.Count -ne 6) { throw "AxisLetters needs exactly 6 entries, one per lever." }
 
@@ -117,9 +137,13 @@ $n = 0
 for ($lever = 0; $lever -lt 6; $lever++) {
     $c = $controls[$lever]
     if ($null -eq $c) { continue }
+    # Format copied exactly from a line FSUIPC wrote itself:
+    #   0=BY,R0,F,65820,0,0,0	-{ TO SIM: THROTTLE1_SET }-
+    # R0 is the range field and F means "send to sim". The first attempt used
+    # 256 and D, both invented, and FSUIPC silently discarded every line.
     $axis = '{0}{1}' -f $JoystickLetter, $AxisLetters[$lever]
-    [void]$lines.Add(('{0}={1},256,D,{2},0,0,0    ; lever {3} -> {4}' -f `
-        $n, $axis, $c, ($lever + 1), $NAMES[$c]))
+    [void]$lines.Add(("{0}={1},R0,F,{2},0,0,0`t-{{ TO SIM: {3} }}-" -f `
+        $n, $axis, $c, $CTRL_NAME[$c]))
     $n++
 }
 
