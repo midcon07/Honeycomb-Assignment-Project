@@ -167,7 +167,12 @@ if (-not $replaced) {
     [void]$out.AddRange([string[]]($section -split "`r`n"))
 }
 
-Set-Content -LiteralPath $ini -Value $out -Encoding UTF8
+# No BOM. PowerShell's -Encoding UTF8 writes one on 5.1, and this file did not
+# have one - adding invisible bytes to the front of a config file that another
+# program parses is not a change to make by accident. Also CRLF, as Windows ini
+# files are.
+[System.IO.File]::WriteAllText($ini, (($out -join "`r`n") + "`r`n"),
+    (New-Object System.Text.UTF8Encoding($false)))
 Write-Host ("Wrote {0} assignments to {1}" -f $n, $ini) -ForegroundColor Green
 Write-Host ''
 Write-Host 'The axis letters are the one part not yet measured. Move each lever in' -ForegroundColor Yellow

@@ -191,7 +191,18 @@
             }
         }
 
-        $axisLines = @($text | Select-String -Pattern '^\d+=.*(?i)axis')
+        # Count real assignment lines inside [Axes], which look like
+        #   0=BY,256,D,66420,0,0,0
+        # The previous test looked for the word "axis" in the line, which no
+        # actual FSUIPC assignment contains - so freshly written assignments
+        # were still reported as missing.
+        $axisLines = New-Object System.Collections.ArrayList
+        $inAxes = $false
+        foreach ($l in $text) {
+            if ($l -match '^\s*\[Axes')  { $inAxes = $true;  continue }
+            if ($l -match '^\s*\[')      { $inAxes = $false; continue }
+            if ($inAxes -and $l -match '^\s*\d+\s*=\s*[A-Z]{2},') { [void]$axisLines.Add($l) }
+        }
         $profiles  = @($text | Select-String -Pattern '^\[Profile\.')
         if ($axisLines.Count) { Add-Result 'Lever assignments' 'PASS' ("{0} assignment line(s)" -f $axisLines.Count) }
         else { Add-Result 'Lever assignments' 'TODO' 'No lever assignments written yet.' `
