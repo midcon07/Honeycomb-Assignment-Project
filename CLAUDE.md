@@ -63,6 +63,15 @@ ever say "untested".
   red levers take `AXIS_CONDITION_LEVER_n_SET` (67372/67379), not mixture.
   Measured on the King Air 350 — levers 5–6 on `AXIS_MIXTURE` did nothing while
   1–4 worked. Layouts `turboprop_1`/`turboprop_2`, fact `conditionLever`.
+  **And `AXIS_CONDITION_LEVER_n_SET` did nothing either.** The Asobo King Air
+  350i consumes no axis for its condition levers: the community presets in
+  `C:\FSUIPC7\events.txt` (`//Asobo/King Air 350i/Fuel`) show it wants a
+  3-position enum `TURB ENG CONDITION LEVER POSITION:n` (0 cut-off, 1 low idle,
+  2 high idle) plus `SET_FUEL_VALVE_ENGn` and `L:Condition_Lever_CutOff_n`. So
+  the red levers are driven by a **preset** (`data/myevents.txt`, installed to
+  `C:\FSUIPC7\myevents.txt`) that maps the axis into thirds. **Before guessing a
+  control for any aircraft, read its section of `events.txt`** — it is what the
+  aircraft actually responds to, and it is on disk.
 - **Classification cannot be read from disk on MSFS 2024.** Verified 2026-09-03:
   every package under `StreamedPackages` and `Official2024` is opaque
   `.fsarchive` blobs — **zero readable `aircraft.cfg`** across both. The

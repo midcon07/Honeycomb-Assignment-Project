@@ -1,0 +1,26 @@
+// Personal FSUIPC7 presets for the Honeycomb Assignment Project.
+// Installed to <FSUIPC7 root>\myevents.txt. FSUIPC loads it at startup
+// alongside MobiFlight's events.txt; names must be unique and at most 63
+// characters; calculator code at most 1023 characters. The @ symbol is
+// replaced by the axis value when a preset is assigned to an axis.
+//
+// Why these exist: the Asobo King Air 350i (MSFS 2024) does not drive its
+// condition levers from any axis event. AXIS_MIXTURE1/2_SET and
+// AXIS_CONDITION_LEVER_1/2_SET both did nothing while the power and prop
+// levers on the same profile worked. The community presets in events.txt
+// (//Asobo/King Air 350i/Fuel) show what the aircraft actually consumes: a
+// three-position enum, TURB ENG CONDITION LEVER POSITION (0 cut off,
+// 1 low idle, 2 high idle), together with SET_FUEL_VALVE_ENGn and an lvar
+// Condition_Lever_CutOff_n. These presets make the same three writes, with
+// the position taken from the lever instead of from a button.
+//
+// Axis value arrives as -16384 (lever at the detent, with this project's
+// *-1 scaling) to +16383 (full forward). (@ + 16384) / 16384 spans 0..2,
+// "near" rounds it, and "0 max 2 min" clamps it. So the bottom third of the
+// travel is cut off, the middle third low idle, the top third high idle -
+// which is where those positions sit on a real King Air quadrant. The fuel
+// valve is open for any position above cut off.
+//
+//Honeycomb/King Air 350i/Condition levers
+KA350_Condition1_Axis#@ 16384 + 16384 / near 0 max 2 min s0 (>L:Condition_Lever_CutOff_1) l0 0 > (>K:SET_FUEL_VALVE_ENG1) l0 (>A:TURB ENG CONDITION LEVER POSITION:1,enum)
+KA350_Condition2_Axis#@ 16384 + 16384 / near 0 max 2 min s0 (>L:Condition_Lever_CutOff_2) l0 0 > (>K:SET_FUEL_VALVE_ENG2) l0 (>A:TURB ENG CONDITION LEVER POSITION:2,enum)
