@@ -43,6 +43,14 @@ For propeller aircraft:
 | yes | yes | constant-speed — black, blue, red |
 | no | yes | fixed-pitch — black, red |
 | no | no | FADEC — black only |
+| yes | **condition** lever (turboprop) | turboprop — black, blue, red; **same handles as constant-speed, different controls** |
+
+The last row is the correction to "turboprops need no special case". For the
+*handles* that was true. For the *controls* it was not: the King Air 350's
+red levers did nothing on `AXIS_MIXTURE1/2_SET` while levers 1–4 worked, and
+MSFS 2024 has a separate `AXIS_CONDITION_LEVER_n_SET` family for them. So a
+turboprop is its own layout, distinguished by `conditionLever` rather than
+`mixtureControl` in its facts.
 
 Jets are classified by engine count alone. Gliders are their own case.
 

@@ -93,7 +93,8 @@ param(
     # Which layout to write. Optional when -Aircraft is given and the aircraft
     # is in the curated table, which then supplies it.
     [ValidateSet('prop_1_fixed','prop_1_cs','prop_2_fixed','prop_2_cs',
-                 'fadec_1','fadec_2','jet_1','jet_2','jet_3','jet_4','glider')]
+                 'fadec_1','fadec_2','jet_1','jet_2','jet_3','jet_4','glider',
+                 'turboprop_1','turboprop_2')]
     [string]   $Layout = '',
 
     # Write a per-aircraft FSUIPC profile instead of the global section:
@@ -202,6 +203,11 @@ $CTRL_BY_FAMILY = @{
         Prop1       = 66421; Prop2     = 66424; Prop3     = 66427; Prop4     = 66430
         Mixture1    = 66422; Mixture2  = 66425; Mixture3  = 66428; Mixture4  = 66431
         Spoiler     = 66382; Flaps     = 66534
+        # Turboprop condition levers. NOT mixture: the King Air 350 ignored
+        # AXIS_MIXTURE1/2_SET on levers 5 and 6 while 1-4 worked. These are the
+        # only condition-lever controls, so they are the same in both families.
+        ConditionAll = 67365
+        Condition1   = 67372; Condition2 = 67379; Condition3 = 67386; Condition4 = 67393
     }
 
     # The older family, which carries the reverse zone below zero. Kept so the
@@ -212,6 +218,9 @@ $CTRL_BY_FAMILY = @{
         Prop1       = 65923; Prop2     = 65924; Prop3     = 65925; Prop4     = 65926
         Mixture1    = 65919; Mixture2  = 65920; Mixture3  = 65921; Mixture4  = 65922
         Spoiler     = 65786; Flaps     = 65698
+        # No legacy condition-lever controls exist; these are the AXIS_ ones.
+        ConditionAll = 67365
+        Condition1   = 67372; Condition2 = 67379; Condition3 = 67386; Condition4 = 67393
     }
 }
 
@@ -228,6 +237,10 @@ $CTRL_NAME = @{
     66421 = 'AXIS_PROPELLER1_SET'; 66424 = 'AXIS_PROPELLER2_SET'; 66427 = 'AXIS_PROPELLER3_SET'; 66430 = 'AXIS_PROPELLER4_SET'
     66422 = 'AXIS_MIXTURE1_SET'; 66425 = 'AXIS_MIXTURE2_SET'; 66428 = 'AXIS_MIXTURE3_SET'; 66431 = 'AXIS_MIXTURE4_SET'
     66382 = 'AXIS_SPOILER_SET'; 66534 = 'AXIS_FLAPS_SET'
+
+    67365 = 'AXIS_CONDITION_LEVER_SET'
+    67372 = 'AXIS_CONDITION_LEVER_1_SET'; 67379 = 'AXIS_CONDITION_LEVER_2_SET'
+    67386 = 'AXIS_CONDITION_LEVER_3_SET'; 67393 = 'AXIS_CONDITION_LEVER_4_SET'
 }
 
 # What each lever drives, per layout. Index 0-5 is lever 1-6; $null means the
@@ -244,6 +257,13 @@ $LAYOUTS = @{
     jet_3        = @('Spoiler', $null, 'Throttle1', 'Throttle2', 'Throttle3', 'Flaps')
     jet_4        = @('Spoiler', 'Throttle1', 'Throttle2', 'Throttle3', 'Throttle4', 'Flaps')
     glider       = @('Spoiler', $null, $null, $null, $null, $null)
+
+    # Turboprops. Same handles as the constant-speed layouts - black, blue,
+    # red - but the red levers are CONDITION levers and take the condition
+    # controls, not mixture. Measured on the King Air 350: levers 5 and 6 on
+    # AXIS_MIXTURE did nothing while 1-4 worked.
+    turboprop_1  = @('ThrottleAll', 'PropAll', 'ConditionAll', $null, $null, $null)
+    turboprop_2  = @('Throttle1', 'Throttle2', 'Prop1', 'Prop2', 'Condition1', 'Condition2')
 }
 
 

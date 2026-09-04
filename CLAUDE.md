@@ -58,8 +58,11 @@ ever say "untested".
   The gate names "Claude Empty" in its remedy text; the confirmation is recorded
   by `tools/Confirm-SimBravoProfile.ps1`.
 - **Layout follows capability, not engine type.** Prop control *and* mixture →
-  constant-speed; mixture alone → fixed-pitch; neither → FADEC. Turboprops need
-  no special case.
+  constant-speed; mixture alone → fixed-pitch; neither → FADEC. **Turboprops
+  are a special case for controls, not handles**: same black/blue/red, but the
+  red levers take `AXIS_CONDITION_LEVER_n_SET` (67372/67379), not mixture.
+  Measured on the King Air 350 — levers 5–6 on `AXIS_MIXTURE` did nothing while
+  1–4 worked. Layouts `turboprop_1`/`turboprop_2`, fact `conditionLever`.
 - **Classification cannot be read from disk on MSFS 2024.** Verified 2026-09-03:
   every package under `StreamedPackages` and `Official2024` is opaque
   `.fsarchive` blobs — **zero readable `aircraft.cfg`** across both. The

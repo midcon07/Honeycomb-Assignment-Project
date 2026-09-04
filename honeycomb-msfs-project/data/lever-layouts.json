@@ -105,6 +105,24 @@
     },
 
     {
+      "id": "turboprop_1",
+      "group": "Turboprops",
+      "name": "Single turboprop",
+      "match": { "category": "prop", "engines": 1, "propControl": true, "conditionLever": true },
+      "caps": ["black", "blue", "red", null, null, null],
+      "functions": ["Power", "Propeller", "Condition", null, null, null],
+      "$comment": "Same handles as prop_1_cs; the red lever is a CONDITION lever and takes AXIS_CONDITION_LEVER_SET, not mixture."
+    },
+    {
+      "id": "turboprop_2",
+      "group": "Turboprops",
+      "name": "Twin turboprop",
+      "match": { "category": "prop", "engines": 2, "propControl": true, "conditionLever": true },
+      "caps": ["black", "black", "blue", "blue", "red", "red"],
+      "functions": ["Power 1", "Power 2", "Propeller 1", "Propeller 2", "Condition 1", "Condition 2"],
+      "$comment": "Same handles as prop_2_cs; red levers are CONDITION levers on AXIS_CONDITION_LEVER_1/2_SET. Measured on the King Air 350: on AXIS_MIXTURE they did nothing while levers 1-4 worked."
+    },
+    {
       "id": "glider",
       "group": "Gliders",
       "name": "All gliders",
@@ -137,18 +155,18 @@
       "icao": "B350",
       "match": "King Air 350",
       "titleMatch": "Beechcraft King Air",
-      "facts": { "category": "prop", "engines": 2, "propControl": true, "mixtureControl": true },
-      "layout": "prop_2_cs",
-      "verified": "type - power, prop and condition levers; condition levers on AXIS_MIXTURE not yet seen to move in the sim"
+      "facts": { "category": "prop", "engines": 2, "propControl": true, "mixtureControl": false, "conditionLever": true },
+      "layout": "turboprop_2",
+      "verified": "partly flown 2026-09-04: levers 1-4 (power, prop) drive correctly; levers 5-6 on AXIS_MIXTURE did nothing, so moved to AXIS_CONDITION_LEVER_1/2_SET - not yet seen to move"
     },
     {
       "name": "Beechcraft King Air C90 GTx",
       "icao": "BE9L",
       "match": "King Air C90",
       "titleMatch": "King Air C90",
-      "facts": { "category": "prop", "engines": 2, "propControl": true, "mixtureControl": true },
-      "layout": "prop_2_cs",
-      "verified": "type - power, prop and condition levers; sim title seen as \"King Air C90 GTX Passengers\" in FSUIPC's log; not yet flown"
+      "facts": { "category": "prop", "engines": 2, "propControl": true, "mixtureControl": false, "conditionLever": true },
+      "layout": "turboprop_2",
+      "verified": "type - power, prop and condition levers, condition on AXIS_CONDITION_LEVER_1/2_SET as measured on the 350; sim title seen as \"King Air C90 GTX Passengers\" in FSUIPC's log; not yet flown"
     }
   ]
 }
