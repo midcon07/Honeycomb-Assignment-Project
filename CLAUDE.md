@@ -16,7 +16,16 @@ PR #1. Code lives under `honeycomb-msfs-project/`.
 
 ## The launch flow
 
-1. Preflight gate — `tools/Preflight/`. **May block.**
+1. Preflight gate — `tools/Preflight/`. **May block.** Runs on app launch and on
+   USB device change. Two checks tie "the machine is set up" to "*this* flight
+   will work": **Planned aircraft** (25) takes the ICAO type from the SimBrief
+   plan, else the last aircraft chosen, and **blocks** unless it is in the
+   curated table *and* has a written `[Profile.*]`/`[Axes.*]` — because the
+   global `[Axes]` is empty, an unprofiled aircraft has a dead quadrant.
+   **Bravo profile in MSFS** (35) cannot be verified (WGS blob) so it is a
+   one-time TODO cleared by `tools/Confirm-SimBravoProfile.ps1`, which records
+   who looked and when. The Fleet "none classified" TODO is retired — it would
+   have been amber forever.
 2. Flight plan — `tools/Get-SimBriefPlan.ps1`. **May never block.**
 3. Aircraft chosen, cap layout shown, physical setup confirmed.
 4. Add-ons started.
@@ -135,6 +144,9 @@ several round trips in one session.
 - Negative numbers as *positional* arguments parse as parameter names. Use named
   parameters.
 - `-Only A,B` through `-File` arrives as one string, not an array.
+- `$PSScriptRoot` is **not dependable inside a check's `Run` block** — it came out
+  empty, and a relative path then resolved against the working directory, which
+  worked by accident once. Use `$script:ProjectRoot`, published by the host.
 - `Invoke-WebRequest` on 5.1 needs `-UseBasicParsing` or it fails on HTML.
 - Exceptions from .NET method calls are wrapped; the `WebException` carrying the
   HTTP response is at `.InnerException`.

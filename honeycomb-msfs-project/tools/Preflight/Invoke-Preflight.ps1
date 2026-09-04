@@ -224,6 +224,13 @@ function Get-AppConfig {
 # ------------------------------------------------------------ run the gate --
 
 $checksDir = Join-PathSafe $PSScriptRoot 'Checks'
+
+# The project root (honeycomb-msfs-project), for checks that need files outside
+# their own folder - the aircraft table, the SimBrief fetcher. Published from
+# here because $PSScriptRoot is not dependable inside a check's Run block:
+# it can come out empty, and a relative path then resolves against whatever
+# the working directory happens to be, which worked by accident once.
+$script:ProjectRoot = [System.IO.Path]::GetFullPath((Join-PathSafe $PSScriptRoot '..\..'))
 if (-not (Test-PathSafe $checksDir)) {
     Write-Host "Preflight cannot run: no Checks directory at $checksDir" -ForegroundColor Red
     exit 2

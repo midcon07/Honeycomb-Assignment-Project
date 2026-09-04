@@ -114,10 +114,11 @@
     }
   ],
 
-  "$aircraftComment": "Curated, because MSFS 2024 packages are opaque .fsarchive blobs and the four facts cannot be read from disk (verified 2026-09-03). 'match' is the substring FSUIPC matches the sim's aircraft title on, and doubles as the profile name. 'facts' are what the classification rule needs; 'layout' is what they resolve to. 'verified' says how the entry is known: flown means the levers were seen driving the right controls in the sim; type means it follows from the aircraft type and has not been flown yet. Add an aircraft only with both facts answered - never guess them.",
+  "$aircraftComment": "Curated, because MSFS 2024 packages are opaque .fsarchive blobs and the four facts cannot be read from disk (verified 2026-09-03). 'icao' is the ICAO type code (B350, DA62) - what SimBrief reports and what the app records, so it is the key the preflight gate looks an aircraft up by. 'match' is the substring FSUIPC matches the sim's aircraft title on, and doubles as the profile name. 'facts' are what the classification rule needs; 'layout' is what they resolve to. 'verified' says how the entry is known: flown means the levers were seen driving the right controls in the sim; type means it follows from the aircraft type and has not been flown yet. Add an aircraft only with both facts answered - never guess them.",
   "aircraft": [
     {
       "name": "Diamond DA62",
+      "icao": "DA62",
       "match": "DA62",
       "facts": { "category": "prop", "engines": 2, "propControl": false, "mixtureControl": false },
       "layout": "fadec_2",
@@ -125,6 +126,7 @@
     },
     {
       "name": "Beechcraft Bonanza G36",
+      "icao": "BE36",
       "match": "Bonanza",
       "facts": { "category": "prop", "engines": 1, "propControl": true, "mixtureControl": true },
       "layout": "prop_1_cs",
@@ -132,6 +134,7 @@
     },
     {
       "name": "Beechcraft King Air 350",
+      "icao": "B350",
       "match": "King Air 350",
       "facts": { "category": "prop", "engines": 2, "propControl": true, "mixtureControl": true },
       "layout": "prop_2_cs",

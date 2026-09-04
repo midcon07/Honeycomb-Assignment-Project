@@ -20,6 +20,15 @@ internal sealed class AppConfig
     [JsonPropertyName("aircraftUse")] public Dictionary<string, int> AircraftUse { get; set; } = new();
     [JsonPropertyName("fsuipcRoot")] public string FsuipcRoot { get; set; } = "";
 
+    // Set when a person has confirmed, in MSFS's controls options, that the
+    // Bravo is on an EMPTY profile so it does not fight FSUIPC for the levers.
+    // The sim keeps that setting in a cloud-synced binary container we cannot
+    // read, so this is a record of someone having looked, not a verification.
+    // Written by tools/Confirm-SimBravoProfile.ps1 (or a future setup step);
+    // declared here so Save() round-trips it instead of dropping it.
+    [JsonPropertyName("msfsBravoProfileConfirmedUtc")] public string MsfsBravoProfileConfirmedUtc { get; set; } = "";
+    [JsonPropertyName("msfsBravoProfileConfirmedBy")]  public string MsfsBravoProfileConfirmedBy  { get; set; } = "";
+
     public static string Path { get; } = System.IO.Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "HoneycombAssignment", "config.json");
