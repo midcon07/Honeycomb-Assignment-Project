@@ -21,16 +21,23 @@
 // which is where those positions sit on a real King Air quadrant. The fuel
 // valve is open for any position above cut off.
 //
-// MEASURED 2026-09-04, first version: with the mapping (@ + 16384) / 16384
-// rounded, both levers reached cut off and low idle but never high idle.
-// That rounding only yields 2 for values of +8192 and above, so the value
-// arriving from the lever tops out below that: FSUIPC hands a preset the
-// axis in the unsigned 0..16383 range, which this project's *-1 scaling
-// turns into -16383..0. The thresholds below are one and two thirds of that
-// span. If the sim's high idle instead appears halfway up the lever, the
-// arriving range is the signed one after all, and the thresholds move to
-// -5461 and +5461.
+// MEASURED 2026-09-04 via L:HC_Cond2_Raw and Add-Ons->WASM->List Lvars:
+// the value a preset receives is the full SIGNED range, -16383 with the
+// lever on the detent and +16383 at full forward (11147, 4787, -704, -8223,
+// -13599 logged on the way down). The earlier note here claiming an
+// unsigned 0..16383 range was a theory fitted to a symptom, and it was
+// wrong. So the thresholds below are NOT why high idle was missed. What is:
+// an axis preset re-fires on every delta and repeats the same three writes
+// dozens of times per sweep, and the King Air's own lever logic does not
+// take that well - the community presets work because a button fires them
+// once. The robust design fires transitions only: the detent button for
+// cut off, an FSUIPC axis zone for low/high idle, each firing a community
+// preset exactly once. These axis presets are kept for the raw-value
+// logging and as a fallback, not as the intended path.
 //
 //Honeycomb/King Air 350i/Condition levers
-KA350_Condition1_Axis#@ -10922 < if{ 0 } els{ @ -5461 < if{ 1 } els{ 2 } } s0 (>L:Condition_Lever_CutOff_1) l0 0 > (>K:SET_FUEL_VALVE_ENG1) l0 (>A:TURB ENG CONDITION LEVER POSITION:1,enum)
-KA350_Condition2_Axis#@ -10922 < if{ 0 } els{ @ -5461 < if{ 1 } els{ 2 } } s0 (>L:Condition_Lever_CutOff_2) l0 0 > (>K:SET_FUEL_VALVE_ENG2) l0 (>A:TURB ENG CONDITION LEVER POSITION:2,enum)
+// Each preset first writes the value it received into L:HC_CondN_Raw, so the
+// real range can be read from FSUIPC7.log via [LvarsLogged] instead of
+// inferred from behaviour. Costs nothing; leave it in.
+KA350_Condition1_Axis#@ (>L:HC_Cond1_Raw) @ -10922 < if{ 0 } els{ @ -5461 < if{ 1 } els{ 2 } } s0 (>L:Condition_Lever_CutOff_1) l0 0 > (>K:SET_FUEL_VALVE_ENG1) l0 (>A:TURB ENG CONDITION LEVER POSITION:1,enum)
+KA350_Condition2_Axis#@ (>L:HC_Cond2_Raw) @ -10922 < if{ 0 } els{ @ -5461 < if{ 1 } els{ 2 } } s0 (>L:Condition_Lever_CutOff_2) l0 0 > (>K:SET_FUEL_VALVE_ENG2) l0 (>A:TURB ENG CONDITION LEVER POSITION:2,enum)
