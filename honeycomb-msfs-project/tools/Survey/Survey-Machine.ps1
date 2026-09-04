@@ -124,24 +124,30 @@ Probe 'Readable aircraft titles (Community add-ons only)' {
     if (-not $ipp) { return }
     $c = [System.IO.Path]::Combine($ipp, 'Community')
     if (-not (Test-Path -LiteralPath $c)) { return }
-    $titles = New-Object System.Collections.ArrayList
+    # On Mark's machine this found 4,479 titles - almost all liveries and AI
+    # traffic packs, and no delimiter reliably separates aircraft from livery
+    # ("Boeing 727-100 - Alaska", "FSLTL A20N AMC Air Malta"). What a person
+    # needs is per PACKAGE: which add-on aircraft folders exist, how many
+    # titles each holds, and one example title. Every unique title still goes
+    # to the JSON, grouped by package, where it is useful for matching.
+    $byPkg = @{}
     Get-ChildItem -LiteralPath $c -Recurse -Depth 5 -Filter 'aircraft.cfg' -ErrorAction SilentlyContinue | ForEach-Object {
+        $rel = $_.FullName.Substring($c.Length).TrimStart('\')
+        $pkg = ($rel -split '\\')[0]
+        if (-not $byPkg.ContainsKey($pkg)) { $byPkg[$pkg] = New-Object System.Collections.ArrayList }
         Get-Content -LiteralPath $_.FullName -ErrorAction SilentlyContinue |
             Select-String -Pattern '^\s*title\s*=\s*"?([^"]+)"?' |
-            ForEach-Object { [void]$titles.Add($_.Matches[0].Groups[1].Value.Trim()) }
+            ForEach-Object { [void]$byPkg[$pkg].Add($_.Matches[0].Groups[1].Value.Trim()) }
     }
-    # On Mark's machine this found 4,481 titles - almost all liveries and AI
-    # traffic packs ("Boeing 727-100 - Alaska Airlines", hundreds of FSLTL
-    # entries). Every unique title goes to the JSON, where it is useful for
-    # matching. The text report, which a person reads, collapses them to
-    # aircraft families (the part before " - ") and shows at most 60.
-    $unique   = @($titles | Sort-Object -Unique)
-    $families = @($unique | ForEach-Object { ($_ -split '\s+-\s+', 2)[0].Trim() } | Sort-Object -Unique)
-    Line ('Titles found: {0} ({1} distinct aircraft families; full list is in the .json)' -f $unique.Count, $families.Count)
-    $families | Select-Object -First 60 | ForEach-Object { Line ('  ' + $_) }
-    if ($families.Count -gt 60) { Line ('  ... and {0} more families' -f ($families.Count - 60)) }
-    $data.communityTitles   = $unique
-    $data.communityFamilies = $families
+    $total = 0; foreach ($k in $byPkg.Keys) { $total += $byPkg[$k].Count }
+    Line ('Titles found: {0} across {1} Community packages (every title is in the .json)' -f $total, $byPkg.Count)
+    foreach ($k in ($byPkg.Keys | Sort-Object)) {
+        $u = @($byPkg[$k] | Sort-Object -Unique)
+        Line ('  {0,-44} {1,5} titles   e.g. {2}' -f $k, $u.Count, $(if ($u.Count) { $u[0] } else { '' }))
+    }
+    $grouped = [ordered]@{}
+    foreach ($k in ($byPkg.Keys | Sort-Object)) { $grouped[$k] = @($byPkg[$k] | Sort-Object -Unique) }
+    $data.communityTitlesByPackage = $grouped
 }
 Probe 'Add-ons started with the simulator (EXE.xml)' {
     foreach ($x in @([System.IO.Path]::Combine($env:APPDATA, 'Microsoft Flight Simulator 2024\EXE.xml'),
