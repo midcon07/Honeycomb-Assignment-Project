@@ -1,0 +1,237 @@
+Honeycomb flight-sim survey - BIGBOY - 2026-09-04 15:54
+Read-only. Nothing on this computer was changed.
+
+=== Windows ===
+Microsoft Windows 11 Home, build 26200, 32 GB RAM
+PowerShell 5.1.26100.9278
+  C:  387 GB free of 930 GB
+  E:  389 GB free of 931 GB
+
+=== Microsoft Flight Simulator 2024 ===
+Edition: Microsoft Store
+UserCfg.opt: C:\Users\midco\AppData\Local\Packages\Microsoft.Limitless_8wekyb3d8bbwe\LocalCache\UserCfg.opt
+InstalledPackagesPath: C:\Users\midco\AppData\Local\Packages\Microsoft.Limitless_8wekyb3d8bbwe\LocalCache\Packages
+  Community            36 packages   C:\Users\midco\AppData\Local\Packages\Microsoft.Limitless_8wekyb3d8bbwe\LocalCache\Packages\Community
+  StreamedPackages   1243 packages   C:\Users\midco\AppData\Local\Packages\Microsoft.Limitless_8wekyb3d8bbwe\LocalCache\Packages\StreamedPackages
+  Official2024          1 packages   C:\Users\midco\AppData\Local\Packages\Microsoft.Limitless_8wekyb3d8bbwe\LocalCache\Packages\Official2024
+  Official          (absent)
+Likely aircraft packages: 188
+  Community\pmdg-aircraft-738
+  Community\pmdg-aircraft-77f
+  Community\pmdg-aircraft-77f_CVT_
+  StreamedPackages\fs20-asobo-aircraft-l39-reno-common
+  StreamedPackages\fs20-asobo-aircraft-p51d-reno-common
+  StreamedPackages\fs20-asobo-aircraft-pitts-s1-reno-common
+  StreamedPackages\fs20-asobo-aircraft-pitts-s2-rufus
+  StreamedPackages\fs20-asobo-aircraft-pitts-s2-sam
+  StreamedPackages\fs20-asobo-aircraft-t6-reno-common
+  StreamedPackages\fs20-microsoft-aircraft-aero45
+  StreamedPackages\fs20-microsoft-aircraft-an225
+  StreamedPackages\fs20-microsoft-aircraft-antonov2
+  StreamedPackages\fs20-microsoft-aircraft-b707-320c
+  StreamedPackages\fs20-microsoft-aircraft-bell47j
+  StreamedPackages\fs20-microsoft-aircraft-c195-businessliner
+  StreamedPackages\fs20-microsoft-aircraft-c207-stationair-ii
+  StreamedPackages\fs20-microsoft-aircraft-c46
+  StreamedPackages\fs20-microsoft-aircraft-c47
+  StreamedPackages\fs20-microsoft-aircraft-cg4a
+  StreamedPackages\fs20-microsoft-aircraft-d17-staggerwing
+  StreamedPackages\fs20-microsoft-aircraft-d18s
+  StreamedPackages\fs20-microsoft-aircraft-dhc4-caribou
+  StreamedPackages\fs20-microsoft-aircraft-do31
+  StreamedPackages\fs20-microsoft-aircraft-dornier-doj
+  StreamedPackages\fs20-microsoft-aircraft-dornier-dox
+  StreamedPackages\fs20-microsoft-aircraft-fokker-vii
+  StreamedPackages\fs20-microsoft-aircraft-ford-trimotor
+  StreamedPackages\fs20-microsoft-aircraft-fw200
+  StreamedPackages\fs20-microsoft-aircraft-geebee-r2
+  StreamedPackages\fs20-microsoft-aircraft-geebee-z
+  StreamedPackages\fs20-microsoft-aircraft-junkers-f13
+  StreamedPackages\fs20-microsoft-aircraft-junkers-ju52
+  StreamedPackages\fs20-microsoft-aircraft-mu2
+  StreamedPackages\fs20-microsoft-aircraft-saab17
+  StreamedPackages\fs20-microsoft-aircraft-savoia-s55
+  StreamedPackages\fs20-microsoft-aircraft-savoia-s55x
+  StreamedPackages\fs20-microsoft-aircraft-skyvan
+  StreamedPackages\fs20-microsoft-aircraft-stratoliner
+  StreamedPackages\fs20-microsoft-aircraft-v35-bonanza
+  StreamedPackages\fs20-microsoft-aircraft-wasp
+  StreamedPackages\fs24-asobo-aircraft-208b-grand-caravan-ex
+  StreamedPackages\fs24-asobo-aircraft-at802
+  StreamedPackages\fs24-asobo-aircraft-b737max
+  StreamedPackages\fs24-asobo-aircraft-b7478i
+  StreamedPackages\fs24-asobo-aircraft-b787-10
+  StreamedPackages\fs24-asobo-aircraft-baron-g58
+  StreamedPackages\fs24-asobo-aircraft-bonanza-g36
+  StreamedPackages\fs24-asobo-aircraft-c152
+  StreamedPackages\fs24-asobo-aircraft-c152-aerobat
+  StreamedPackages\fs24-asobo-aircraft-c172sp-as1000
+  StreamedPackages\fs24-asobo-aircraft-c172sp-classic
+  StreamedPackages\fs24-asobo-aircraft-cabri-g2
+  StreamedPackages\fs24-asobo-aircraft-cap10c
+  StreamedPackages\fs24-asobo-aircraft-cj4
+  StreamedPackages\fs24-asobo-aircraft-cl415
+  StreamedPackages\fs24-asobo-aircraft-da40-ng
+  StreamedPackages\fs24-asobo-aircraft-da40-tdi
+  StreamedPackages\fs24-asobo-aircraft-da62
+  StreamedPackages\fs24-asobo-aircraft-dg1001-e
+  StreamedPackages\fs24-asobo-aircraft-dr400
+  StreamedPackages\fs24-asobo-aircraft-dv20
+  StreamedPackages\fs24-asobo-aircraft-e330
+  StreamedPackages\fs24-asobo-aircraft-es30
+  StreamedPackages\fs24-asobo-aircraft-fa18e
+  StreamedPackages\fs24-asobo-aircraft-flightdesignct
+  StreamedPackages\fs24-asobo-aircraft-flydoo
+  StreamedPackages\fs24-asobo-aircraft-h125
+  StreamedPackages\fs24-asobo-aircraft-hotairballoon
+  StreamedPackages\fs24-asobo-aircraft-icon
+  StreamedPackages\fs24-asobo-aircraft-kingair350
+  StreamedPackages\fs24-asobo-aircraft-l39-reno
+  StreamedPackages\fs24-asobo-aircraft-longitude
+  StreamedPackages\fs24-asobo-aircraft-ls8
+  StreamedPackages\fs24-asobo-aircraft-nxcub
+  StreamedPackages\fs24-asobo-aircraft-p51d-reno
+  StreamedPackages\fs24-asobo-aircraft-pipistrel
+  StreamedPackages\fs24-asobo-aircraft-pitts
+  StreamedPackages\fs24-asobo-aircraft-pitts-s1-reno
+  StreamedPackages\fs24-asobo-aircraft-savage-cub
+  StreamedPackages\fs24-asobo-aircraft-savage-shockultra
+  StreamedPackages\fs24-asobo-aircraft-skyship600
+  StreamedPackages\fs24-asobo-aircraft-sr22
+  StreamedPackages\fs24-asobo-aircraft-t6-reno
+  StreamedPackages\fs24-asobo-aircraft-tbm930
+  StreamedPackages\fs24-asobo-aircraft-vl3
+  StreamedPackages\fs24-asobo-aircraft-xcub
+  StreamedPackages\fs24-asobo-certification-airplane-altiport
+  StreamedPackages\fs24-asobo-certification-airplane-atpl
+  StreamedPackages\fs24-asobo-certification-airplane-atplheavy
+  StreamedPackages\fs24-asobo-certification-airplane-atpljet
+  StreamedPackages\fs24-asobo-certification-airplane-atplturboprop
+  StreamedPackages\fs24-asobo-certification-airplane-cpl
+  StreamedPackages\fs24-asobo-certification-airplane-highperformance
+  StreamedPackages\fs24-asobo-certification-airplane-ifr
+  StreamedPackages\fs24-asobo-certification-airplane-jet
+  StreamedPackages\fs24-asobo-certification-airplane-multiengine
+  StreamedPackages\fs24-asobo-certification-airplane-night
+  StreamedPackages\fs24-asobo-certification-airplane-ppl
+  StreamedPackages\fs24-asobo-certification-airplane-scoop
+  StreamedPackages\fs24-asobo-certification-airplane-seaplane
+  StreamedPackages\fs24-asobo-certification-airplane-tailwheel
+  StreamedPackages\fs24-asobo-certification-airplane-turboprop
+  StreamedPackages\fs24-asobo-challenges-precisionlanding-s3-broome-ybrm-737
+  StreamedPackages\fs24-asobo-trainings-basic-aircraft
+  StreamedPackages\fs24-asobo-trainings-glider-aerotow
+  StreamedPackages\fs24-asobo-trainings-glider-introflight
+  StreamedPackages\fs24-asobo-trainings-glider-ridgesoaring
+  StreamedPackages\fs24-asobo-trainings-glider-slipping
+  StreamedPackages\fs24-asobo-trainings-glider-thermalid
+  StreamedPackages\fs24-asobo-trainings-glider-winchbreak
+  StreamedPackages\fs24-asobo-trainings-glider-winchtakeoff
+  StreamedPackages\fs24-asobo-trainings-helicopter-approach
+  StreamedPackages\fs24-asobo-trainings-helicopter-basic
+  StreamedPackages\fs24-asobo-trainings-helicopter-collective
+  StreamedPackages\fs24-asobo-trainings-helicopter-cyclic
+  StreamedPackages\fs24-asobo-trainings-helicopter-hover
+  StreamedPackages\fs24-asobo-trainings-helicopter-intro
+  StreamedPackages\fs24-asobo-trainings-helicopter-pedals
+  StreamedPackages\fs24-asobo-trainings-helicopter-quickstop
+  StreamedPackages\fs24-asobo-trainings-helicopter-solo
+  StreamedPackages\fs24-asobo-trainings-helicopter-steep
+  StreamedPackages\fs24-asobo-trainings-helicopter-takeoff
+  StreamedPackages\fs24-asobo-travelbook-planespottingmediumairliners
+  StreamedPackages\fs24-asobo-travelbook-planespottingwidebodyairliners
+  StreamedPackages\fs24-asobo-travelbook-srfleetgliders
+  StreamedPackages\fs24-microsoft-aircraft-a10c
+  StreamedPackages\fs24-microsoft-aircraft-a310-300
+  StreamedPackages\fs24-microsoft-aircraft-a320neo
+  StreamedPackages\fs24-microsoft-aircraft-a321
+  StreamedPackages\fs24-microsoft-aircraft-a330
+  StreamedPackages\fs24-microsoft-aircraft-a400m
+  StreamedPackages\fs24-microsoft-aircraft-ah225
+  StreamedPackages\fs24-microsoft-aircraft-aircrane
+  StreamedPackages\fs24-microsoft-aircraft-archer
+  StreamedPackages\fs24-microsoft-aircraft-atr
+  StreamedPackages\fs24-microsoft-aircraft-b707-320c
+  StreamedPackages\fs24-microsoft-aircraft-b747-lcf-dreamlifter
+  StreamedPackages\fs24-microsoft-aircraft-b747-supertanker
+  StreamedPackages\fs24-microsoft-aircraft-bell407
+  StreamedPackages\fs24-microsoft-aircraft-belugaxl
+  StreamedPackages\fs24-microsoft-aircraft-blimp
+  StreamedPackages\fs24-microsoft-aircraft-boom-xb1
+  StreamedPackages\fs24-microsoft-aircraft-c17
+  StreamedPackages\fs24-microsoft-aircraft-c185f-skywagon
+  StreamedPackages\fs24-microsoft-aircraft-c188-agtruck
+  StreamedPackages\fs24-microsoft-aircraft-c400-corvalis
+  StreamedPackages\fs24-microsoft-aircraft-c404-titan
+  StreamedPackages\fs24-microsoft-aircraft-c408-skycourier
+  StreamedPackages\fs24-microsoft-aircraft-c90-gtx
+  StreamedPackages\fs24-microsoft-aircraft-cap4
+  StreamedPackages\fs24-microsoft-aircraft-cgs-hawk-arrow-ii
+  StreamedPackages\fs24-microsoft-aircraft-ch47d
+  StreamedPackages\fs24-microsoft-aircraft-dc3
+  StreamedPackages\fs24-microsoft-aircraft-dhc2
+  StreamedPackages\fs24-microsoft-aircraft-dhc6
+  StreamedPackages\fs24-microsoft-aircraft-dracox
+  StreamedPackages\fs24-microsoft-aircraft-ec135
+  StreamedPackages\fs24-microsoft-aircraft-edge540
+  StreamedPackages\fs24-microsoft-aircraft-edge540v2
+  StreamedPackages\fs24-microsoft-aircraft-g-21
+  StreamedPackages\fs24-microsoft-aircraft-grumman-albatross
+  StreamedPackages\fs24-microsoft-aircraft-hughes-h4-hercules
+  StreamedPackages\fs24-microsoft-aircraft-jetson-one
+  StreamedPackages\fs24-microsoft-aircraft-jn4
+  StreamedPackages\fs24-microsoft-aircraft-joby
+  StreamedPackages\fs24-microsoft-aircraft-latecoere-631
+  StreamedPackages\fs24-microsoft-aircraft-magni-m24
+  StreamedPackages\fs24-microsoft-aircraft-mxs
+  StreamedPackages\fs24-microsoft-aircraft-norden
+  StreamedPackages\fs24-microsoft-aircraft-optica
+  StreamedPackages\fs24-microsoft-aircraft-pa28-236-dakota
+  StreamedPackages\fs24-microsoft-aircraft-pc12-ngx
+  StreamedPackages\fs24-microsoft-aircraft-pc24
+  StreamedPackages\fs24-microsoft-aircraft-pilatus-pc6
+  StreamedPackages\fs24-microsoft-aircraft-piper-m600
+  StreamedPackages\fs24-microsoft-aircraft-r66
+  StreamedPackages\fs24-microsoft-aircraft-s12g
+  StreamedPackages\fs24-microsoft-aircraft-saab-340
+  StreamedPackages\fs24-microsoft-aircraft-seastar
+  StreamedPackages\fs24-microsoft-aircraft-sf50
+  StreamedPackages\fs24-microsoft-aircraft-skyrascal
+  StreamedPackages\fs24-microsoft-aircraft-spirit-of-st-louis
+  StreamedPackages\fs24-microsoft-aircraft-taurus-m
+  StreamedPackages\fs24-microsoft-aircraft-uh1h
+  StreamedPackages\fs24-microsoft-aircraft-volocity
+  StreamedPackages\fs24-microsoft-aircraft-wright-flyer
+  StreamedPackages\fs24-workingtitle-aircraft-longitude-enhanced
+  StreamedPackages\fs24-workingtitle-aircraft-tbm930-enhanced
+Titles found: 3453 across 1 Community packages (every title is in the .json)
+  fsltl-traffic-base                            3451 titles   e.g. FSLTL A20N AMC Air Malta
+  C:\Users\midco\AppData\Local\Packages\Microsoft.Limitless_8wekyb3d8bbwe\LocalCache\EXE.xml
+    - Couatl
+    - AFCBridge
+    - FSUIPC7
+
+=== FSUIPC7 ===
+Folder: C:\FSUIPC7
+Version: 7.5.0.6
+FSUIPC7.key (licence): present
+myevents.txt: (not found)
+events.txt:   C:\FSUIPC7\events.txt
+FSUIPC7.ini not present - FSUIPC7 has never been run.
+No FSUIPC7.log yet.
+
+=== Flight controls plugged in ===
+  Honeycomb Bravo throttle quadrant  CONNECTED
+  Honeycomb Alpha yoke               CONNECTED
+  WINWING Orion rudder pedals        CONNECTED
+Other game-controller-looking devices:
+  HID-compliant game controller
+  USB Input Device
+
+=== Launcher prerequisites ===
+.NET 8 Windows Desktop runtime: 8.0.30
+WebView2 runtime: 151.0.4129.107
+SimBrief: reachable (HTTP 200)
+
+=== Done ===
+Report: C:\Users\midco\Desktop\HoneycombSurvey-BIGBOY-20260904-1554.txt

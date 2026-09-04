@@ -33,7 +33,9 @@ PR #1. Code lives under `honeycomb-msfs-project/`.
 
 **FSUIPC7 starts with the app** (top of `StartAsync`), not at the Start button:
 it waits harmlessly in the tray, and its `[JoyNames]` scan is done before the
-gate reads the ini. Nothing else launches it — neither `EXE.xml` does. The
+gate reads the ini. **On midcon07's machine MSFS also auto-starts it** (an
+`FSUIPC7` entry in his `EXE.xml`); on Mark's, nothing does. FSUIPC7 is
+single-instance and `Runner.LaunchFsuipc` checks first, so both are safe. The
 Start button's launch is a no-op safety net (`Runner.LaunchFsuipc` returns
 "already running"). **Consequence:** any future in-app assignment write must
 stop FSUIPC first; the tool refuses, loudly, if it doesn't. The gate's "Talks
@@ -198,6 +200,29 @@ several round trips in one session.
   telephone. Name what he can see and touch.
 - Commit messages explain *why*, including what was rejected and what a test
   actually proved.
+
+## midcon07's machine — surveyed 2026-09-04, `BIGBOY`
+
+First real data from the target machine. Everything here came from the survey,
+not from assumption.
+
+| | |
+|---|---|
+| Windows | 11 Home, build 26200, 32 GB. PowerShell 5.1. Two drives, `C:` and `E:`, both ~390 GB free |
+| MSFS 2024 | **Store**, same as Mark. `InstalledPackagesPath` is the **default in-package location** (`…\Microsoft.Limitless_8wekyb3d8bbwe\LocalCache\Packages`), *not* a separate drive — reading `UserCfg.opt` rather than assuming a path is what makes this work |
+| Packages | Community 36, StreamedPackages 1243, Official2024 1. **188 aircraft** |
+| Our four aircraft | **all present**: `fs24-asobo-aircraft-da62`, `…-bonanza-g36`, `…-kingair350`, `fs24-microsoft-aircraft-c90-gtx` |
+| Community add-ons | only `fsltl-traffic-base`. Essentially no third-party aircraft — simpler than Mark's |
+| FSUIPC7 | `C:\FSUIPC7`, **7.5.0.6** (Mark: 7.5.0.7). Licence **present**. `myevents.txt` absent — ours to install |
+| **FSUIPC has NEVER been run** | **no `FSUIPC7.ini`, so no `[JoyNames]`, so his Bravo's letter is unknown.** `Set-LeverAssignments` will refuse to write until it exists — correctly. **He must start FSUIPC7 once with the Bravo plugged in, then close it.** |
+| MSFS auto-starts FSUIPC | yes — `FSUIPC7` is in his `EXE.xml`, alongside `Couatl` and `AFCBridge`. So launching MSFS once is enough to create the ini |
+| Flight controls | Bravo, Alpha and WINWING pedals **all connected** |
+| Launcher prerequisites | **met** — .NET 8 Desktop `8.0.30`, WebView2 `151.0.4129.107`, SimBrief reachable |
+
+**Still unknown for his machine:** his Bravo's joystick letter (needs the ini);
+his axis letters (we hardcode `Y X R V U Z`, measured on Mark's Bravo — same
+device model, so expected to match, but unverified and it is the last
+Mark's-machine constant); the sim titles for aircraft he flies.
 
 ## Open
 
