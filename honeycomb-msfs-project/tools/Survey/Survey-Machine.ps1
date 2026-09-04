@@ -130,9 +130,18 @@ Probe 'Readable aircraft titles (Community add-ons only)' {
             Select-String -Pattern '^\s*title\s*=\s*"?([^"]+)"?' |
             ForEach-Object { [void]$titles.Add($_.Matches[0].Groups[1].Value.Trim()) }
     }
-    Line ('Titles found: ' + $titles.Count)
-    $titles | Sort-Object -Unique | ForEach-Object { Line ('  ' + $_) }
-    $data.communityTitles = @($titles | Sort-Object -Unique)
+    # On Mark's machine this found 4,481 titles - almost all liveries and AI
+    # traffic packs ("Boeing 727-100 - Alaska Airlines", hundreds of FSLTL
+    # entries). Every unique title goes to the JSON, where it is useful for
+    # matching. The text report, which a person reads, collapses them to
+    # aircraft families (the part before " - ") and shows at most 60.
+    $unique   = @($titles | Sort-Object -Unique)
+    $families = @($unique | ForEach-Object { ($_ -split '\s+-\s+', 2)[0].Trim() } | Sort-Object -Unique)
+    Line ('Titles found: {0} ({1} distinct aircraft families; full list is in the .json)' -f $unique.Count, $families.Count)
+    $families | Select-Object -First 60 | ForEach-Object { Line ('  ' + $_) }
+    if ($families.Count -gt 60) { Line ('  ... and {0} more families' -f ($families.Count - 60)) }
+    $data.communityTitles   = $unique
+    $data.communityFamilies = $families
 }
 Probe 'Add-ons started with the simulator (EXE.xml)' {
     foreach ($x in @([System.IO.Path]::Combine($env:APPDATA, 'Microsoft Flight Simulator 2024\EXE.xml'),
@@ -206,7 +215,10 @@ Probe 'FSUIPC7.log - aircraft titles seen' {
     $fs = [System.IO.File]::Open($log, 'Open', 'Read', 'ReadWrite'); $sr = New-Object System.IO.StreamReader($fs)
     $txt = $sr.ReadToEnd(); $sr.Close()
     $titles = @([regex]::Matches($txt, 'Aircraft="([^"]+)"') | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique)
-    Line ('Titles in the current log: ' + $(if ($titles.Count) { '' } else { 'none' }))
+    # FSUIPC rewrites its log every time it starts, so this shows only aircraft
+    # loaded since the last start. Empty is normal after a restart; it is not
+    # a fault. Best run right after a flight, with FSUIPC still open.
+    Line ('Titles in the current log: ' + $(if ($titles.Count) { '' } else { 'none - FSUIPC starts a new log each time it runs, so nothing has been flown since it last started' }))
     $titles | ForEach-Object { Line ('  ' + $_) }
     $data.fsuipcLoggedTitles = $titles
     $scan = [regex]::Match($txt, 'Product= (.+?)\r?\n.*?Max=([^\r\n]+)', 'Singleline')
