@@ -141,6 +141,13 @@ Probe 'Readable aircraft titles (Community add-ons only)' {
     }
     $total = 0; foreach ($k in $byPkg.Keys) { $total += $byPkg[$k].Count }
     Line ('Titles found: {0} across {1} Community packages (every title is in the .json)' -f $total, $byPkg.Count)
+    # Loud, because this section is easy to mistake for "the aircraft he has".
+    # PMDG and other protected add-ons encrypt aircraft.cfg, so they appear in
+    # the package list above and NOT here. Reading absence here as absence of
+    # the aircraft is a mistake that has already been made once.
+    Line '  NOTE: only add-ons with readable aircraft.cfg appear here. Protected add-ons'
+    Line '  (PMDG and others) encrypt theirs - see the package list above for those, and'
+    Line '  get their sim titles from the FSUIPC log section instead.'
     foreach ($k in ($byPkg.Keys | Sort-Object)) {
         $u = @($byPkg[$k] | Sort-Object -Unique)
         Line ('  {0,-44} {1,5} titles   e.g. {2}' -f $k, $u.Count, $(if ($u.Count) { $u[0] } else { '' }))

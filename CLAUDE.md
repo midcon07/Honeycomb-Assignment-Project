@@ -212,12 +212,17 @@ not from assumption.
 | MSFS 2024 | **Store**, same as Mark. `InstalledPackagesPath` is the **default in-package location** (`…\Microsoft.Limitless_8wekyb3d8bbwe\LocalCache\Packages`), *not* a separate drive — reading `UserCfg.opt` rather than assuming a path is what makes this work |
 | Packages | Community 36, StreamedPackages 1243, Official2024 1. **188 aircraft** |
 | Our four aircraft | **all present**: `fs24-asobo-aircraft-da62`, `…-bonanza-g36`, `…-kingair350`, `fs24-microsoft-aircraft-c90-gtx` |
-| Community add-ons | only `fsltl-traffic-base`. Essentially no third-party aircraft — simpler than Mark's |
+| Community add-ons | **PMDG 737-800 (`pmdg-aircraft-738`) and 777F (`pmdg-aircraft-77f`, plus `77f_CVT_`)**, and `fsltl-traffic-base`. The PMDG aircraft were in the *package* list but not the *titles* list, because **PMDG encrypt `aircraft.cfg`** — the survey now says so out loud. Their sim titles must come from FSUIPC's log, never from disk |
 | FSUIPC7 | `C:\FSUIPC7`, **7.5.0.6** (Mark: 7.5.0.7). Licence **present**. `myevents.txt` absent — ours to install |
 | **FSUIPC has NEVER been run** | **no `FSUIPC7.ini`, so no `[JoyNames]`, so his Bravo's letter is unknown.** `Set-LeverAssignments` will refuse to write until it exists — correctly. **He must start FSUIPC7 once with the Bravo plugged in, then close it.** |
 | MSFS auto-starts FSUIPC | yes — `FSUIPC7` is in his `EXE.xml`, alongside `Couatl` and `AFCBridge`. So launching MSFS once is enough to create the ini |
 | Flight controls | Bravo, Alpha and WINWING pedals **all connected** |
 | Launcher prerequisites | **met** — .NET 8 Desktop `8.0.30`, WebView2 `151.0.4129.107`, SimBrief reachable |
+
+**The PMDG pair are `jet_2`** — spoiler on lever 1, throttles on 3 and 4, flaps
+on 6, all six white handles. They were named in the original project goal, and
+FSUIPC's `PMDG737offsets`/`PMDG777offsets` settings (already checked by the
+gate) exist for them. Their titles are the open question, per above.
 
 **Still unknown for his machine:** his Bravo's joystick letter (needs the ini);
 his axis letters (we hardcode `Y X R V U Z`, measured on Mark's Bravo — same
