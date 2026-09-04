@@ -281,6 +281,11 @@ if ($AxisLetters.Count -ne 6) {
 $CTRL = $CTRL_BY_FAMILY[$ControlFamily]
 
 # --- what are we writing, and for which aircraft? ----------------------------
+# Lever number (1-6) -> preset name, for aircraft that do not consume a sim
+# axis event on some lever and need FSUIPC's "Send Preset to FS" instead.
+# Filled from the aircraft table's leverPresets. Empty means every lever is a
+# plain control.
+$LeverPresets = @{}
 $Aircraft = $Aircraft.Trim()
 $Match    = $Match.Trim()
 if ($Aircraft -and -not $Match) { $Match = $Aircraft }
@@ -326,6 +331,22 @@ if ($Aircraft -and -not $Layout) {
     }
 
     $Layout = [string]$hit[0].layout
+
+    # Per-lever presets, for levers this aircraft does not drive from an axis
+    # event. The Asobo King Air 350i's condition levers are the case in point:
+    # neither AXIS_MIXTURE nor AXIS_CONDITION_LEVER moved them, because the
+    # aircraft consumes a 3-position enum, so a preset in myevents.txt does
+    # the mapping and FSUIPC sends the preset instead of a control.
+    if ($hit[0].PSObject.Properties['leverPresets'] -and $hit[0].leverPresets) {
+        foreach ($p in $hit[0].leverPresets.PSObject.Properties) {
+            $leverNo = 0
+            if ([int]::TryParse($p.Name, [ref]$leverNo) -and $leverNo -ge 1 -and $leverNo -le 6 -and $p.Value) {
+                $LeverPresets[$leverNo] = [string]$p.Value
+            } else {
+                throw ("Aircraft table: leverPresets for ""{0}"" has a bad entry ""{1}"" - keys must be lever numbers 1-6." -f $Aircraft, $p.Name)
+            }
+        }
+    }
 
     # The title substring comes from the table's titleMatch when it has one.
     # It must be read from the title FSUIPC logs, never guessed from a package
@@ -524,8 +545,20 @@ for ($lever = 0; $lever -lt 6; $lever++) {
         $adj += ',' + $sign + [math]::Abs($AxisOffset)
     }
 
+    # A preset takes the control's place in the line, as P<PresetName>, and
+    # FSUIPC comments it "Preset Control". Format copied from a line FSUIPC
+    # wrote itself after a hand assignment:
+    #   2=BZ,32,F,PKA350_Condition1_Axis,0,0,0,*-1	-{ TO SIM: Preset Control }-
+    if ($LeverPresets.ContainsKey($lever + 1)) {
+        $ctlField = 'P' + $LeverPresets[$lever + 1]
+        $comment  = 'Preset Control'
+    } else {
+        $ctlField = [string]$c
+        $comment  = $CTRL_NAME[$c]
+    }
+
     [void]$lines.Add(("{0}={1},{2},F,{3},0,0,0{4}`t-{{ TO SIM: {5} }}-" -f `
-        $n, $axis, $Delta, $c, $adj, $CTRL_NAME[$c]))
+        $n, $axis, $Delta, $ctlField, $adj, $comment))
     $n++
 }
 

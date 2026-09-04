@@ -69,7 +69,12 @@ ever say "untested".
   3-position enum `TURB ENG CONDITION LEVER POSITION:n` (0 cut-off, 1 low idle,
   2 high idle) plus `SET_FUEL_VALVE_ENGn` and `L:Condition_Lever_CutOff_n`. So
   the red levers are driven by a **preset** (`data/myevents.txt`, installed to
-  `C:\FSUIPC7\myevents.txt`) that maps the axis into thirds. **Before guessing a
+  `C:\FSUIPC7\myevents.txt`) that maps the axis into thirds. **Verified 2026-09-04:
+  the preset path moves the King Air's condition lever** — the first thing that
+  ever has. Ini form, copied from FSUIPC: `BZ,32,F,PKA350_Condition1_Axis,0,0,0,*-1`
+  with comment `Preset Control`. The table's `leverPresets` (lever → preset
+  name) drives it. **`myevents.txt` must be installed on the target machine** —
+  FSUIPC reads it at start — so it is part of setup, not of a profile write. **Before guessing a
   control for any aircraft, read its section of `events.txt`** — it is what the
   aircraft actually responds to, and it is on disk.
 - **Classification cannot be read from disk on MSFS 2024.** Verified 2026-09-03:

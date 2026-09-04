@@ -157,7 +157,8 @@
       "titleMatch": "Beechcraft King Air",
       "facts": { "category": "prop", "engines": 2, "propControl": true, "mixtureControl": false, "conditionLever": true },
       "layout": "turboprop_2",
-      "verified": "partly flown 2026-09-04: levers 1-4 (power, prop) drive correctly; levers 5-6 on AXIS_MIXTURE did nothing, so moved to AXIS_CONDITION_LEVER_1/2_SET - not yet seen to move"
+      "leverPresets": { "5": "KA350_Condition1_Axis", "6": "KA350_Condition2_Axis" },
+      "verified": "partly flown 2026-09-04: levers 1-4 (power, prop) drive correctly. Levers 5-6 did nothing on AXIS_MIXTURE and nothing on AXIS_CONDITION_LEVER - the aircraft consumes a 3-position enum, per //Asobo/King Air 350i/Fuel in events.txt - so they are driven by the presets in data/myevents.txt. Preset path not yet seen to move them."
     },
     {
       "name": "Beechcraft King Air C90 GTx",
