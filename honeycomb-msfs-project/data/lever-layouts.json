@@ -161,6 +161,15 @@
       "verified": "partly flown 2026-09-04: levers 1-4 (power, prop) drive correctly. Levers 5-6 did nothing on AXIS_MIXTURE and nothing on AXIS_CONDITION_LEVER - the aircraft consumes a 3-position enum, per //Asobo/King Air 350i/Fuel in events.txt - so they are driven by the presets in data/myevents.txt. Preset path not yet seen to move them."
     },
     {
+      "name": "PMDG 777F",
+      "icao": "B77L",
+      "match": "PMDG 777F",
+      "titleMatch": "777F",
+      "facts": { "category": "jet", "engines": 2 },
+      "layout": "jet_2",
+      "verified": "type - twin jet. Title \"777F\" MEASURED from midcon07's FSUIPC log 2026-09-04; it cannot be read from disk at all because PMDG encrypt aircraft.cfg. Whether PMDG's own systems accept the standard AXIS_THROTTLE controls is NOT known - FSUIPC has dedicated PMDG offset support for a reason. Treat the lever behaviour as unproven until flown."
+    },
+    {
       "name": "Beechcraft King Air C90 GTx",
       "icao": "BE9L",
       "match": "King Air C90",

@@ -214,7 +214,8 @@ not from assumption.
 | Our four aircraft | **all present**: `fs24-asobo-aircraft-da62`, `…-bonanza-g36`, `…-kingair350`, `fs24-microsoft-aircraft-c90-gtx` |
 | Community add-ons | **PMDG 737-800 (`pmdg-aircraft-738`) and 777F (`pmdg-aircraft-77f`, plus `77f_CVT_`)**, and `fsltl-traffic-base`. The PMDG aircraft were in the *package* list but not the *titles* list, because **PMDG encrypt `aircraft.cfg`** — the survey now says so out loud. Their sim titles must come from FSUIPC's log, never from disk |
 | FSUIPC7 | `C:\FSUIPC7`, **7.5.0.6** (Mark: 7.5.0.7). Licence **present**. `myevents.txt` absent — ours to install |
-| **FSUIPC has NEVER been run** | **no `FSUIPC7.ini`, so no `[JoyNames]`, so his Bravo's letter is unknown.** `Set-LeverAssignments` will refuse to write until it exists — correctly. **He must start FSUIPC7 once with the Bravo plugged in, then close it.** |
+| **`[JoyNames]` — his Bravo is `C`** | **`A` = WINWING SKYWALKER Metal Rudder Pedals, `B` = Alpha Flight Controls, `C` = Bravo Throttle Quadrant.** On Mark's machine the Bravo is `B`. **Had the letter stayed hardcoded, every assignment would have gone to his Alpha yoke, silently.** Verified 2026-09-04 by running `Set-LeverAssignments` against a replica of his ini: it resolves `C` and emits `CY`/`CX`. His pedals also report a different product string than Mark's (SKYWALKER vs WINCTRL Orion) on the same `VID_4098`/`PID_BEF0` |
+| His known sim titles | **`DA62 Passengers`** (identical to Mark's, so the `DA62` substring carries) and **`777F`** (the PMDG 777F). No King Air or 737 title yet — he did not load them |
 | MSFS auto-starts FSUIPC | yes — `FSUIPC7` is in his `EXE.xml`, alongside `Couatl` and `AFCBridge`. So launching MSFS once is enough to create the ini |
 | Flight controls | Bravo, Alpha and WINWING pedals **all connected** |
 | Launcher prerequisites | **met** — .NET 8 Desktop `8.0.30`, WebView2 `151.0.4129.107`, SimBrief reachable |
@@ -224,10 +225,13 @@ on 6, all six white handles. They were named in the original project goal, and
 FSUIPC's `PMDG737offsets`/`PMDG777offsets` settings (already checked by the
 gate) exist for them. Their titles are the open question, per above.
 
-**Still unknown for his machine:** his Bravo's joystick letter (needs the ini);
-his axis letters (we hardcode `Y X R V U Z`, measured on Mark's Bravo — same
-device model, so expected to match, but unverified and it is the last
-Mark's-machine constant); the sim titles for aircraft he flies.
+**Still unknown for his machine:** his **axis** letters — we hardcode
+`Y X R V U Z`, measured on Mark's Bravo. His FSUIPC scan reports the same six
+(`R U V X Y Z`) on the same device model, so they are expected to match, but
+this is the last Mark's-machine constant and it is unverified. It fails
+*loudly* (a lever drives the wrong thing) and `-AxisLetters` corrects it.
+Also unknown: titles for his King Air 350, C90 and PMDG 737 — he has all three
+but has not loaded them with FSUIPC running.
 
 ## Open
 
