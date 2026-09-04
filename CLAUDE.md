@@ -203,6 +203,23 @@ several round trips in one session.
 
 - Lever 4 = `V` is by elimination from FSUIPC's six-axis list, not directly
   pushed. One throttle test closes it; not urgent.
+- **King Air 350 condition levers — unresolved, and Mark's live ini holds a
+  diagnostic.** State on 2026-09-04 ~22:50: `[Axes.King Air 350]` has lever 5
+  on the custom axis preset and lever 6 as a main entry plus two *range* lines
+  (`BZ,D,-16384,0,P…High_Idle` / `BZ,U,0,16383,P…Low_Idle`); `[Buttons.King
+  Air 350]` has `0=PB,132,CP…Cut_Off,0` / `1=UB,132,CP…Low_Idle,0`. Mark
+  reported it "didn't work"; the read-back of what FSUIPC re-emitted was never
+  captured. **Measured:** a preset receives the signed range, `+16383` forward
+  / `−16383` on the detent (via `L:HC_Cond2_Raw` + *Add-Ons → WASM → List
+  Lvars*); Bravo button 33 as the prober counts = FSUIPC **132**, so lever 5's
+  detent is 27 and levers 1–4 are 23–26. Both custom-axis-preset attempts moved
+  the lever but not reliably to high idle — likely the per-delta re-firing.
+  FSUIPC's own dialogs saved *nothing* twice for button/range presets. Next:
+  read back the ini after one FSUIPC close to see which of those lines survived
+  or gained `<< ERROR n`, then test; if the range lines were rejected, that
+  syntax needs one more hand-written example. **Strip `LogExtras`, `LogAxes`,
+  `LogButtonsKeys` and `[LvarsLogged]` from his ini when done.** The C90 is on
+  `turboprop_2` axis controls, never flown, and has no `events.txt` section.
 - Reverse zones: `THROTTLEn_SET` supports them, syntax not yet worked out.
 - **Lever calibration routine** and **deep configuration mode** — both deferred,
   both specified in `notes/deep-configuration.md`. Basic path stays as designed;
