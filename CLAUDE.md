@@ -52,8 +52,11 @@ ever say "untested".
 
   Consequence: **MSFS and FSUIPC must not both bind the same axis.** They fight,
   and the symptom is a lever that appears to ignore whatever you just changed.
-  To let FSUIPC drive, select an *empty* Bravo profile in MSFS — create a new
-  one rather than clearing the working one, so it stays one click away.
+  To let FSUIPC drive, MSFS must have the Bravo on the profile named
+  **"Claude Empty"** — created for this program, no throttle bindings — **for
+  every aircraft**. Mark's working profile is kept alongside, one click away.
+  The gate names "Claude Empty" in its remedy text; the confirmation is recorded
+  by `tools/Confirm-SimBravoProfile.ps1`.
 - **Layout follows capability, not engine type.** Prop control *and* mixture →
   constant-speed; mixture alone → fixed-pitch; neither → FADEC. Turboprops need
   no special case.

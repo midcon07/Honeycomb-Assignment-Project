@@ -139,6 +139,14 @@
       "facts": { "category": "prop", "engines": 2, "propControl": true, "mixtureControl": true },
       "layout": "prop_2_cs",
       "verified": "type - power, prop and condition levers; condition levers on AXIS_MIXTURE not yet seen to move in the sim"
+    },
+    {
+      "name": "Beechcraft King Air C90 GTx",
+      "icao": "BE9L",
+      "match": "King Air C90",
+      "facts": { "category": "prop", "engines": 2, "propControl": true, "mixtureControl": true },
+      "layout": "prop_2_cs",
+      "verified": "type - power, prop and condition levers; sim title seen as \"King Air C90 GTX Passengers\" in FSUIPC's log; not yet flown"
     }
   ]
 }

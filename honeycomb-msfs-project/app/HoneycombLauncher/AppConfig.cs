@@ -28,6 +28,9 @@ internal sealed class AppConfig
     // declared here so Save() round-trips it instead of dropping it.
     [JsonPropertyName("msfsBravoProfileConfirmedUtc")] public string MsfsBravoProfileConfirmedUtc { get; set; } = "";
     [JsonPropertyName("msfsBravoProfileConfirmedBy")]  public string MsfsBravoProfileConfirmedBy  { get; set; } = "";
+    // The MSFS controller profile the Bravo must be on - "Claude Empty", the
+    // one created for this program. Named so the gate can say which to pick.
+    [JsonPropertyName("msfsBravoProfileName")]         public string MsfsBravoProfileName         { get; set; } = "";
 
     public static string Path { get; } = System.IO.Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),

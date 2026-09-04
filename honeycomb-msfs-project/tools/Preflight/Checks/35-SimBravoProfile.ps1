@@ -34,22 +34,29 @@
         }
         $cfg = $c.Config
 
+        # The MSFS profile this program requires is a NAMED one - "Claude Empty",
+        # created for it - so the user is told exactly which to pick, and the
+        # PASS line says which one was confirmed. The name is stored alongside
+        # the confirmation; the default here covers configs written before it
+        # was recorded.
         $when = ''
         $who  = ''
+        $name = 'Claude Empty'
         try {
             if ($cfg.PSObject.Properties['msfsBravoProfileConfirmedUtc']) { $when = [string]$cfg.msfsBravoProfileConfirmedUtc }
             if ($cfg.PSObject.Properties['msfsBravoProfileConfirmedBy'])  { $who  = [string]$cfg.msfsBravoProfileConfirmedBy }
+            if ($cfg.PSObject.Properties['msfsBravoProfileName'] -and $cfg.msfsBravoProfileName) { $name = [string]$cfg.msfsBravoProfileName }
         } catch { }
 
         if (-not $when) {
             Add-Result 'Bravo profile in MSFS' 'TODO' `
-                'Not yet confirmed on this computer. This program cannot read the setting, so someone has to look once.' `
-                'In the simulator, open Options, then Controls, select the Bravo Throttle Quadrant, and make sure the profile chosen is the EMPTY one - not the one with throttle bindings. Then record it with the setup step, and this will stay green.'
+                ('Not yet confirmed on this computer that the Bravo is on the "{0}" profile. This program cannot read the setting, so someone has to look once.' -f $name) `
+                ('In the simulator, open Options, then Controls, select the Bravo Throttle Quadrant, and choose the profile called "{0}" - it has no throttle bindings, so FSUIPC drives the levers. Use it for every aircraft. Then record it with the setup step, and this stays green.' -f $name)
             return
         }
 
         Add-Result 'Bravo profile in MSFS' 'PASS' `
-            ('Confirmed empty{0} on {1}. Not re-checked - the simulator does not expose this setting.' -f
-                $(if ($who) { ' by ' + $who } else { '' }), $when)
+            ('"{0}" confirmed selected{1} on {2}. Not re-checked - the simulator does not expose this setting.' -f
+                $name, $(if ($who) { ' by ' + $who } else { '' }), $when)
     }
 }

@@ -26,6 +26,10 @@
 [CmdletBinding(SupportsShouldProcess)]
 param(
     [string] $By = $env:USERNAME,
+    # The MSFS controller profile that must be selected for the Bravo. Named,
+    # so the gate can tell the user exactly which one to pick rather than "an
+    # empty one". "Claude Empty" is the one created for this program.
+    [string] $ProfileName = 'Claude Empty',
     [switch] $Clear
 )
 
@@ -57,13 +61,14 @@ function Set-Field {
 }
 
 if ($Clear) {
-    foreach ($n in @('msfsBravoProfileConfirmedUtc', 'msfsBravoProfileConfirmedBy')) {
+    foreach ($n in @('msfsBravoProfileConfirmedUtc', 'msfsBravoProfileConfirmedBy', 'msfsBravoProfileName')) {
         if ($cfg.PSObject.Properties[$n]) { $cfg.PSObject.Properties.Remove($n) }
     }
     $what = 'clear the Bravo profile confirmation'
 } else {
     Set-Field $cfg 'msfsBravoProfileConfirmedUtc' $stamp
     Set-Field $cfg 'msfsBravoProfileConfirmedBy'  $By
+    Set-Field $cfg 'msfsBravoProfileName'         $ProfileName
     $what = ('record that {0} confirmed the empty Bravo profile in MSFS' -f $By)
 }
 
@@ -74,4 +79,4 @@ $json = $cfg | ConvertTo-Json -Depth 10
 [System.IO.File]::WriteAllText($path, $json + "`r`n", (New-Object System.Text.UTF8Encoding($false)))
 
 if ($Clear) { Write-Host 'Cleared. The preflight gate will ask for the confirmation again.' -ForegroundColor Green }
-else        { Write-Host ('Recorded: empty Bravo profile in MSFS confirmed by {0} at {1}.' -f $By, $stamp) -ForegroundColor Green }
+else        { Write-Host ('Recorded: MSFS Bravo profile "{0}" confirmed selected by {1} at {2}.' -f $ProfileName, $By, $stamp) -ForegroundColor Green }
