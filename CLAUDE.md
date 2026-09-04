@@ -183,3 +183,9 @@ several round trips in one session.
   then flip its `verified` in `data/lever-layouts.json` to `flown`.
 - Piggyback reverser levers: switches of their own, or mechanical?
 - Nothing has ever run on midcon07's machine.
+- **Loaded ≠ planned is invisible to the gate.** Seen 2026-09-04: plan said B350,
+  gate passed, user loaded a King Air C90 GTX — no profile matched, levers dead,
+  nothing said so. The gate checks persistent config and *cannot* see the loaded
+  aircraft; that belongs to the SimConnect monitor / in-sim panel, which should
+  compare the loaded title against `[Profile.*]` and say plainly "no lever
+  settings for this aircraft" the moment it loads.
