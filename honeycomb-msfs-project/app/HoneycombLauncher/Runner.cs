@@ -101,16 +101,28 @@ internal static class Runner
         });
     }
 
-    public static void LaunchFsuipc(string root)
+    /// <summary>
+    /// Starts FSUIPC7 from its own folder, unless it is already running or is
+    /// not where the configuration says. Returns a short word for the log:
+    /// "started", "already running", "not configured" or "not found".
+    /// FSUIPC7 is single-instance, but starting it again still rewrites its
+    /// log and re-scans devices, so the check is worth having.
+    /// </summary>
+    public static string LaunchFsuipc(string? root)
     {
+        if (string.IsNullOrWhiteSpace(root)) return "not configured";
+        if (Process.GetProcessesByName("FSUIPC7").Length > 0) return "already running";
+
         var exe = Path.Combine(root, "FSUIPC7.exe");
-        if (!File.Exists(exe)) return;
+        if (!File.Exists(exe)) return "not found at " + exe;
+
         Process.Start(new ProcessStartInfo
         {
             FileName = exe,
             WorkingDirectory = root,
             UseShellExecute = true
         });
+        return "started";
     }
 
     public static void OpenUrl(string url)

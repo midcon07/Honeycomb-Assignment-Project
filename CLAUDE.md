@@ -31,6 +31,15 @@ PR #1. Code lives under `honeycomb-msfs-project/`.
 4. Add-ons started.
 5. MSFS started, **last**.
 
+**FSUIPC7 starts with the app** (top of `StartAsync`), not at the Start button:
+it waits harmlessly in the tray, and its `[JoyNames]` scan is done before the
+gate reads the ini. Nothing else launches it — neither `EXE.xml` does. The
+Start button's launch is a no-op safety net (`Runner.LaunchFsuipc` returns
+"already running"). **Consequence:** any future in-app assignment write must
+stop FSUIPC first; the tool refuses, loudly, if it doesn't. The gate's "Talks
+to the simulator" line is gone — the gate runs before the sim, so it could only
+ever say "untested".
+
 ## Settled — do not re-litigate
 
 - **FSUIPC owns the Alpha/Bravo bindings**, not MSFS. Not a preference — the

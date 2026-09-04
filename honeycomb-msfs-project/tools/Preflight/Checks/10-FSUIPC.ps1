@@ -107,10 +107,11 @@
                 if ($err) { Add-Result 'FSUIPC7 log errors' 'WARN' ($err -join ' | ') 'Worth a look, but not necessarily stopping you flying.' }
                 else      { Add-Result 'FSUIPC7 log errors' 'PASS' 'No errors in the log' }
 
-                $sim = @($lines | Select-String -Pattern 'SimConnect_Open succeeded|MSFS version =' |
-                         ForEach-Object { $_.Line.Trim() })
-                if ($sim) { Add-Result 'Talks to the simulator' 'PASS' ($sim -join ' | ') }
-                else      { Add-Result 'Talks to the simulator' 'SKIP' 'This log records no connection to the simulator, so it is untested.' }
+                # There used to be a "Talks to the simulator" line here, read
+                # from the log. Removed: the gate runs before the simulator is
+                # started, so on every normal launch it could only say "untested",
+                # and a line that is grey by design tells the user nothing.
+                # Whether FSUIPC connects is the sim's business once it is up.
             }
         }
 

@@ -104,6 +104,32 @@ internal sealed partial class MainForm : Form
 
     private async Task StartAsync()
     {
+        // FSUIPC7 starts with the program. It is what makes the levers work,
+        // it sits harmlessly in the tray waiting for the simulator, and
+        // starting it now means its device scan is finished by the time the
+        // preflight gate reads [JoyNames]. Nothing else launches FSUIPC on
+        // this machine - neither EXE.xml does - so this is the only place.
+        //
+        // The one thing that must NOT happen while it runs is writing lever
+        // assignments: FSUIPC rewrites its ini on exit and would undo them.
+        // When the app gains that step it has to stop FSUIPC first; the
+        // assignment tool refuses, loudly, if it does not.
+        //
+        // Read straight from the config file rather than from _cfg, so this
+        // does not depend on when the rest of startup loads it.
+        try
+        {
+            var cfg = AppConfig.Load(out _);
+            var outcome = Runner.LaunchFsuipc(cfg?.FsuipcRoot);
+            Program.Log("FSUIPC7 at startup: " + outcome);
+        }
+        catch (Exception ex)
+        {
+            // Not fatal. The gate will report FSUIPC missing or not run, in
+            // words, which is better than a crash here would be.
+            Program.LogError("LaunchFsuipc at startup", ex);
+        }
+
         var userData = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "HoneycombAssignment", "webview");
@@ -120,6 +146,14 @@ internal sealed partial class MainForm : Form
 
         _web.DefaultBackgroundColor = Color.FromArgb(10, 12, 13);
         _web.CoreWebView2.WebMessageReceived += OnMessage;
+
+        // When the browser process behind the page dies, CoreWebView2 goes
+        // null and every push afterwards fails with a NullReferenceException
+        // that names no cause. This is the event that carries the cause; log
+        // it so the failure reads as what it is.
+        _web.CoreWebView2.ProcessFailed += (_, ev) =>
+            Program.Log($"WebView2 process failed: {ev.ProcessFailedKind}, reason {ev.Reason}, exit code {ev.ExitCode}" +
+                        (string.IsNullOrEmpty(ev.ProcessDescription) ? "" : $", {ev.ProcessDescription}"));
         _web.CoreWebView2.NavigationCompleted += async (_, _) =>
         {
             try { await RefreshAllAsync(); }
@@ -339,9 +373,9 @@ internal sealed partial class MainForm : Form
 
     private async Task LaunchAsync()
     {
-        // FSUIPC first so it is already waiting, then the simulator last.
-        if (!string.IsNullOrWhiteSpace(_cfg?.FsuipcRoot))
-            Runner.LaunchFsuipc(_cfg.FsuipcRoot);
+        // FSUIPC normally started with the program; this is the safety net if
+        // it was closed since. Already running is the expected answer here.
+        Program.Log("FSUIPC7 at launch step: " + Runner.LaunchFsuipc(_cfg?.FsuipcRoot));
 
         Runner.LaunchSimulator();
         await Send(new { kind = "launched" });
@@ -349,14 +383,39 @@ internal sealed partial class MainForm : Form
 
     // ---- plumbing ----------------------------------------------------------
 
+    // Set once the WebView has been seen dead, so the log gets one line about
+    // it rather than one per push for the rest of the session.
+    private bool _webGoneLogged;
+
+    /// <summary>
+    /// The page can go away underneath us - the WebView2 browser process can
+    /// die, and CoreWebView2 is then null. Every push used to dereference it
+    /// and throw NullReferenceException from inside RefreshAll and the slow
+    /// poll, which said nothing about the cause. Now a dead page is logged
+    /// once, in words, and pushes are dropped. The ProcessFailed handler in
+    /// StartAsync records why it died.
+    /// </summary>
+    private bool PageIsAlive()
+    {
+        if (_web.CoreWebView2 != null) return true;
+        if (!_webGoneLogged)
+        {
+            _webGoneLogged = true;
+            Program.Log("page is gone: CoreWebView2 is null, so nothing more can be shown. See any 'WebView2 process failed' line above.");
+        }
+        return false;
+    }
+
     private async Task Send(object payload)
     {
+        if (!PageIsAlive()) return;
         var json = JsonSerializer.Serialize(payload);
         await _web.CoreWebView2.ExecuteScriptAsync($"window.APP && window.APP.receive({json});");
     }
 
     private async Task SendRaw(string kind, JsonElement body)
     {
+        if (!PageIsAlive()) return;
         var json = $"{{\"kind\":\"{kind}\",\"data\":{body.GetRawText()}}}";
         await _web.CoreWebView2.ExecuteScriptAsync($"window.APP && window.APP.receive({json});");
     }
