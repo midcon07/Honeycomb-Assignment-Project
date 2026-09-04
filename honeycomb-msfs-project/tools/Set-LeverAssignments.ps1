@@ -44,31 +44,23 @@
     calibrated, so that holds by construction - but a hand-assigned Raw axis on
     the same device would break it, and FSUIPC will not say so.
 
-    THE AXIS LETTERS ARE NOT WHAT THE OBVIOUS CONVENTION PREDICTS.
+    THE AXIS LETTERS ARE MEASURED. DO NOT DERIVE THEM.
 
-    Two levers were assigned by hand and read back:
+        lever   1   2   3   4   5   6
+        HID     Y   X   Rz  Ry  Rx  Z
+        FSUIPC  Y   X   R   V   U   Z
 
-        lever 1  ->  BY      (HID usage Y)
-        lever 3  ->  BR      (HID usage Rz)
+    FSUIPC's own device scan (FSUIPC7.log) lists the Bravo as exactly six
+    axes, "Max=R1023,U1023,V1023,X1023,Y1023,Z1023", so the letters are that
+    closed set. Five were tied to levers by wiring candidate letters to
+    throttle 1 and throttle 2 and pushing levers; lever 4 is the one letter
+    left over. Two theories were tried first - "letters follow HID usage" and
+    "rotational axes are lettered in descriptor order" - and each predicted
+    lever 5 wrong. There is no rule here worth writing down; the table is the
+    fact.
 
-    Lever 1 matches usage. Lever 3 does not: the naive reading of the
-    DirectInput convention says Rz becomes V, and it is R.
-
-    What fits both measurements is that the linear axes keep their usage
-    letters while the ROTATIONAL axes are lettered in the order they appear in
-    the report descriptor. The prober reads the Bravo's axes in the order
-    Y, X, Rz, Ry, Rx, Z - so the rotational ones appear as Rz, Ry, Rx and take
-    R, U, V in that order.
-
-    That gives lever letters  Y  X  R  U  V  Z.
-
-    Levers 1 and 3 are measured. Levers 2, 4, 5 and 6 follow from the theory
-    that explains those two, and are not yet confirmed. Levers 3 and 5 are the
-    ones that swap between the two theories, so assigning lever 5 by hand would
-    settle it: R-U-V predicts V there, the naive reading predicts R.
-
-    Any wrong letter fails loudly - a lever visibly drives the wrong thing - and
-    -AxisLetters corrects it without editing this file.
+    If a lever ever drives the wrong control, -AxisLetters corrects it without
+    editing this file. Prefer measuring again over reasoning about why.
 
 .PARAMETER Layout
     Which of the eleven layouts to write. See data/lever-layouts.json.
@@ -80,8 +72,9 @@
     letter is visible rather than silent.
 
 .PARAMETER AxisLetters
-    FSUIPC axis letters for levers 1 to 6, in order. The default follows the
-    measured HID order Y, X, Rz, Ry, Rx, Z through the DirectInput convention.
+    FSUIPC axis letters for levers 1 to 6, in order. The default, Y X R V U Z,
+    was measured lever by lever - see the notes above. A comma-separated list
+    works from a shell as well as a PowerShell array.
 
 .PARAMETER FsuipcRoot
     Where FSUIPC7.ini lives.
@@ -103,8 +96,8 @@ param(
     [string]   $Layout,
     # Blank on purpose. Resolved from [JoyNames] below; see the notes above.
     [string]   $JoystickLetter = '',
-    # MEASURED, not predicted, for levers 1 and 3. See the notes below.
-    [string[]] $AxisLetters    = @('Y','X','R','U','V','Z'),
+    # MEASURED, all six. See the notes above - two theories both got this wrong.
+    [string[]] $AxisLetters    = @('Y','X','R','V','U','Z'),
     # Delta is the smallest change FSUIPC will act on, not a timing value, but
     # it reads as lag: move the lever slowly and nothing happens until the
     # threshold is crossed, then it jumps.
@@ -232,7 +225,16 @@ $LAYOUTS = @{
 }
 
 
-if ($AxisLetters.Count -ne 6) { throw "AxisLetters needs exactly 6 entries, one per lever." }
+# Through "powershell -File", a comma-separated argument arrives as ONE string
+# rather than an array - the same trap Invoke-Preflight guards -Only against.
+# Split it here so the tool behaves the same from a shell as from PowerShell.
+if ($AxisLetters.Count -eq 1 -and $AxisLetters[0] -match ',') {
+    $AxisLetters = @($AxisLetters[0] -split '\s*,\s*' | Where-Object { $_ })
+}
+$AxisLetters = @($AxisLetters | ForEach-Object { $_.Trim().ToUpper() })
+if ($AxisLetters.Count -ne 6) {
+    throw ("AxisLetters needs exactly 6 entries, one per lever - got {0}: {1}" -f $AxisLetters.Count, ($AxisLetters -join ' '))
+}
 
 $CTRL = $CTRL_BY_FAMILY[$ControlFamily]
 

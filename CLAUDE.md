@@ -63,7 +63,7 @@ PR #1. Code lives under `honeycomb-msfs-project/`.
 | Bravo | `VID_294B`/`PID_1901`, Alpha `PID_1900` |
 | Rudder pedals | **WINWING Orion Combat Rudder Pedals (Metal)**, `VID_4098`/`PID_BEF0`. 3 axes, no buttons: `Rz` rudder (centres at 32768), `Rx` and `Ry` toe brakes. **Range 0-65535, not the Bravo's 0-1023.** |
 | Levers 1–6 → HID axis | `Y X Rz Ry Rx Z` |
-| Levers 1–6 → FSUIPC letter | `Y X R U V Z`. Levers 1 and 3 **measured**. Not the obvious convention: `Rz` is `R`, not `V`. Linear axes keep their usage letter; rotational ones are lettered in report-descriptor order. |
+| Levers 1–6 → FSUIPC letter | **`Y X R V U Z` — all six measured.** FSUIPC's log lists the Bravo as exactly six axes `R U V X Y Z`; five were tied to levers by wiring letters to throttles 1/2 and pushing, lever 4 is the remainder. Two theories ("follow HID usage", "descriptor order") each got lever 5 wrong. **There is no rule; the table is the fact.** |
 | FSUIPC joystick letters | **On Mark's machine only:** Bravo `B`, pedals `C`, Alpha `D` — `B` because vJoy took `A`. Letters are per machine. `Set-LeverAssignments` looks the Bravo up by name in `[JoyNames]` on every run and **refuses to write** if it is absent or listed twice. Never assume a letter. |
 | Reverse detent buttons | `24 25 26 27 28 33` |
 | Axis range | `0`–`1023`; **saturates at 0 at the detent**, so the button is the only reverse signal. Re-confirmed by sweep: full forward `1023`, resting on the detent `0` with no button, past the detent `0` with button `24`. Idle therefore lands on the detent for free. |
@@ -144,8 +144,8 @@ several round trips in one session.
 
 ## Open
 
-- Bravo lever 5 letter unconfirmed. `R U V` fits both measurements; the naive
-  reading says otherwise. One hand assignment settles it.
+- Lever 4 = `V` is by elimination from FSUIPC's six-axis list, not directly
+  pushed. One throttle test closes it; not urgent.
 - Reverse zones: `THROTTLEn_SET` supports them, syntax not yet worked out.
 - **Lever calibration routine** and **deep configuration mode** — both deferred,
   both specified in `notes/deep-configuration.md`. Basic path stays as designed;
