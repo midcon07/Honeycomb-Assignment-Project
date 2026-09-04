@@ -64,7 +64,7 @@ PR #1. Code lives under `honeycomb-msfs-project/`.
 | Rudder pedals | **WINWING Orion Combat Rudder Pedals (Metal)**, `VID_4098`/`PID_BEF0`. 3 axes, no buttons: `Rz` rudder (centres at 32768), `Rx` and `Ry` toe brakes. **Range 0-65535, not the Bravo's 0-1023.** |
 | Levers 1–6 → HID axis | `Y X Rz Ry Rx Z` |
 | Levers 1–6 → FSUIPC letter | `Y X R U V Z`. Levers 1 and 3 **measured**. Not the obvious convention: `Rz` is `R`, not `V`. Linear axes keep their usage letter; rotational ones are lettered in report-descriptor order. |
-| FSUIPC joystick letters | Bravo `B`, pedals `C`, **Alpha `D`** |
+| FSUIPC joystick letters | **On Mark's machine only:** Bravo `B`, pedals `C`, Alpha `D` — `B` because vJoy took `A`. Letters are per machine. `Set-LeverAssignments` looks the Bravo up by name in `[JoyNames]` on every run and **refuses to write** if it is absent or listed twice. Never assume a letter. |
 | Reverse detent buttons | `24 25 26 27 28 33` |
 | Axis range | `0`–`1023`; **saturates at 0 at the detent**, so the button is the only reverse signal. Re-confirmed by sweep: full forward `1023`, resting on the detent `0` with no button, past the detent `0` with button `24`. Idle therefore lands on the detent for free. |
 | FSUIPC input direction | **Inverted from HID**: `+16383` at the detent, `-16384` full forward. Hence the `*-0.5` scale. Measured, not explained. |

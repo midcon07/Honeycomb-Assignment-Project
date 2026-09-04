@@ -10,7 +10,13 @@
 
       * The lever-to-HID-axis map came from sweeping the levers one at a time
         with Probe-HoneycombDevices and watching which axis moved.
-      * The joystick letter came from FSUIPC's own [JoyNames].
+      * The joystick letter is read from FSUIPC's own [JoyNames] on every run,
+        by looking the Bravo up by name. It is assigned per machine - here it
+        is B only because a vJoy device took A - and it was hardcoded to B for
+        a week. On a machine without vJoy the Bravo will most likely be A,
+        and "BY" there aims every assignment at whatever holds B, or at
+        nothing, with no error from FSUIPC. If the Bravo is not in [JoyNames],
+        nothing is written.
       * The control numbers came from the Controls List that ships with
         FSUIPC, not from memory.
       * The line format is documented in "FSUIPC7 for Advanced Users", under
@@ -68,7 +74,10 @@
     Which of the eleven layouts to write. See data/lever-layouts.json.
 
 .PARAMETER JoystickLetter
-    The letter FSUIPC gave the quadrant, from its [JoyNames]. Default B.
+    Override only. Left blank, the Bravo is looked up in FSUIPC's [JoyNames]
+    by name, and the run refuses if it is not there. Given, the letter must
+    still name a device FSUIPC knows, and that device is printed so a wrong
+    letter is visible rather than silent.
 
 .PARAMETER AxisLetters
     FSUIPC axis letters for levers 1 to 6, in order. The default follows the
@@ -92,7 +101,8 @@ param(
     [ValidateSet('prop_1_fixed','prop_1_cs','prop_2_fixed','prop_2_cs',
                  'fadec_1','fadec_2','jet_1','jet_2','jet_3','jet_4','glider')]
     [string]   $Layout,
-    [string]   $JoystickLetter = 'B',
+    # Blank on purpose. Resolved from [JoyNames] below; see the notes above.
+    [string]   $JoystickLetter = '',
     # MEASURED, not predicted, for levers 1 and 3. See the notes below.
     [string[]] $AxisLetters    = @('Y','X','R','U','V','Z'),
     # Delta is the smallest change FSUIPC will act on, not a timing value, but
@@ -268,6 +278,81 @@ if ($running -and -not $WhatIfPreference) {
     exit 2
 }
 
+# --- which joystick is the Bravo? -------------------------------------------
+# Read here, after the running check, so that with -WaitForExit the file is
+# the one FSUIPC just wrote rather than a stale copy. Under -WhatIf FSUIPC may
+# still be running and this is whatever is on disk.
+#
+# Only the letter entries are used. The numeric ids (3=Bravo...) are
+# DirectInput's and change when devices are re-plugged; the JoyLetters
+# facility - on by default in FSUIPC7 - exists so that assignments survive
+# that. Letters run A-Z omitting I and O, and users may rename them, so any
+# single letter is accepted. The .GUID lines are skipped by requiring a bare
+# letter before the equals sign.
+$existing = @(Get-Content -LiteralPath $ini)
+
+$joyNames = @{}
+$inJoy    = $false
+foreach ($line in $existing) {
+    if ($line -match '^\s*\[JoyNames\]\s*$') { $inJoy = $true; continue }
+    if ($inJoy -and $line -match '^\s*\[') { break }
+    if ($inJoy -and $line -match '^\s*([A-Za-z])\s*=\s*(.+?)\s*$') {
+        $joyNames[$Matches[1].ToUpper()] = $Matches[2]
+    }
+}
+
+function Format-JoyNames {
+    if ($joyNames.Count -eq 0) { return '(none - FSUIPC has not recorded any device with a letter)' }
+    return (($joyNames.Keys | Sort-Object | ForEach-Object { '{0} = {1}' -f $_, $joyNames[$_] }) -join '; ')
+}
+
+# The HID product string is "Honeycomb Bravo Throttle Quadrant"; FSUIPC
+# recorded it as "Bravo Throttle Quadrant". Match loosely on the two words
+# rather than either exact string.
+$BravoNamePattern = '(?i)bravo.*throttle'
+
+if ($JoystickLetter) {
+    $JoystickLetter = $JoystickLetter.Trim().ToUpper()
+    if ($JoystickLetter.Length -ne 1 -or -not $joyNames.ContainsKey($JoystickLetter)) {
+        Write-Host ''
+        Write-Host ('-JoystickLetter {0} is not a device FSUIPC knows, so nothing was written.' -f $JoystickLetter) -ForegroundColor Red
+        Write-Host ('FSUIPC lists: {0}' -f (Format-JoyNames)) -ForegroundColor Yellow
+        exit 2
+    }
+    $deviceName = $joyNames[$JoystickLetter]
+    if ($deviceName -notmatch $BravoNamePattern) {
+        # Allowed, since it was asked for explicitly - but said out loud.
+        Write-Host ''
+        Write-Host ('Note: joystick {0} is "{1}", which is not the Bravo. Writing to it anyway because -JoystickLetter was given.' -f $JoystickLetter, $deviceName) -ForegroundColor Yellow
+    }
+} else {
+    $found = @($joyNames.Keys | Where-Object { $joyNames[$_] -match $BravoNamePattern } | Sort-Object)
+
+    if ($found.Count -eq 0) {
+        Write-Host ''
+        Write-Host 'FSUIPC has no record of the Bravo Throttle Quadrant, so nothing was written.' -ForegroundColor Red
+        Write-Host ''
+        Write-Host ('Devices FSUIPC does know: {0}' -f (Format-JoyNames)) -ForegroundColor Yellow
+        Write-Host ''
+        Write-Host 'FSUIPC records a device the first time it runs with that device plugged in.' -ForegroundColor Yellow
+        Write-Host 'Plug the Bravo in, start FSUIPC7 once, close it, and run this again.' -ForegroundColor Yellow
+        exit 2
+    }
+    if ($found.Count -gt 1) {
+        # Two letters for one device happens when it was re-plugged with a new
+        # instance GUID and FSUIPC gave it a fresh letter. Either could be the
+        # live one; guessing would put the assignments on the dead one.
+        Write-Host ''
+        Write-Host ('FSUIPC lists the Bravo under more than one letter ({0}), so nothing was written.' -f ($found -join ', ')) -ForegroundColor Red
+        Write-Host 'Only one of them is the device that is plugged in now, and there is no way to tell' -ForegroundColor Yellow
+        Write-Host 'which from the file. Remove the stale entries from [JoyNames] in FSUIPC7.ini,' -ForegroundColor Yellow
+        Write-Host 'with FSUIPC closed, then run this again.' -ForegroundColor Yellow
+        exit 2
+    }
+    $JoystickLetter = $found[0]
+    $deviceName     = $joyNames[$JoystickLetter]
+}
+
 # --- build the section -------------------------------------------------------
 $controls = $LAYOUTS[$Layout]
 $lines = New-Object System.Collections.ArrayList
@@ -314,8 +399,8 @@ Write-Host ''
 Write-Host ('Layout: {0}' -f $Layout)
 Write-Host ('Controls: {0} family, scale {1}, offset {2}, delta {3}' -f `
     $ControlFamily, $AxisScale.ToString([cultureinfo]::InvariantCulture), $AxisOffset, $Delta)
-Write-Host ('Quadrant is joystick "{0}"; lever letters {1}' -f `
-    $JoystickLetter, ($AxisLetters -join ' '))
+Write-Host ('Quadrant: joystick {0} = "{1}" per [JoyNames]; lever letters {2}' -f `
+    $JoystickLetter, $deviceName, ($AxisLetters -join ' '))
 Write-Host ''
 Write-Host $section
 Write-Host ''
@@ -335,7 +420,7 @@ $backup = [System.IO.Path]::Combine($FsuipcRoot, "FSUIPC7.ini.$stamp.bak")
 Copy-Item -LiteralPath $ini -Destination $backup -Force
 Write-Host ("Backed up to {0}" -f $backup)
 
-$existing = @(Get-Content -LiteralPath $ini)
+# $existing was read above, after FSUIPC had closed, so it is current.
 $out      = New-Object System.Collections.ArrayList
 $inAxes   = $false
 $replaced = $false
