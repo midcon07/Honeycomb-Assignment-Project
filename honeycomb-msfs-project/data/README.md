@@ -51,10 +51,20 @@ classifier reads four facts about an aircraft — category, engine count, whethe
 it has a prop control, whether it has a mixture control — and selects the
 layout. No hand-maintained per-aircraft list.
 
-Those four facts should be derivable from the aircraft's own config files, which
-would classify the whole installed fleet automatically and pick up new aircraft
-as they are installed. **The exact config keys have not been verified against a
-real MSFS 2024 installation yet** — do that before relying on it.
+**Those four facts cannot be read from disk on MSFS 2024.** Verified
+2026-09-03 on a real installation: every package under `StreamedPackages` and
+`Official2024` is opaque `.fsarchive` blobs — the Bonanza G36 package is two
+such files and nothing else — and there are **zero** readable `aircraft.cfg`
+files across both trees. The 2020-era plan of classifying the fleet from
+config files is dead on 2024 content, and nothing should be built on it.
+
+What replaces it is the `aircraft` table in the JSON: a curated list of
+aircraft, each carrying the four facts and the substring FSUIPC will match
+its title on. It grows one aircraft at a time, at the moment that aircraft
+is first chosen, by asking the user the two questions the config file would
+have answered — *does it have a prop lever? a mixture lever?* — and writing
+the answer down so it is never asked again. Slower than reading the fleet,
+but every entry in it is true.
 
 ## Fixed anchors
 

@@ -90,10 +90,32 @@
 #>
 [CmdletBinding(SupportsShouldProcess)]
 param(
-    [Parameter(Mandatory)]
+    # Which layout to write. Optional when -Aircraft is given and the aircraft
+    # is in the curated table, which then supplies it.
     [ValidateSet('prop_1_fixed','prop_1_cs','prop_2_fixed','prop_2_cs',
                  'fadec_1','fadec_2','jet_1','jet_2','jet_3','jet_4','glider')]
-    [string]   $Layout,
+    [string]   $Layout = '',
+
+    # Write a per-aircraft FSUIPC profile instead of the global section:
+    # [Profile.<Aircraft>] listing the title substring, and [Axes.<Aircraft>]
+    # carrying the lines. FSUIPC switches to it when an aircraft whose title
+    # contains the substring loads. The name is also the table key.
+    [string]   $Aircraft = '',
+
+    # The substring FSUIPC matches the sim's aircraft title on. Defaults to
+    # -Aircraft. FSUIPC7 always matches by substring, so "DA62" is enough for
+    # "DA62 Passengers".
+    [string]   $Match = '',
+
+    # Empty the global [Axes] section, leaving only its timing parameters. Once
+    # every aircraft has a profile the global section is what an UNPROFILED
+    # aircraft gets, and no levers at all is better than somebody else's layout
+    # presented as if it were right. Deliberately a separate, explicit action.
+    [switch]   $ClearGlobal,
+
+    # The curated aircraft table. Defaults to data/lever-layouts.json beside
+    # this tool's folder.
+    [string]   $DataFile = '',
     # Blank on purpose. Resolved from [JoyNames] below; see the notes above.
     [string]   $JoystickLetter = '',
     # MEASURED, all six. See the notes above - two theories both got this wrong.
@@ -238,6 +260,62 @@ if ($AxisLetters.Count -ne 6) {
 
 $CTRL = $CTRL_BY_FAMILY[$ControlFamily]
 
+# --- what are we writing, and for which aircraft? ----------------------------
+$Aircraft = $Aircraft.Trim()
+$Match    = $Match.Trim()
+if ($Aircraft -and -not $Match) { $Match = $Aircraft }
+
+if ($ClearGlobal -and ($Layout -or $Aircraft)) {
+    throw "-ClearGlobal empties the global section and takes no -Layout or -Aircraft."
+}
+
+if ($Aircraft -and -not $Layout) {
+    # The curated table decides. Classification cannot be read from the sim's
+    # packages on MSFS 2024 - they are opaque .fsarchive blobs - so the table
+    # is the only source, and an aircraft not in it is refused rather than
+    # guessed. The refusal names the two facts that would settle it.
+    if (-not $DataFile) {
+        $DataFile = [System.IO.Path]::Combine($PSScriptRoot, '..', 'data', 'lever-layouts.json')
+    }
+    if (-not (Test-Path -LiteralPath $DataFile)) { throw "No aircraft table at $DataFile" }
+
+    $table = Get-Content -LiteralPath $DataFile -Raw | ConvertFrom-Json
+    $entries = @()
+    if ($table.PSObject.Properties['aircraft']) { $entries = @($table.aircraft) }
+
+    $hit = @($entries | Where-Object {
+        $_.match -eq $Aircraft -or $_.name -eq $Aircraft
+    })
+
+    if ($hit.Count -eq 0) {
+        Write-Host ''
+        Write-Host ('"{0}" is not in the aircraft table, so nothing was written.' -f $Aircraft) -ForegroundColor Red
+        Write-Host ''
+        Write-Host 'The sim does not say what levers an aircraft has, so it has to be told once.' -ForegroundColor Yellow
+        Write-Host 'Two questions decide the layout:' -ForegroundColor Yellow
+        Write-Host '  1. Does it have a propeller lever?' -ForegroundColor Yellow
+        Write-Host '  2. Does it have a mixture (or condition) lever?' -ForegroundColor Yellow
+        Write-Host ('Add the answers to {0} under "aircraft", or pass -Layout directly.' -f $DataFile) -ForegroundColor Yellow
+        if ($entries.Count -gt 0) {
+            Write-Host ('Known: {0}' -f (($entries | ForEach-Object { $_.match }) -join ', ')) -ForegroundColor DarkGray
+        }
+        exit 2
+    }
+    if ($hit.Count -gt 1) {
+        throw ("The aircraft table matches ""{0}"" more than once: {1}" -f $Aircraft, (($hit | ForEach-Object { $_.name }) -join '; '))
+    }
+
+    $Layout = [string]$hit[0].layout
+    if (-not $LAYOUTS.ContainsKey($Layout)) {
+        throw ("Aircraft table gives ""{0}"" layout ""{1}"", which this tool does not know." -f $Aircraft, $Layout)
+    }
+    Write-Host ('Aircraft table: "{0}" -> {1}  ({2})' -f $hit[0].name, $Layout, $hit[0].verified)
+}
+
+if (-not $ClearGlobal -and -not $Layout) {
+    throw "Give -Layout, or -Aircraft for one that is in the aircraft table, or -ClearGlobal."
+}
+
 # Defaulted here rather than in the param block because they depend on the
 # family. An explicit value always wins, so an override is still possible.
 if ($null -eq $AxisScale)  { $AxisScale  = if ($ControlFamily -eq 'Axis') { -1.0 } else { -0.5 } }
@@ -250,7 +328,22 @@ if (-not (Test-Path -LiteralPath $ini)) { throw "No FSUIPC7.ini at $ini" }
 # closes. Editing the file underneath a running copy does not fail - it is
 # simply undone later, with no error and no clue as to why the assignments
 # vanished. Refuse instead.
-$running = Get-Process -Name 'FSUIPC7' -ErrorAction SilentlyContinue
+# "Running" means a running FSUIPC7 that owns THIS ini - the one in the folder
+# its executable runs from. Writing some other folder's FSUIPC7.ini, such as a
+# test copy, is safe while FSUIPC is up, and refusing it would make the write
+# path untestable whenever the sim is in use. If the process path cannot be
+# read, assume it is ours: the cautious answer costs a restart, the other
+# costs the user's assignments.
+$running = $null
+$fsuipc  = @(Get-Process -Name 'FSUIPC7' -ErrorAction SilentlyContinue)
+if ($fsuipc.Count -gt 0) {
+    $iniDir   = [System.IO.Path]::GetFullPath($FsuipcRoot).TrimEnd('\')
+    $procDirs = @($fsuipc | ForEach-Object {
+        try { [System.IO.Path]::GetDirectoryName($_.Path) } catch { $null }
+    } | Where-Object { $_ })
+    $ownsThis = @($procDirs | Where-Object { $_.TrimEnd('\') -ieq $iniDir })
+    if ($procDirs.Count -eq 0 -or $ownsThis.Count -gt 0) { $running = $fsuipc }
+}
 
 if ($running -and $WaitForExit -and -not $WhatIfPreference) {
     Write-Host ''
@@ -356,11 +449,18 @@ if ($JoystickLetter) {
 }
 
 # --- build the section -------------------------------------------------------
-$controls = $LAYOUTS[$Layout]
+# A profile's axes live in [Axes.<name>]; the global ones in [Axes]. The
+# manual puts PollInterval "into the main [Axes] section", so the timing lines
+# are written only there.
+$sectionName = if ($Aircraft) { 'Axes.' + $Aircraft } else { 'Axes' }
+$controls    = if ($ClearGlobal) { @($null, $null, $null, $null, $null, $null) } else { $LAYOUTS[$Layout] }
+
 $lines = New-Object System.Collections.ArrayList
-[void]$lines.Add('[Axes]')
-[void]$lines.Add('PollInterval=10')
-[void]$lines.Add('RangeRepeatRate=10')
+[void]$lines.Add('[' + $sectionName + ']')
+if (-not $Aircraft) {
+    [void]$lines.Add('PollInterval=10')
+    [void]$lines.Add('RangeRepeatRate=10')
+}
 
 $n = 0
 for ($lever = 0; $lever -lt 6; $lever++) {
@@ -398,7 +498,8 @@ for ($lever = 0; $lever -lt 6; $lever++) {
 $section = $lines -join "`r`n"
 
 Write-Host ''
-Write-Host ('Layout: {0}' -f $Layout)
+Write-Host ('Section: [{0}]   Layout: {1}' -f $sectionName, $(if ($ClearGlobal) { '(cleared)' } else { $Layout }))
+if ($Aircraft) { Write-Host ('Profile: [Profile.{0}] matches aircraft titles containing "{1}"' -f $Aircraft, $Match) }
 Write-Host ('Controls: {0} family, scale {1}, offset {2}, delta {3}' -f `
     $ControlFamily, $AxisScale.ToString([cultureinfo]::InvariantCulture), $AxisOffset, $Delta)
 Write-Host ('Quadrant: joystick {0} = "{1}" per [JoyNames]; lever letters {2}' -f `
@@ -412,7 +513,7 @@ if ($WhatIfPreference) {
     return
 }
 
-if (-not $PSCmdlet.ShouldProcess($ini, "replace the [Axes] section")) { return }
+if (-not $PSCmdlet.ShouldProcess($ini, ('replace the [{0}] section' -f $sectionName))) { return }
 
 # --- write it back, replacing only our own section ---------------------------
 # A dated backup every time. This file is the user's whole control setup and
@@ -426,20 +527,63 @@ Write-Host ("Backed up to {0}" -f $backup)
 $out      = New-Object System.Collections.ArrayList
 $inAxes   = $false
 $replaced = $false
+$headerRx = '^\s*\[' + [regex]::Escape($sectionName) + '\]\s*$'
 
 foreach ($line in $existing) {
-    if ($line -match '^\s*\[Axes\]\s*$') {
+    if ($line -match $headerRx) {
         $inAxes = $true; $replaced = $true
         [void]$out.AddRange([string[]]($section -split "`r`n"))
         continue
     }
-    # Any other section header ends ours.
+    # Any other section header ends ours. Other profiles' [Axes.X] sections
+    # are other headers, so they pass through untouched.
     if ($inAxes -and $line -match '^\s*\[') { $inAxes = $false }
     if (-not $inAxes) { [void]$out.Add($line) }
 }
 if (-not $replaced) {
     [void]$out.Add('')
     [void]$out.AddRange([string[]]($section -split "`r`n"))
+}
+
+# --- make sure the profile exists and lists the aircraft ---------------------
+# [Axes.<name>] does nothing on its own. FSUIPC only consults it for aircraft
+# listed in [Profile.<name>], as "n=<substring>" lines. So the profile section
+# is created if missing, and the substring added if the section is there but
+# does not list it - without disturbing anything else the user put in it.
+if ($Aircraft) {
+    $profRx    = '^\s*\[Profile\.' + [regex]::Escape($Aircraft) + '\]\s*$'
+    $profStart = -1
+    $profEnd   = $out.Count          # exclusive; section runs to next header or EOF
+    for ($i = 0; $i -lt $out.Count; $i++) {
+        if ($profStart -lt 0) {
+            if ($out[$i] -match $profRx) { $profStart = $i }
+        } elseif ($out[$i] -match '^\s*\[') { $profEnd = $i; break }
+    }
+
+    if ($profStart -lt 0) {
+        [void]$out.Add('')
+        [void]$out.Add('[Profile.' + $Aircraft + ']')
+        [void]$out.Add('1=' + $Match)
+        Write-Host ('Created [Profile.{0}] with 1={1}' -f $Aircraft, $Match)
+    } else {
+        $listed = $false
+        $maxN   = 0
+        for ($i = $profStart + 1; $i -lt $profEnd; $i++) {
+            if ($out[$i] -match '^\s*(\d+)\s*=\s*(.*?)\s*$') {
+                if ([int]$Matches[1] -gt $maxN) { $maxN = [int]$Matches[1] }
+                if ($Matches[2] -eq $Match) { $listed = $true }
+            }
+        }
+        if (-not $listed) {
+            # Insert after the last numbered line, keeping FSUIPC's numbering.
+            $insertAt = $profStart + 1
+            for ($i = $profStart + 1; $i -lt $profEnd; $i++) {
+                if ($out[$i] -match '^\s*\d+\s*=') { $insertAt = $i + 1 }
+            }
+            $out.Insert($insertAt, ('{0}={1}' -f ($maxN + 1), $Match))
+            Write-Host ('Added {0}={1} to existing [Profile.{2}]' -f ($maxN + 1), $Match, $Aircraft)
+        }
+    }
 }
 
 # No BOM. PowerShell's -Encoding UTF8 writes one on 5.1, and this file did not
@@ -452,6 +596,10 @@ Write-Host ("Wrote {0} assignments to {1}" -f $n, $ini) -ForegroundColor Green
 Write-Host ''
 Write-Host 'Start FSUIPC7 again - it reads this file at startup.' -ForegroundColor Yellow
 Write-Host ''
-Write-Host 'Then move each lever and check it drives what the comment says, over its' -ForegroundColor Yellow
-Write-Host 'whole travel. Levers 1 and 3 are measured; 2, 4, 5 and 6 are inferred. If' -ForegroundColor Yellow
-Write-Host 'one drives the wrong thing, re-run with -AxisLetters in the right order.' -ForegroundColor Yellow
+if ($Aircraft) {
+    Write-Host ('Load an aircraft whose title contains "{0}" and move each lever: it should' -f $Match) -ForegroundColor Yellow
+    Write-Host 'drive what the comment on its line says, over the whole travel.' -ForegroundColor Yellow
+} elseif (-not $ClearGlobal) {
+    Write-Host 'Move each lever and check it drives what the comment on its line says,' -ForegroundColor Yellow
+    Write-Host 'over the whole travel.' -ForegroundColor Yellow
+}

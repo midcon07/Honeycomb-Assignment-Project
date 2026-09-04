@@ -112,5 +112,23 @@
       "caps": ["sb", null, null, null, null, null],
       "functions": ["Speed brake", null, null, null, null, null]
     }
+  ],
+
+  "$aircraftComment": "Curated, because MSFS 2024 packages are opaque .fsarchive blobs and the four facts cannot be read from disk (verified 2026-09-03). 'match' is the substring FSUIPC matches the sim's aircraft title on, and doubles as the profile name. 'facts' are what the classification rule needs; 'layout' is what they resolve to. 'verified' says how the entry is known: flown means the levers were seen driving the right controls in the sim; type means it follows from the aircraft type and has not been flown yet. Add an aircraft only with both facts answered - never guess them.",
+  "aircraft": [
+    {
+      "name": "Diamond DA62",
+      "match": "DA62",
+      "facts": { "category": "prop", "engines": 2, "propControl": false, "mixtureControl": false },
+      "layout": "fadec_2",
+      "verified": "flown 2026-09-03"
+    },
+    {
+      "name": "Beechcraft Bonanza G36",
+      "match": "Bonanza",
+      "facts": { "category": "prop", "engines": 1, "propControl": true, "mixtureControl": true },
+      "layout": "prop_1_cs",
+      "verified": "type - IO-550, constant-speed prop, mixture; not yet flown"
+    }
   ]
 }

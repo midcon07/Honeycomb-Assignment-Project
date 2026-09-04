@@ -39,6 +39,18 @@ PR #1. Code lives under `honeycomb-msfs-project/`.
 - **Layout follows capability, not engine type.** Prop control *and* mixture →
   constant-speed; mixture alone → fixed-pitch; neither → FADEC. Turboprops need
   no special case.
+- **Classification cannot be read from disk on MSFS 2024.** Verified 2026-09-03:
+  every package under `StreamedPackages` and `Official2024` is opaque
+  `.fsarchive` blobs — **zero readable `aircraft.cfg`** across both. The
+  "classify the fleet from config files" plan is dead; do not rebuild it. The
+  replacement is the curated `aircraft` table in `data/lever-layouts.json`,
+  grown one aircraft at a time by asking the user the two capability questions.
+- **Per-aircraft assignments are FSUIPC profiles.** `[Profile.<name>]` lists a
+  title substring (`1=Bonanza`); `[Axes.<name>]` carries that aircraft's lines.
+  FSUIPC7 forces substring matching and switches on aircraft load — it logs the
+  title it matched against (`Aircraft="DA62 Passengers"`). The global `[Axes]`
+  applies only to aircraft with no profile, so it is kept **empty**: an
+  unprofiled aircraft gets no levers rather than the wrong layout.
 - **Chart underlays: rejected.** SimBrief's own app does charts. See
   `notes/chart_underlays.md`.
 - **Reverser check in preflight: rejected.** Live state, wrong moment.
