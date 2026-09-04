@@ -114,7 +114,7 @@
     }
   ],
 
-  "$aircraftComment": "Curated, because MSFS 2024 packages are opaque .fsarchive blobs and the four facts cannot be read from disk (verified 2026-09-03). 'icao' is the ICAO type code (B350, DA62) - what SimBrief reports and what the app records, so it is the key the preflight gate looks an aircraft up by. 'match' is the substring FSUIPC matches the sim's aircraft title on, and doubles as the profile name. 'facts' are what the classification rule needs; 'layout' is what they resolve to. 'verified' says how the entry is known: flown means the levers were seen driving the right controls in the sim; type means it follows from the aircraft type and has not been flown yet. Add an aircraft only with both facts answered - never guess them.",
+  "$aircraftComment": "Curated, because MSFS 2024 packages are opaque .fsarchive blobs and the four facts cannot be read from disk (verified 2026-09-03). 'icao' is the ICAO type code (B350, DA62) - what SimBrief reports and what the app records, so it is the key the preflight gate looks an aircraft up by. 'match' is the FSUIPC profile name ([Profile.<match>] / [Axes.<match>]). 'titleMatch' is the substring FSUIPC matches the sim's aircraft TITLE on - it must come from the title FSUIPC actually logs (Aircraft=\"...\" in FSUIPC7.log), never from a package name: the 350's package is kingair350 but its title is \"Beechcraft King Air\", and guessing cost a flight with dead levers. When titleMatch is absent, match is used for both. 'facts' are what the classification rule needs; 'layout' is what they resolve to. 'verified' says how the entry is known: flown means the levers were seen driving the right controls in the sim; type means it follows from the aircraft type and has not been flown yet. Add an aircraft only with both facts answered - never guess them.",
   "aircraft": [
     {
       "name": "Diamond DA62",
@@ -136,6 +136,7 @@
       "name": "Beechcraft King Air 350",
       "icao": "B350",
       "match": "King Air 350",
+      "titleMatch": "Beechcraft King Air",
       "facts": { "category": "prop", "engines": 2, "propControl": true, "mixtureControl": true },
       "layout": "prop_2_cs",
       "verified": "type - power, prop and condition levers; condition levers on AXIS_MIXTURE not yet seen to move in the sim"
@@ -144,6 +145,7 @@
       "name": "Beechcraft King Air C90 GTx",
       "icao": "BE9L",
       "match": "King Air C90",
+      "titleMatch": "King Air C90",
       "facts": { "category": "prop", "engines": 2, "propControl": true, "mixtureControl": true },
       "layout": "prop_2_cs",
       "verified": "type - power, prop and condition levers; sim title seen as \"King Air C90 GTX Passengers\" in FSUIPC's log; not yet flown"

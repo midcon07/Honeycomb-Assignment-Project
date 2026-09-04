@@ -69,7 +69,11 @@ ever say "untested".
 - **Per-aircraft assignments are FSUIPC profiles.** `[Profile.<name>]` lists a
   title substring (`1=Bonanza`); `[Axes.<name>]` carries that aircraft's lines.
   FSUIPC7 forces substring matching and switches on aircraft load — it logs the
-  title it matched against (`Aircraft="DA62 Passengers"`). The global `[Axes]`
+  title it matched against (`Aircraft="DA62 Passengers"`). **The title substring
+  must come from that log line, never from a package name.** The 350's package
+  is `kingair350`; its title is `"Beechcraft King Air"`. Guessing `King Air 350`
+  produced a flight with no working levers and a green gate. The table's
+  `titleMatch` holds the logged title; `match` is only the profile name. The global `[Axes]`
   applies only to aircraft with no profile, so it is kept **empty**: an
   unprofiled aircraft gets no levers rather than the wrong layout.
 - **Chart underlays: rejected.** SimBrief's own app does charts. See

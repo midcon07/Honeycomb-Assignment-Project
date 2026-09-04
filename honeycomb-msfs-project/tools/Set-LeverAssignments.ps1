@@ -306,6 +306,20 @@ if ($Aircraft -and -not $Layout) {
     }
 
     $Layout = [string]$hit[0].layout
+
+    # The title substring comes from the table's titleMatch when it has one.
+    # It must be read from the title FSUIPC logs, never guessed from a package
+    # name - the 350's package is "kingair350", its title is "Beechcraft King
+    # Air", and the guess produced a flight with no working levers.
+    # Tested on whether -Match was actually passed, not on whether $Match is
+    # empty: by this point it has already been defaulted to the profile name
+    # above, so an emptiness test never fires. That silent miss is exactly what
+    # a WhatIf run caught.
+    if (-not $PSBoundParameters.ContainsKey('Match') -and
+        $hit[0].PSObject.Properties['titleMatch'] -and $hit[0].titleMatch) {
+        $Match = ([string]$hit[0].titleMatch).Trim()
+    }
+
     if (-not $LAYOUTS.ContainsKey($Layout)) {
         throw ("Aircraft table gives ""{0}"" layout ""{1}"", which this tool does not know." -f $Aircraft, $Layout)
     }
