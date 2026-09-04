@@ -162,9 +162,12 @@ several round trips in one session.
 - **Lever calibration routine** and **deep configuration mode** — both deferred,
   both specified in `notes/deep-configuration.md`. Basic path stays as designed;
   these are opt-in.
-- Throttle still feels dead over the first 15–20% of lever travel in the DA62.
-  **The axis, FSUIPC, arithmetic and control are all verified good**, so the
-  suspect is the aircraft — a FADEC diesel's power lever has its own idle gate.
-  Next test is one aircraft change (C172), not another number.
+- Small dead patches at both extremes of lever travel remain. **Not ours**:
+  `*-1` covers the control range to within one unit at each end; the axis is
+  clean by symmetry; halving the scale was tried and is a regression (jumps to
+  15%, stops at 85%). What's left is mechanical over-travel past the pot's
+  electrical limit plus the aircraft's own idle/max detents. Do not tune it.
+- Bonanza profile is written from *type*, not flown. First flight verifies it;
+  then flip its `verified` in `data/lever-layouts.json` to `flown`.
 - Piggyback reverser levers: switches of their own, or mechanical?
 - Nothing has ever run on midcon07's machine.
