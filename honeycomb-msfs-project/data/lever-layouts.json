@@ -129,6 +129,13 @@
       "facts": { "category": "prop", "engines": 1, "propControl": true, "mixtureControl": true },
       "layout": "prop_1_cs",
       "verified": "type - IO-550, constant-speed prop, mixture; not yet flown"
+    },
+    {
+      "name": "Beechcraft King Air 350",
+      "match": "King Air 350",
+      "facts": { "category": "prop", "engines": 2, "propControl": true, "mixtureControl": true },
+      "layout": "prop_2_cs",
+      "verified": "type - power, prop and condition levers; condition levers on AXIS_MIXTURE not yet seen to move in the sim"
     }
   ]
 }
