@@ -1,0 +1,43 @@
+HONEYCOMB LAUNCHER
+==================
+
+What this is
+  The program Mark has been building. It checks that everything needed for a
+  flight is in place, shows your SimBrief plan, tells you which lever caps to
+  fit, sets up the throttle quadrant, and starts the simulator.
+
+Installing it
+  1. Extract this whole folder somewhere you can find again - the Desktop is
+     fine. Keep all the files together; the program needs the tools and data
+     folders that came with it.
+  2. Double-click   HoneycombLauncher.exe
+  3. If Windows shows a blue box saying "Windows protected your PC", click
+     "More info", then "Run anyway".
+
+Nothing else needs installing. The two things it depends on - the .NET 8
+desktop runtime and WebView2 - are already on this computer.
+
+What it does when it starts
+  It starts FSUIPC7 for you, then checks the computer over and shows what it
+  finds. Green is fine. Amber means something still needs setting up and it
+  will say what. Red means do not fly yet, and it will say why.
+
+  The first time, expect several amber lines. That is correct - the throttle
+  quadrant has not been set up on this computer yet.
+
+Setting up the throttle quadrant, once per aircraft
+  1. Choose the aircraft.
+  2. Fit the lever caps as the picture shows, then press "Lever caps are set".
+  3. Press "Set up levers in FSUIPC". It closes FSUIPC, writes the settings,
+     and starts it again. It will tell you exactly what it wrote.
+  4. In the simulator, under Options then Controls, make sure the Bravo
+     Throttle Quadrant is using the profile called "Claude Empty". Then press
+     "MSFS is on the empty Bravo profile" in this program so it remembers.
+
+If something looks wrong
+  The program keeps a note of what it did. Send Mark this file:
+     %LOCALAPPDATA%\HoneycombAssignment\launcher.log
+  Paste that line into the address bar of a File Explorer window to find it.
+
+  It is written to be honest rather than reassuring. If it says something is
+  not right, believe it - that is the whole point of it.

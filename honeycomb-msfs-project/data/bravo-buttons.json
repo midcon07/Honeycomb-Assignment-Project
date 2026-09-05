@@ -1,0 +1,517 @@
+﻿{
+    "$comment":  "Bravo buttons: the trim wheel, autopilot panel, gear lever and the seven switches. Two halves. \u0027controls\u0027 is the PHYSICAL map - which button number each control is - and it is MEASURED by Probe-HoneycombDevices.ps1 -Capture, never typed in: \u0027prober\u0027 is the number the prober prints (Windows\u0027 1-based count), \u0027fsuipc\u0027 is FSUIPC\u0027s number for the same button (prober - 1, and above 31 FSUIPC reports from 132), and \u0027verified\u0027 is true only after the capture has seen it pressed. Set-BravoButtons.ps1 refuses to write any control that is not verified. \u0027map\u0027 is the CHOICE of what each control does in the sim - control numbers from the Controls List that ships with FSUIPC - and it is a decision to review, not a measurement. Switches send explicit ON on press and OFF on release rather than a toggle, so the switch position and the sim always agree. The INCR/DECR rotary depends on the mode selector: FSUIPC compound conditions, one line per mode.",
+    "schemaVersion":  1,
+    "device":  {
+                   "name":  "Bravo Throttle Quadrant",
+                   "vid":  "294B",
+                   "pid":  "1901"
+               },
+    "numbering":  "fsuipc = prober - 1; if that is above 31, add 100 (FSUIPC User Guide: buttons \u003e 31 are numbered from 132). Measured on Mark\u0027s Bravo: prober 33 = FSUIPC 132.",
+    "controls":  {
+                     "AP_HDG":  {
+                                    "label":  "HDG button on the autopilot panel",
+                                    "kind":  "momentary",
+                                    "prober":  1,
+                                    "fsuipc":  0,
+                                    "verified":  true
+                                },
+                     "AP_NAV":  {
+                                    "label":  "NAV button",
+                                    "kind":  "momentary",
+                                    "prober":  2,
+                                    "fsuipc":  1,
+                                    "verified":  true
+                                },
+                     "AP_APR":  {
+                                    "label":  "APR button",
+                                    "kind":  "momentary",
+                                    "prober":  3,
+                                    "fsuipc":  2,
+                                    "verified":  true
+                                },
+                     "AP_REV":  {
+                                    "label":  "REV button",
+                                    "kind":  "momentary",
+                                    "prober":  4,
+                                    "fsuipc":  3,
+                                    "verified":  true
+                                },
+                     "AP_ALT":  {
+                                    "label":  "ALT button",
+                                    "kind":  "momentary",
+                                    "prober":  5,
+                                    "fsuipc":  4,
+                                    "verified":  true
+                                },
+                     "AP_VS":  {
+                                   "label":  "VS button",
+                                   "kind":  "momentary",
+                                   "prober":  6,
+                                   "fsuipc":  5,
+                                   "verified":  true
+                               },
+                     "AP_IAS":  {
+                                    "label":  "IAS button",
+                                    "kind":  "momentary",
+                                    "prober":  7,
+                                    "fsuipc":  6,
+                                    "verified":  true
+                                },
+                     "AP_AUTOPILOT":  {
+                                          "label":  "AUTOPILOT button",
+                                          "kind":  "momentary",
+                                          "prober":  8,
+                                          "fsuipc":  7,
+                                          "verified":  true
+                                      },
+                     "MODE_IAS":  {
+                                      "label":  "mode selector turned to IAS",
+                                      "kind":  "latching",
+                                      "prober":  17,
+                                      "fsuipc":  16,
+                                      "verified":  true
+                                  },
+                     "MODE_CRS":  {
+                                      "label":  "mode selector turned to CRS",
+                                      "kind":  "latching",
+                                      "prober":  18,
+                                      "fsuipc":  17,
+                                      "verified":  true
+                                  },
+                     "MODE_HDG":  {
+                                      "label":  "mode selector turned to HDG",
+                                      "kind":  "latching",
+                                      "prober":  19,
+                                      "fsuipc":  18,
+                                      "verified":  true
+                                  },
+                     "MODE_VS":  {
+                                     "label":  "mode selector turned to VS",
+                                     "kind":  "latching",
+                                     "prober":  20,
+                                     "fsuipc":  19,
+                                     "verified":  true
+                                 },
+                     "MODE_ALT":  {
+                                      "label":  "mode selector turned to ALT",
+                                      "kind":  "latching",
+                                      "prober":  21,
+                                      "fsuipc":  20,
+                                      "verified":  true
+                                  },
+                     "KNOB_INCR":  {
+                                       "label":  "big knob turned clockwise (INCR) one click",
+                                       "kind":  "momentary",
+                                       "prober":  13,
+                                       "fsuipc":  12,
+                                       "verified":  true
+                                   },
+                     "KNOB_DECR":  {
+                                       "label":  "big knob turned anticlockwise (DECR) one click",
+                                       "kind":  "momentary",
+                                       "prober":  14,
+                                       "fsuipc":  13,
+                                       "verified":  true
+                                   },
+                     "GEAR_UP":  {
+                                     "label":  "gear lever moved UP",
+                                     "kind":  "latching",
+                                     "prober":  31,
+                                     "fsuipc":  30,
+                                     "verified":  true
+                                 },
+                     "GEAR_DOWN":  {
+                                       "label":  "gear lever moved DOWN",
+                                       "kind":  "latching",
+                                       "prober":  32,
+                                       "fsuipc":  31,
+                                       "verified":  true
+                                   },
+                     "TRIM_UP":  {
+                                     "label":  "trim wheel rolled forward (nose down) one click",
+                                     "kind":  "momentary",
+                                     "prober":  22,
+                                     "fsuipc":  21,
+                                     "verified":  true
+                                 },
+                     "TRIM_DOWN":  {
+                                       "label":  "trim wheel rolled back (nose up) one click",
+                                       "kind":  "momentary",
+                                       "prober":  23,
+                                       "fsuipc":  22,
+                                       "verified":  true
+                                   },
+                     "SWITCH_1":  {
+                                      "label":  "switch 1 (leftmost) flipped ON",
+                                      "kind":  "latching",
+                                      "prober":  34,
+                                      "fsuipc":  133,
+                                      "verified":  true
+                                  },
+                     "SWITCH_2":  {
+                                      "label":  "switch 2 flipped ON",
+                                      "kind":  "latching",
+                                      "prober":  36,
+                                      "fsuipc":  135,
+                                      "verified":  true
+                                  },
+                     "SWITCH_3":  {
+                                      "label":  "switch 3 flipped ON",
+                                      "kind":  "latching",
+                                      "prober":  38,
+                                      "fsuipc":  137,
+                                      "verified":  true
+                                  },
+                     "SWITCH_4":  {
+                                      "label":  "switch 4 flipped ON",
+                                      "kind":  "latching",
+                                      "prober":  40,
+                                      "fsuipc":  139,
+                                      "verified":  true
+                                  },
+                     "SWITCH_5":  {
+                                      "label":  "switch 5 flipped ON",
+                                      "kind":  "latching",
+                                      "prober":  42,
+                                      "fsuipc":  141,
+                                      "verified":  true
+                                  },
+                     "SWITCH_6":  {
+                                      "label":  "switch 6 flipped ON - the SAME direction you called ON for switches 1 to 5",
+                                      "kind":  "latching",
+                                      "prober":  44,
+                                      "fsuipc":  143,
+                                      "verified":  true
+                                  },
+                     "SWITCH_7":  {
+                                      "label":  "switch 7 (rightmost) flipped ON",
+                                      "kind":  "latching",
+                                      "prober":  46,
+                                      "fsuipc":  145,
+                                      "verified":  true
+                                  },
+                     "FLAPS_UP":  {
+                                      "label":  "flap handle pushed UP one notch (less flap)",
+                                      "kind":  "momentary",
+                                      "prober":  16,
+                                      "fsuipc":  15,
+                                      "verified":  true
+                                  },
+                     "FLAPS_DOWN":  {
+                                        "label":  "flap handle pulled DOWN one notch (more flap)",
+                                        "kind":  "momentary",
+                                        "prober":  15,
+                                        "fsuipc":  14,
+                                        "verified":  true
+                                    },
+                     "TOGA":  {
+                                  "label":  "TO/GA button on top of lever 1",
+                                  "kind":  "momentary",
+                                  "prober":  29,
+                                  "fsuipc":  28,
+                                  "verified":  true
+                              },
+                     "DETENT_1":  {
+                                      "label":  "lever 1 pulled below its detent - with EVERY OTHER lever above its detent first",
+                                      "kind":  "latching",
+                                      "prober":  24,
+                                      "fsuipc":  23,
+                                      "verified":  true,
+                                      "source":  "measured 2026-09-03 with the prober; what it does is per aircraft, see Set-LeverAssignments"
+                                  },
+                     "DETENT_2":  {
+                                      "label":  "lever 2 pulled below its detent - with EVERY OTHER lever above its detent first",
+                                      "kind":  "latching",
+                                      "prober":  25,
+                                      "fsuipc":  24,
+                                      "verified":  true,
+                                      "source":  "measured 2026-09-03 with the prober; what it does is per aircraft, see Set-LeverAssignments"
+                                  },
+                     "DETENT_3":  {
+                                      "label":  "lever 3 pulled below its detent - with EVERY OTHER lever above its detent first",
+                                      "kind":  "latching",
+                                      "prober":  26,
+                                      "fsuipc":  25,
+                                      "verified":  true,
+                                      "source":  "measured 2026-09-03 (prober sweep) and re-confirmed by live samples 2026-09-04; corrected after the file was found altered"
+                                  },
+                     "DETENT_4":  {
+                                      "label":  "lever 4 pulled below its detent - with EVERY OTHER lever above its detent first",
+                                      "kind":  "latching",
+                                      "prober":  27,
+                                      "fsuipc":  26,
+                                      "verified":  true,
+                                      "source":  "measured 2026-09-03 (prober sweep) and re-confirmed by live samples 2026-09-04; corrected after the file was found altered"
+                                  },
+                     "DETENT_5":  {
+                                      "label":  "lever 5 pulled below its detent - with EVERY OTHER lever above its detent first",
+                                      "kind":  "latching",
+                                      "prober":  28,
+                                      "fsuipc":  27,
+                                      "verified":  true,
+                                      "source":  "measured 2026-09-03 (prober sweep) and re-confirmed by live samples 2026-09-04; corrected after the file was found altered"
+                                  },
+                     "DETENT_6":  {
+                                      "label":  "lever 6 pulled below its detent - with EVERY OTHER lever above its detent first",
+                                      "kind":  "latching",
+                                      "prober":  33,
+                                      "fsuipc":  132,
+                                      "verified":  true,
+                                      "source":  "measured 2026-09-03 (prober sweep) and re-confirmed by live samples 2026-09-04; corrected after the file was found altered"
+                                  }
+                 },
+    "$mapComment":  "Each entry: press = [control, parameter, name] sent when the button goes down; release = sent when it goes up; when = a table of condition-control -\u003e [control, parameter, name], written as FSUIPC compound lines CP(+joy,conditionButton). Names are for the ini comment only; the numbers are what FSUIPC reads.",
+    "map":  {
+                "AP_HDG":  {
+                               "press":  [
+                                             65725,
+                                             0,
+                                             "AP_HDG_HOLD"
+                                         ]
+                           },
+                "AP_NAV":  {
+                               "press":  [
+                                             65729,
+                                             0,
+                                             "AP_NAV1_HOLD"
+                                         ]
+                           },
+                "AP_APR":  {
+                               "press":  [
+                                             65724,
+                                             0,
+                                             "AP_APR_HOLD"
+                                         ]
+                           },
+                "AP_REV":  {
+                               "press":  [
+                                             65728,
+                                             0,
+                                             "AP_BC_HOLD"
+                                         ]
+                           },
+                "AP_ALT":  {
+                               "press":  [
+                                             65726,
+                                             0,
+                                             "AP_ALT_HOLD"
+                                         ]
+                           },
+                "AP_VS":  {
+                              "press":  [
+                                            66099,
+                                            0,
+                                            "AP_VS_HOLD"
+                                        ]
+                          },
+                "AP_IAS":  {
+                               "press":  [
+                                             65859,
+                                             0,
+                                             "AP_AIRSPEED_HOLD"
+                                         ]
+                           },
+                "AP_AUTOPILOT":  {
+                                     "press":  [
+                                                   65580,
+                                                   0,
+                                                   "AP_MASTER"
+                                               ]
+                                 },
+                "KNOB_INCR":  {
+                                  "when":  {
+                                               "MODE_ALT":  [
+                                                                65892,
+                                                                0,
+                                                                "AP_ALT_VAR_INC"
+                                                            ],
+                                               "MODE_VS":  [
+                                                               65894,
+                                                               0,
+                                                               "AP_VS_VAR_INC"
+                                                           ],
+                                               "MODE_HDG":  [
+                                                                65879,
+                                                                0,
+                                                                "HEADING_BUG_INC"
+                                                            ],
+                                               "MODE_CRS":  [
+                                                                65663,
+                                                                0,
+                                                                "VOR1_OBI_INC"
+                                                            ],
+                                               "MODE_IAS":  [
+                                                                65896,
+                                                                0,
+                                                                "AP_SPD_VAR_INC"
+                                                            ]
+                                           }
+                              },
+                "KNOB_DECR":  {
+                                  "when":  {
+                                               "MODE_ALT":  [
+                                                                65893,
+                                                                0,
+                                                                "AP_ALT_VAR_DEC"
+                                                            ],
+                                               "MODE_VS":  [
+                                                               65895,
+                                                               0,
+                                                               "AP_VS_VAR_DEC"
+                                                           ],
+                                               "MODE_HDG":  [
+                                                                65880,
+                                                                0,
+                                                                "HEADING_BUG_DEC"
+                                                            ],
+                                               "MODE_CRS":  [
+                                                                65662,
+                                                                0,
+                                                                "VOR1_OBI_DEC"
+                                                            ],
+                                               "MODE_IAS":  [
+                                                                65897,
+                                                                0,
+                                                                "AP_SPD_VAR_DEC"
+                                                            ]
+                                           }
+                              },
+                "GEAR_UP":  {
+                                "press":  [
+                                              66079,
+                                              0,
+                                              "GEAR_UP"
+                                          ]
+                            },
+                "GEAR_DOWN":  {
+                                  "press":  [
+                                                66080,
+                                                0,
+                                                "GEAR_DOWN"
+                                            ]
+                              },
+                "TRIM_UP":  {
+                                "note":  "Measured backwards on the 172 (2026-09-05): forward must send ELEV_TRIM_DN. repeat = clicks per wheel notch; 1 was far too slow.",
+                                "press":  [
+                                              65607,
+                                              0,
+                                              "ELEV_TRIM_DN"
+                                          ],
+                                "repeat":  4
+                            },
+                "TRIM_DOWN":  {
+                                  "note":  "See TRIM_UP.",
+                                  "press":  [
+                                                65615,
+                                                0,
+                                                "ELEV_TRIM_UP"
+                                            ],
+                                  "repeat":  4
+                              },
+                "SWITCH_1":  {
+                                 "press":  [
+                                               67173,
+                                               0,
+                                               "MASTER_BATTERY_ON"
+                                           ],
+                                 "release":  [
+                                                 67172,
+                                                 0,
+                                                 "MASTER_BATTERY_OFF"
+                                             ]
+                             },
+                "SWITCH_2":  {
+                                 "press":  [
+                                               67175,
+                                               0,
+                                               "ALTERNATOR_ON"
+                                           ],
+                                 "release":  [
+                                                 67174,
+                                                 0,
+                                                 "ALTERNATOR_OFF"
+                                             ]
+                             },
+                "SWITCH_3":  {
+                                 "press":  [
+                                               66701,
+                                               1,
+                                               "AVIONICS_MASTER_SET"
+                                           ],
+                                 "release":  [
+                                                 66701,
+                                                 0,
+                                                 "AVIONICS_MASTER_SET"
+                                             ]
+                             },
+                "SWITCH_4":  {
+                                 "press":  [
+                                               67170,
+                                               0,
+                                               "NAV_LIGHTS_ON"
+                                           ],
+                                 "release":  [
+                                                 67171,
+                                                 0,
+                                                 "NAV_LIGHTS_OFF"
+                                             ]
+                             },
+                "SWITCH_5":  {
+                                 "press":  [
+                                               67168,
+                                               0,
+                                               "BEACON_LIGHTS_ON"
+                                           ],
+                                 "release":  [
+                                                 67169,
+                                                 0,
+                                                 "BEACON_LIGHTS_OFF"
+                                             ]
+                             },
+                "SWITCH_6":  {
+                                 "press":  [
+                                               66052,
+                                               0,
+                                               "STROBES_ON"
+                                           ],
+                                 "release":  [
+                                                 66053,
+                                                 0,
+                                                 "STROBES_OFF"
+                                             ]
+                             },
+                "SWITCH_7":  {
+                                 "press":  [
+                                               67166,
+                                               0,
+                                               "TAXI_LIGHTS_ON"
+                                           ],
+                                 "release":  [
+                                                 67167,
+                                                 0,
+                                                 "TAXI_LIGHTS_OFF"
+                                             ]
+                             },
+                "FLAPS_UP":  {
+                                 "press":  [
+                                               65759,
+                                               0,
+                                               "FLAPS_DECR"
+                                           ]
+                             },
+                "FLAPS_DOWN":  {
+                                   "press":  [
+                                                 65758,
+                                                 0,
+                                                 "FLAPS_INCR"
+                                             ]
+                               },
+                "TOGA":  {
+                             "press":  [
+                                           65861,
+                                           0,
+                                           "AUTO_THROTTLE_TO_GA"
+                                       ]
+                         }
+            }
+}

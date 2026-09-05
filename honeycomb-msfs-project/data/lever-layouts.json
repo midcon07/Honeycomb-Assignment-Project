@@ -1,0 +1,519 @@
+﻿{
+    "$comment":  "Source of truth for Bravo physical lever layouts. Generates the pre-flight caps card, the in-sim panel, and the per-aircraft profiles. See data/README.md for the classification rule and the known gaps.",
+    "schemaVersion":  1,
+    "handles":  {
+                    "black":  {
+                                  "label":  "Black",
+                                  "role":  "Throttle / power",
+                                  "owned":  2,
+                                  "shape":  "flat block"
+                              },
+                    "blue":  {
+                                 "label":  "Blue",
+                                 "role":  "Propeller",
+                                 "owned":  2,
+                                 "shape":  "ribbed barrel"
+                             },
+                    "red":  {
+                                "label":  "Red",
+                                "role":  "Mixture / condition",
+                                "owned":  2,
+                                "shape":  "domed"
+                            },
+                    "jet":  {
+                                "label":  "White throttle",
+                                "role":  "Jet thrust lever",
+                                "owned":  4,
+                                "shape":  "waisted"
+                            },
+                    "sb":  {
+                               "label":  "SPEED BRAKE",
+                               "role":  "Spoilers",
+                               "owned":  1,
+                               "shape":  "tall blade",
+                               "printed":  true
+                           },
+                    "flap":  {
+                                 "label":  "FLAP",
+                                 "role":  "Flaps",
+                                 "owned":  1,
+                                 "shape":  "squat block",
+                                 "printed":  true
+                             }
+                },
+    "levers":  [
+                   {
+                       "position":  1,
+                       "hidAxis":  "Y",
+                       "detentButton":  24
+                   },
+                   {
+                       "position":  2,
+                       "hidAxis":  "X",
+                       "detentButton":  25
+                   },
+                   {
+                       "position":  3,
+                       "hidAxis":  "Rz",
+                       "detentButton":  26
+                   },
+                   {
+                       "position":  4,
+                       "hidAxis":  "Ry",
+                       "detentButton":  27
+                   },
+                   {
+                       "position":  5,
+                       "hidAxis":  "Rx",
+                       "detentButton":  28
+                   },
+                   {
+                       "position":  6,
+                       "hidAxis":  "Z",
+                       "detentButton":  33
+                   }
+               ],
+    "layouts":  [
+                    {
+                        "id":  "prop_1_fixed",
+                        "group":  "Props",
+                        "name":  "Single engine, fixed-pitch prop",
+                        "match":  {
+                                      "category":  "prop",
+                                      "engines":  1,
+                                      "propControl":  false,
+                                      "mixtureControl":  true
+                                  },
+                        "caps":  [
+                                     "black",
+                                     "red",
+                                     null,
+                                     null,
+                                     null,
+                                     null
+                                 ],
+                        "functions":  [
+                                          "Throttle",
+                                          "Mixture",
+                                          null,
+                                          null,
+                                          null,
+                                          null
+                                      ]
+                    },
+                    {
+                        "id":  "prop_1_cs",
+                        "group":  "Props",
+                        "name":  "Single engine, constant-speed prop",
+                        "match":  {
+                                      "category":  "prop",
+                                      "engines":  1,
+                                      "propControl":  true,
+                                      "mixtureControl":  true
+                                  },
+                        "caps":  [
+                                     "black",
+                                     "blue",
+                                     "red",
+                                     null,
+                                     null,
+                                     null
+                                 ],
+                        "functions":  [
+                                          "Throttle",
+                                          "Prop",
+                                          "Mixture",
+                                          null,
+                                          null,
+                                          null
+                                      ]
+                    },
+                    {
+                        "id":  "prop_2_fixed",
+                        "group":  "Props",
+                        "name":  "Twin engine, fixed-pitch prop",
+                        "match":  {
+                                      "category":  "prop",
+                                      "engines":  2,
+                                      "propControl":  false,
+                                      "mixtureControl":  true
+                                  },
+                        "caps":  [
+                                     "black",
+                                     "black",
+                                     "red",
+                                     "red",
+                                     null,
+                                     null
+                                 ],
+                        "functions":  [
+                                          "Throttle 1",
+                                          "Throttle 2",
+                                          "Mixture 1",
+                                          "Mixture 2",
+                                          null,
+                                          null
+                                      ]
+                    },
+                    {
+                        "id":  "prop_2_cs",
+                        "group":  "Props",
+                        "name":  "Twin engine, constant-speed prop",
+                        "match":  {
+                                      "category":  "prop",
+                                      "engines":  2,
+                                      "propControl":  true,
+                                      "mixtureControl":  true
+                                  },
+                        "caps":  [
+                                     "black",
+                                     "black",
+                                     "blue",
+                                     "blue",
+                                     "red",
+                                     "red"
+                                 ],
+                        "functions":  [
+                                          "Throttle 1",
+                                          "Throttle 2",
+                                          "Prop 1",
+                                          "Prop 2",
+                                          "Mixture 1",
+                                          "Mixture 2"
+                                      ]
+                    },
+                    {
+                        "id":  "fadec_1",
+                        "group":  "Props with FADEC",
+                        "name":  "Single engine",
+                        "match":  {
+                                      "category":  "prop",
+                                      "engines":  1,
+                                      "propControl":  false,
+                                      "mixtureControl":  false
+                                  },
+                        "caps":  [
+                                     "black",
+                                     null,
+                                     null,
+                                     null,
+                                     null,
+                                     null
+                                 ],
+                        "functions":  [
+                                          "Throttle",
+                                          null,
+                                          null,
+                                          null,
+                                          null,
+                                          null
+                                      ]
+                    },
+                    {
+                        "id":  "fadec_2",
+                        "group":  "Props with FADEC",
+                        "name":  "Twin engine",
+                        "match":  {
+                                      "category":  "prop",
+                                      "engines":  2,
+                                      "propControl":  false,
+                                      "mixtureControl":  false
+                                  },
+                        "caps":  [
+                                     "black",
+                                     "black",
+                                     null,
+                                     null,
+                                     null,
+                                     null
+                                 ],
+                        "functions":  [
+                                          "Throttle 1",
+                                          "Throttle 2",
+                                          null,
+                                          null,
+                                          null,
+                                          null
+                                      ]
+                    },
+                    {
+                        "id":  "jet_1",
+                        "group":  "Jets",
+                        "name":  "Single engine",
+                        "match":  {
+                                      "category":  "jet",
+                                      "engines":  1
+                                  },
+                        "caps":  [
+                                     "sb",
+                                     null,
+                                     "jet",
+                                     null,
+                                     null,
+                                     "flap"
+                                 ],
+                        "functions":  [
+                                          "Speed brake",
+                                          null,
+                                          "Engine 1",
+                                          null,
+                                          null,
+                                          "Flaps"
+                                      ]
+                    },
+                    {
+                        "id":  "jet_2",
+                        "group":  "Jets",
+                        "name":  "Twin engine",
+                        "match":  {
+                                      "category":  "jet",
+                                      "engines":  2
+                                  },
+                        "caps":  [
+                                     "sb",
+                                     null,
+                                     "jet",
+                                     "jet",
+                                     null,
+                                     "flap"
+                                 ],
+                        "functions":  [
+                                          "Speed brake",
+                                          null,
+                                          "Engine 1",
+                                          "Engine 2",
+                                          null,
+                                          "Flaps"
+                                      ]
+                    },
+                    {
+                        "id":  "jet_3",
+                        "group":  "Jets",
+                        "name":  "Tri engine",
+                        "match":  {
+                                      "category":  "jet",
+                                      "engines":  3
+                                  },
+                        "caps":  [
+                                     "sb",
+                                     null,
+                                     "jet",
+                                     "jet",
+                                     "jet",
+                                     "flap"
+                                 ],
+                        "functions":  [
+                                          "Speed brake",
+                                          null,
+                                          "Engine 1",
+                                          "Engine 2",
+                                          "Engine 3",
+                                          "Flaps"
+                                      ]
+                    },
+                    {
+                        "id":  "jet_4",
+                        "group":  "Jets",
+                        "name":  "Four engine",
+                        "match":  {
+                                      "category":  "jet",
+                                      "engines":  4
+                                  },
+                        "caps":  [
+                                     "sb",
+                                     "jet",
+                                     "jet",
+                                     "jet",
+                                     "jet",
+                                     "flap"
+                                 ],
+                        "functions":  [
+                                          "Speed brake",
+                                          "Engine 1",
+                                          "Engine 2",
+                                          "Engine 3",
+                                          "Engine 4",
+                                          "Flaps"
+                                      ]
+                    },
+                    {
+                        "id":  "turboprop_1",
+                        "group":  "Turboprops",
+                        "name":  "Single turboprop",
+                        "match":  {
+                                      "category":  "prop",
+                                      "engines":  1,
+                                      "propControl":  true,
+                                      "conditionLever":  true
+                                  },
+                        "caps":  [
+                                     "black",
+                                     "blue",
+                                     "red",
+                                     null,
+                                     null,
+                                     null
+                                 ],
+                        "functions":  [
+                                          "Power",
+                                          "Propeller",
+                                          "Condition",
+                                          null,
+                                          null,
+                                          null
+                                      ],
+                        "$comment":  "Same handles as prop_1_cs; the red lever is a CONDITION lever and takes AXIS_CONDITION_LEVER_SET, not mixture."
+                    },
+                    {
+                        "id":  "turboprop_2",
+                        "group":  "Turboprops",
+                        "name":  "Twin turboprop",
+                        "match":  {
+                                      "category":  "prop",
+                                      "engines":  2,
+                                      "propControl":  true,
+                                      "conditionLever":  true
+                                  },
+                        "caps":  [
+                                     "black",
+                                     "black",
+                                     "blue",
+                                     "blue",
+                                     "red",
+                                     "red"
+                                 ],
+                        "functions":  [
+                                          "Power 1",
+                                          "Power 2",
+                                          "Propeller 1",
+                                          "Propeller 2",
+                                          "Condition 1",
+                                          "Condition 2"
+                                      ],
+                        "$comment":  "Same handles as prop_2_cs; red levers are CONDITION levers on AXIS_CONDITION_LEVER_1/2_SET. Measured on the King Air 350: on AXIS_MIXTURE they did nothing while levers 1-4 worked."
+                    },
+                    {
+                        "id":  "glider",
+                        "group":  "Gliders",
+                        "name":  "All gliders",
+                        "match":  {
+                                      "category":  "glider"
+                                  },
+                        "caps":  [
+                                     "sb",
+                                     null,
+                                     null,
+                                     null,
+                                     null,
+                                     null
+                                 ],
+                        "functions":  [
+                                          "Speed brake",
+                                          null,
+                                          null,
+                                          null,
+                                          null,
+                                          null
+                                      ]
+                    }
+                ],
+    "$aircraftComment":  "Curated, because MSFS 2024 packages are opaque .fsarchive blobs and the four facts cannot be read from disk (verified 2026-09-03). \u0027icao\u0027 is the ICAO type code (B350, DA62) - what SimBrief reports and what the app records, so it is the key the preflight gate looks an aircraft up by. \u0027match\u0027 is the FSUIPC profile name ([Profile.\u003cmatch\u003e] / [Axes.\u003cmatch\u003e]). \u0027titleMatch\u0027 is the substring FSUIPC matches the sim\u0027s aircraft TITLE on - it must come from the title FSUIPC actually logs (Aircraft=\"...\" in FSUIPC7.log), never from a package name: the 350\u0027s package is kingair350 but its title is \"Beechcraft King Air\", and guessing cost a flight with dead levers. When titleMatch is absent, match is used for both. \u0027facts\u0027 are what the classification rule needs; \u0027layout\u0027 is what they resolve to. \u0027verified\u0027 says how the entry is known: flown means the levers were seen driving the right controls in the sim; type means it follows from the aircraft type and has not been flown yet. Add an aircraft only with both facts answered - never guess them.",
+    "aircraft":  [
+                     {
+                         "name":  "Diamond DA62",
+                         "icao":  "DA62",
+                         "match":  "DA62",
+                         "facts":  {
+                                       "category":  "prop",
+                                       "engines":  2,
+                                       "propControl":  false,
+                                       "mixtureControl":  false
+                                   },
+                         "layout":  "fadec_2",
+                         "verified":  "flown 2026-09-03"
+                     },
+                     {
+                         "name":  "Cessna 172 Skyhawk",
+                         "icao":  "C172",
+                         "match":  "Skyhawk",
+                         "titleMatch":  "C172SP",
+                         "facts":  {
+                                       "category":  "prop",
+                                       "engines":  1,
+                                       "propControl":  false,
+                                       "mixtureControl":  true
+                                   },
+                         "layout":  "prop_1_fixed",
+                         "verified":  "type - fixed-pitch prop, mixture; title measured 2026-09-04 from FSUIPC7.log: C172SP G1000 Passengers (guessing Skyhawk cost a flight); not yet flown"
+                     },
+                     {
+                         "name":  "Beechcraft Bonanza G36",
+                         "icao":  "BE36",
+                         "match":  "Bonanza",
+                         "facts":  {
+                                       "category":  "prop",
+                                       "engines":  1,
+                                       "propControl":  true,
+                                       "mixtureControl":  true
+                                   },
+                         "layout":  "prop_1_cs",
+                         "verified":  "type - IO-550, constant-speed prop, mixture; not yet flown"
+                     },
+                     {
+                         "name":  "Beechcraft King Air 350",
+                         "icao":  "B350",
+                         "match":  "King Air 350",
+                         "titleMatch":  "Beechcraft King Air",
+                         "facts":  {
+                                       "category":  "prop",
+                                       "engines":  2,
+                                       "propControl":  true,
+                                       "mixtureControl":  false,
+                                       "conditionLever":  true
+                                   },
+                         "layout":  "turboprop_2",
+                         "leverPresets":  {
+                                              "5":  "KA350_Condition1_Axis",
+                                              "6":  "KA350_Condition2_Axis"
+                                          },
+                         "verified":  "partly flown 2026-09-04: levers 1-4 (power, prop) drive correctly. Levers 5-6 did nothing on AXIS_MIXTURE and nothing on AXIS_CONDITION_LEVER - the aircraft consumes a 3-position enum, per //Asobo/King Air 350i/Fuel in events.txt - so they are driven by the presets in data/myevents.txt. Preset path not yet seen to move them.",
+                         "detentPresets":  {
+                                               "5":  {
+                                                         "press":  "KA_Fuel_Left_Condition_Lever_Cut_Off",
+                                                         "release":  "KA_Fuel_Left_Condition_Lever_Low_Idle"
+                                                     },
+                                               "6":  {
+                                                         "press":  "KA_Fuel_Right_Condition_Lever_Cut_Off",
+                                                         "release":  "KA_Fuel_Right_Condition_Lever_Low_Idle"
+                                                     }
+                                           }
+                     },
+                     {
+                         "name":  "PMDG 777F",
+                         "icao":  "B77L",
+                         "match":  "PMDG 777F",
+                         "titleMatch":  "777F",
+                         "facts":  {
+                                       "category":  "jet",
+                                       "engines":  2
+                                   },
+                         "layout":  "jet_2",
+                         "verified":  "type - twin jet. Title \"777F\" MEASURED from midcon07\u0027s FSUIPC log 2026-09-04; it cannot be read from disk at all because PMDG encrypt aircraft.cfg. Whether PMDG\u0027s own systems accept the standard AXIS_THROTTLE controls is NOT known - FSUIPC has dedicated PMDG offset support for a reason. Treat the lever behaviour as unproven until flown."
+                     },
+                     {
+                         "name":  "Beechcraft King Air C90 GTx",
+                         "icao":  "BE9L",
+                         "match":  "King Air C90",
+                         "titleMatch":  "King Air C90",
+                         "facts":  {
+                                       "category":  "prop",
+                                       "engines":  2,
+                                       "propControl":  true,
+                                       "mixtureControl":  false,
+                                       "conditionLever":  true
+                                   },
+                         "layout":  "turboprop_2",
+                         "verified":  "type - power, prop and condition levers, condition on AXIS_CONDITION_LEVER_1/2_SET as measured on the 350; sim title seen as \"King Air C90 GTX Passengers\" in FSUIPC\u0027s log; not yet flown"
+                     }
+                 ]
+}

@@ -1,0 +1,90 @@
+{
+  "$comment": "The Bravo test, as a checklist the app shows over the map in test mode. Every step says what should happen BEFORE it is tried - that is the point. Two kinds: 'auto' steps are checked by tools/Get-TestStatus.ps1 and tick themselves (a person cannot tick them); 'manual' steps are things only a person in the cockpit can judge, and they tick them. 'when' limits a step to a kind of aircraft: any, piston, turboprop, jet. 'ifNot' is what a failure means and what to tell Mark. The order is the order to do them in.",
+  "schemaVersion": 1,
+  "steps": [
+    { "id": "bravo_connected",  "kind": "auto",   "when": "any",
+      "label": "Bravo is plugged in",
+      "expect": "Ticks itself when the quadrant is seen on USB.",
+      "ifNot": "Plug it in. Nothing below can work without it." },
+
+    { "id": "toga_captured",    "kind": "auto",   "when": "any",
+      "label": "TO/GA button has been measured",
+      "expect": "Ticks itself once the capture tool has seen the TO/GA button pressed.",
+      "ifNot": "Run the capture command Mark gave you; it asks for one button. Until then TO/GA is left out of the map on purpose." },
+
+    { "id": "buttons_written",  "kind": "auto",   "when": "any",
+      "label": "Button map written into FSUIPC, including TO/GA",
+      "expect": "Ticks itself after 'Write and restart FSUIPC' below has run and the global [Buttons] section holds the full map.",
+      "ifNot": "Press 'Write and restart FSUIPC'. If it refuses, its message says why in plain words." },
+
+    { "id": "pistons_clean",    "kind": "auto",   "when": "any",
+      "label": "No reverse-thrust lines left on piston aircraft",
+      "expect": "Ticks itself once the DA62 and Bonanza no longer carry a below-detent section. Pistons have no reversers; the first write gave them lines anyway.",
+      "ifNot": "Press 'Write and restart FSUIPC' - the rewrite removes them." },
+
+    { "id": "fsuipc_fresh",     "kind": "auto",   "when": "any",
+      "label": "FSUIPC is running and started AFTER the write",
+      "expect": "Ticks itself when FSUIPC7 is up and its start time is later than the settings file's last change. FSUIPC reads the file only at startup.",
+      "ifNot": "FSUIPC is either closed or still on the old file. 'Write and restart FSUIPC' handles both." },
+
+    { "id": "no_rejected",      "kind": "auto",   "when": "any",
+      "label": "FSUIPC accepted every button line",
+      "expect": "Ticks itself while the settings file carries no '<< ERROR' markers - FSUIPC appends one to any button line it rejects, so a bad line cannot hide.",
+      "ifNot": "A line was rejected. The overlay shows which; send it to Mark." },
+
+    { "id": "ap_buttons",       "kind": "manual", "when": "any",
+      "label": "Autopilot panel: HDG, NAV, APR, REV, ALT, VS, IAS, AUTOPILOT",
+      "expect": "Each button engages that mode - the annunciator on the panel changes. AUTOPILOT toggles the master.",
+      "ifNot": "A mode that does nothing on a default aircraft means that aircraft ignores the standard event. Note which button." },
+
+    { "id": "knob",             "kind": "manual", "when": "any",
+      "label": "Big knob follows the mode selector",
+      "expect": "With the selector on ALT the knob changes the altitude; on VS the vertical speed; on HDG the heading bug; on CRS the course; on IAS the speed.",
+      "ifNot": "Dead in ONE position only = that position's condition number is wrong. Note which." },
+
+    { "id": "gear",             "kind": "manual", "when": "any",
+      "label": "Gear lever",
+      "expect": "Up raises the gear, down lowers it, on aircraft that have retractable gear.",
+      "ifNot": "Backwards = swap two numbers. Note it." },
+
+    { "id": "trim",             "kind": "manual", "when": "any",
+      "label": "Trim wheel",
+      "expect": "One click per detent; forward is nose down, back is nose up.",
+      "ifNot": "Backwards = swap two numbers. Note it." },
+
+    { "id": "switches",         "kind": "manual", "when": "any",
+      "label": "Seven switches: battery, alternator, avionics, nav, beacon, strobe, taxi",
+      "expect": "ON at the position you called ON, OFF the other way, and the aircraft's switch follows yours exactly - the map sends the position, not a toggle.",
+      "ifNot": "One working backwards = its press and release are swapped. Note which switch." },
+
+    { "id": "flaps",            "kind": "manual", "when": "any",
+      "label": "Flap handle",
+      "expect": "One notch per push; down is more flap.",
+      "ifNot": "Backwards = swap. Note it." },
+
+    { "id": "toga",             "kind": "manual", "when": "any",
+      "label": "TO/GA button on lever 1",
+      "expect": "Arms take-off/go-around on aircraft that have it; on others, nothing visible.",
+      "ifNot": "Only a failure on an aircraft that shows TO/GA counts. Note the aircraft." },
+
+    { "id": "reversers",        "kind": "manual", "when": "turboprop_or_jet",
+      "label": "Throttle levers below the detent = reverse thrust",
+      "expect": "Pulling a throttle lever below its detent engages reverse on that engine; bringing it back above cancels it. The sim state follows the lever.",
+      "ifNot": "Stuck in reverse after coming back up = the release line is not firing. Note which lever." },
+
+    { "id": "prop_detent",      "kind": "manual", "when": "turboprop",
+      "label": "Prop levers (3 and 4) below the detent = feather",
+      "expect": "Pulling a prop lever below its detent feathers that propeller; bringing it back above unfeathers it. MSFS only offers a feather TOGGLE, so this follows the lever as long as the sim started unfeathered.",
+      "ifNot": "Nothing at all = the line is missing (this row was added after lever 3 did nothing in the first test). Out of step = the sim's feather state was already on; cycle the lever once." },
+
+    { "id": "condition_detent", "kind": "manual", "when": "turboprop",
+      "label": "Condition levers (5 and 6) below the detent = cut-off",
+      "expect": "Below the detent the aircraft's condition lever goes to CUT-OFF; back above it returns to LOW IDLE. This is the King Air's community preset path.",
+      "ifNot": "Moves but the wrong way, or not at all: note exactly what the cockpit lever did." },
+
+    { "id": "pistons_nothing",  "kind": "manual", "when": "piston",
+      "label": "Below the detent does nothing on this aircraft",
+      "expect": "Pulling a throttle lever below its detent changes nothing - pistons have no reversers, so no line is written for them.",
+      "ifNot": "If something DID happen, a stale section survived. Note it." }
+  ]
+}

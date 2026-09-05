@@ -1,0 +1,50 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>HoneycombLauncher</AssemblyName>
+    <RootNamespace>HoneycombLauncher</RootNamespace>
+    <Platforms>x64</Platforms>
+    <PlatformTarget>x64</PlatformTarget>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2903.40" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="ui\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <!--
+    The scripts and data the app runs are copied into the output, so the build
+    folder is a complete, shippable program.
+
+    Without this the app only worked from inside the repo: Runner.FindToolsDir
+    walks up from the exe looking for a folder containing tools\Preflight, and
+    on this machine it found the repo's own copy several levels up. Copy bin\
+    to another computer and that search fails, the fallback path does not
+    exist, and every preflight check errors - which is what would have
+    happened on midcon07's machine.
+
+    Layout produced, which is what FindToolsDir and $script:ProjectRoot expect:
+        HoneycombLauncher.exe
+        ui\        tools\Preflight\...        data\lever-layouts.json
+
+    Note for development: the output copy now wins, because it is found on the
+    first iteration of the search. Edits to tools\ or data\ in the repo take
+    effect after a rebuild, not immediately.
+  -->
+  <ItemGroup>
+    <None Include="..\..\tools\**\*" Exclude="..\..\tools\**\bin\**;..\..\tools\**\obj\**">
+      <Link>tools\%(RecursiveDir)%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\..\data\**\*">
+      <Link>data\%(RecursiveDir)%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+</Project>

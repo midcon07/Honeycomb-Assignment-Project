@@ -1,0 +1,946 @@
+<title>Bravo Caps Card</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+
+<style>
+  /* ---- Light palette: complete token set on bare :root ---- */
+  :root {
+    --ground:        #EDEFF2;
+    --surface:       #FFFFFF;
+    --surface-sunk:  #E4E7EB;
+    --plate:         #C9CED6;
+    --plate-slot:    #9AA3AE;
+    --ink:           #14181E;
+    --ink-soft:      #454E5A;
+    --ink-faint:     #79838F;
+    --rule:          #D3D8DF;
+    --rule-strong:   #B4BCC6;
+
+    --ready:         #2F7D4E;
+    --ready-bg:      #E4F1E8;
+    --action:        #92600D;
+    --action-bg:     #FBEED6;
+    --action-edge:   #D9922A;
+
+    --cap-black:     #1A1D22;
+    --cap-black-ed:  #5A626C;
+    --cap-blue:      #1A63C4;
+    --cap-blue-ed:   #124898;
+    --cap-red:       #C42B2B;
+    --cap-red-ed:    #941F1F;
+    --cap-white:     #FBFCFD;
+    --cap-white-ed:  #8B95A1;
+    --cap-none-ed:   #A6AEB8;
+
+    --focus:         #1A63C4;
+    --shadow:        0 1px 2px rgba(20,24,30,.10), 0 6px 18px rgba(20,24,30,.07);
+  }
+
+  /* ---- Dark via system preference, unless an explicit light choice is stamped ---- */
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:        #101318;
+      --surface:       #1A1E25;
+      --surface-sunk:  #14171D;
+      --plate:         #2A2F38;
+      --plate-slot:    #0C0E12;
+      --ink:           #E9ECF0;
+      --ink-soft:      #AEB7C2;
+      --ink-faint:     #7C8792;
+      --rule:          #2A2F38;
+      --rule-strong:   #3A414C;
+
+      --ready:         #63BE86;
+      --ready-bg:      #16251C;
+      --action:        #F0B457;
+      --action-bg:     #2C2110;
+      --action-edge:   #B57C22;
+
+      --cap-black:     #0D1014;
+      --cap-black-ed:  #767F8B;
+      --cap-blue:      #3B85E8;
+      --cap-blue-ed:   #7FB2F2;
+      --cap-red:       #E14848;
+      --cap-red-ed:    #F08A8A;
+      --cap-white:     #F2F5F8;
+      --cap-white-ed:  #AEB7C2;
+      --cap-none-ed:   #565E69;
+
+      --focus:         #6FA8F5;
+      --shadow:        0 1px 2px rgba(0,0,0,.45), 0 10px 26px rgba(0,0,0,.35);
+    }
+  }
+
+  /* ---- Dark via explicit stamp ---- */
+  :root[data-theme="dark"] {
+    --ground:        #101318;
+    --surface:       #1A1E25;
+    --surface-sunk:  #14171D;
+    --plate:         #2A2F38;
+    --plate-slot:    #0C0E12;
+    --ink:           #E9ECF0;
+    --ink-soft:      #AEB7C2;
+    --ink-faint:     #7C8792;
+    --rule:          #2A2F38;
+    --rule-strong:   #3A414C;
+
+    --ready:         #63BE86;
+    --ready-bg:      #16251C;
+    --action:        #F0B457;
+    --action-bg:     #2C2110;
+    --action-edge:   #B57C22;
+
+    --cap-black:     #0D1014;
+    --cap-black-ed:  #767F8B;
+    --cap-blue:      #3B85E8;
+    --cap-blue-ed:   #7FB2F2;
+    --cap-red:       #E14848;
+    --cap-red-ed:    #F08A8A;
+    --cap-white:     #F2F5F8;
+    --cap-white-ed:  #AEB7C2;
+    --cap-none-ed:   #565E69;
+
+    --focus:         #6FA8F5;
+    --shadow:        0 1px 2px rgba(0,0,0,.45), 0 10px 26px rgba(0,0,0,.35);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: clamp(20px, 4vw, 44px) clamp(16px, 4vw, 32px) 64px;
+    display: flex;
+    flex-direction: column;
+    gap: clamp(20px, 3vw, 30px);
+  }
+
+  /* ---------- masthead ---------- */
+  .masthead {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px 20px;
+    padding-bottom: 16px;
+    border-bottom: 2px solid var(--rule-strong);
+  }
+  .masthead h1 {
+    font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+    font-weight: 700;
+    font-size: clamp(30px, 5vw, 44px);
+    letter-spacing: .035em;
+    text-transform: uppercase;
+    margin: 0;
+    text-wrap: balance;
+  }
+  .stamp {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 11px;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+    color: var(--action);
+    border: 1px solid var(--action-edge);
+    background: var(--action-bg);
+    padding: 5px 10px;
+    border-radius: 2px;
+  }
+
+  .section-label {
+    font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .16em;
+    font-size: 14px;
+    color: var(--ink-faint);
+    margin: 0 0 10px;
+  }
+
+  /* ---------- aircraft selector ---------- */
+  .fleet { display: flex; flex-wrap: wrap; gap: 8px; }
+  .fleet button {
+    font-family: "IBM Plex Sans", sans-serif;
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--ink-soft);
+    background: var(--surface);
+    border: 1px solid var(--rule-strong);
+    border-radius: 3px;
+    padding: 10px 15px;
+    cursor: pointer;
+    transition: background .12s ease, color .12s ease, border-color .12s ease;
+  }
+  .fleet button:hover { border-color: var(--ink-faint); color: var(--ink); }
+  .fleet button[aria-pressed="true"] {
+    background: var(--ink); color: var(--ground); border-color: var(--ink);
+  }
+  :is(button, a):focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+  /* ---------- status banner ---------- */
+  .banner {
+    display: flex; align-items: center;
+    gap: clamp(14px, 3vw, 26px);
+    padding: clamp(18px, 3vw, 26px) clamp(18px, 3vw, 30px);
+    border-radius: 4px; border: 2px solid;
+  }
+  .banner.is-ready  { background: var(--ready-bg);  border-color: var(--ready); }
+  .banner.is-action { background: var(--action-bg); border-color: var(--action-edge); }
+  .banner-mark {
+    flex: none;
+    width: clamp(44px, 7vw, 58px); height: clamp(44px, 7vw, 58px);
+    display: grid; place-items: center;
+    border-radius: 50%; border: 3px solid currentColor;
+    font-family: "Barlow Condensed", sans-serif; font-weight: 700;
+    font-size: clamp(26px, 4.5vw, 34px); line-height: 1;
+  }
+  .banner.is-ready  .banner-mark { color: var(--ready); }
+  .banner.is-action .banner-mark { color: var(--action); }
+  .banner-head {
+    font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+    font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+    font-size: clamp(24px, 4.4vw, 36px); line-height: 1.05;
+    margin: 0 0 4px; text-wrap: balance;
+  }
+  .banner.is-ready  .banner-head { color: var(--ready); }
+  .banner.is-action .banner-head { color: var(--action); }
+  .banner-sub { margin: 0; font-size: clamp(15px, 2vw, 17px); color: var(--ink-soft); }
+
+  /* ---------- quadrant ---------- */
+  .quadrant-frame {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    box-shadow: var(--shadow);
+    padding: clamp(16px, 3vw, 28px);
+    overflow-x: auto;
+  }
+  .quadrant-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: 8px 20px; flex-wrap: wrap; margin-bottom: 6px;
+  }
+  .quadrant-head .craft {
+    font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+    font-weight: 600; font-size: clamp(21px, 3vw, 27px);
+    letter-spacing: .03em; text-transform: uppercase; margin: 0;
+  }
+  .quadrant-head .orient {
+    font-family: "IBM Plex Mono", monospace; font-size: 11px;
+    letter-spacing: .1em; text-transform: uppercase; color: var(--ink-faint);
+  }
+  .archetype {
+    font-size: 15px; color: var(--ink-soft); margin: 0 0 20px;
+  }
+  .archetype b { color: var(--ink); font-weight: 600; }
+
+  .quadrant {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(118px, 1fr));
+    gap: clamp(8px, 1.4vw, 14px);
+    min-width: 720px;
+  }
+
+  .lever {
+    display: flex; flex-direction: column; align-items: center;
+    padding: 12px 6px 14px;
+    border-radius: 3px; border: 2px solid transparent;
+  }
+  .lever.is-change { border-color: var(--action-edge); background: var(--action-bg); }
+
+  /* Head silhouettes follow the real handles: the black throttle is a tall flat
+     block, the blue prop head is a ribbed barrel, the red mixture head is domed.
+     Shape carries the same information as colour, so the card still reads if
+     colour does not. */
+  .cap-slot {
+    position: relative;
+    height: clamp(46px, 6.4vw, 56px);
+    display: flex; align-items: flex-end; justify-content: center;
+  }
+
+  /* The piggyback thrust-reverser lever on the jet throttle handles. Stowed is
+     a small tab low on the arm; deployed rides up alongside the head, and is
+     only correct on rollout. */
+  .rev {
+    position: absolute;
+    background: var(--cap-white);
+    border: 1.5px solid var(--cap-white-ed);
+    border-radius: 2px;
+    pointer-events: none;
+  }
+  .rev[data-rev="stowed"] {
+    width: 11px; height: 7px;
+    right: calc(50% - clamp(30px, 4.1vw, 36px));
+    bottom: 2px;
+  }
+  .rev[data-rev="deployed"] {
+    width: 8px; height: clamp(30px, 4.2vw, 37px);
+    right: calc(50% - clamp(30px, 4.1vw, 36px));
+    bottom: 2px;
+    border-color: var(--action-edge);
+    box-shadow: 0 0 0 2px var(--action-bg);
+  }
+  .cap { border: 2px solid; }
+  .cap[data-cap="black"] {
+    width: clamp(52px, 7.2vw, 66px); height: clamp(40px, 5.6vw, 50px);
+    border-radius: 4px 4px 3px 3px;
+    background: var(--cap-black); border-color: var(--cap-black-ed);
+    background-image: linear-gradient(180deg, rgba(255,255,255,.16), transparent 42%);
+  }
+  .cap[data-cap="blue"] {
+    width: clamp(44px, 6vw, 54px); height: clamp(32px, 4.4vw, 40px);
+    border-radius: 5px;
+    background-color: var(--cap-blue); border-color: var(--cap-blue-ed);
+    background-image: repeating-linear-gradient(90deg,
+      rgba(0,0,0,.26) 0 2px, rgba(255,255,255,.10) 2px 6px);
+  }
+  .cap[data-cap="red"] {
+    width: clamp(42px, 5.8vw, 52px); height: clamp(32px, 4.4vw, 40px);
+    border-radius: 12px 12px 9px 9px;
+    background-color: var(--cap-red); border-color: var(--cap-red-ed);
+    background-image: radial-gradient(120% 90% at 35% 22%, rgba(255,255,255,.30), transparent 58%);
+  }
+  /* The jet set is three different parts, not one white cap: a waisted throttle
+     head, a tall SPEED BRAKE blade, and a squat FLAP block. */
+  .cap[data-cap="jet"] {
+    width: clamp(48px, 6.6vw, 58px); height: clamp(40px, 5.5vw, 48px);
+    background: var(--cap-white); border: none;
+    clip-path: polygon(0% 0%, 100% 0%, 70% 33%, 70% 67%, 100% 100%, 0% 100%, 30% 67%, 30% 33%);
+    filter:
+      drop-shadow(1.5px 0 0 var(--cap-white-ed))
+      drop-shadow(-1.5px 0 0 var(--cap-white-ed))
+      drop-shadow(0 1.5px 0 var(--cap-white-ed))
+      drop-shadow(0 -1.5px 0 var(--cap-white-ed));
+  }
+  .cap[data-cap="sb"] {
+    width: clamp(19px, 2.6vw, 24px); height: clamp(46px, 6.4vw, 56px);
+    border-radius: 3px;
+    background: var(--cap-white); border-color: var(--cap-white-ed);
+    background-image: linear-gradient(90deg, rgba(0,0,0,.07), transparent 45%);
+  }
+  .cap[data-cap="flap"] {
+    width: clamp(50px, 6.9vw, 60px); height: clamp(30px, 4.2vw, 36px);
+    border-radius: 3px;
+    background: var(--cap-white); border-color: var(--cap-white-ed);
+    background-image: linear-gradient(180deg, rgba(0,0,0,.06), transparent 45%);
+  }
+  .cap[data-cap="none"] {
+    width: clamp(42px, 5.8vw, 52px); height: clamp(26px, 3.6vw, 32px);
+    border-radius: 4px;
+    background: transparent; border-color: var(--cap-none-ed); border-style: dashed;
+  }
+
+  .stem {
+    width: 8px; height: clamp(26px, 4vw, 38px);
+    background: linear-gradient(90deg, var(--plate-slot), var(--rule-strong) 45%, var(--plate-slot));
+  }
+  .lever.is-empty .stem { opacity: .35; }
+  .plate {
+    width: 100%; height: 15px; background: var(--plate);
+    border-radius: 2px; display: grid; place-items: center;
+  }
+  .plate span { display: block; width: 22px; height: 5px; background: var(--plate-slot); border-radius: 3px; }
+
+  .pos {
+    font-family: "IBM Plex Mono", monospace; font-size: 12px;
+    letter-spacing: .12em; color: var(--ink-faint); margin-top: 12px;
+  }
+  .cap-name {
+    font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+    font-weight: 700; text-transform: uppercase; letter-spacing: .1em;
+    font-size: clamp(15px, 2vw, 18px); line-height: 1.1;
+    margin-top: 2px; text-align: center; color: var(--ink-soft);
+  }
+  .fn {
+    font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+    font-weight: 700; font-size: clamp(19px, 2.7vw, 24px);
+    line-height: 1.1; letter-spacing: .01em;
+    text-align: center; margin-top: 6px; text-wrap: balance; color: var(--ink);
+  }
+  .lever.is-empty .fn,
+  .lever.is-empty .cap-name { color: var(--ink-faint); font-weight: 500; }
+
+  .hw {
+    font-family: "IBM Plex Mono", monospace; font-size: 11px;
+    color: var(--ink-faint); margin-top: 8px; text-align: center;
+    font-variant-numeric: tabular-nums;
+  }
+  .change-chip {
+    margin-top: 9px;
+    font-family: "Barlow Condensed", sans-serif; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .09em; font-size: 12px;
+    color: var(--action); border: 1px solid var(--action-edge);
+    border-radius: 2px; padding: 3px 8px; text-align: center; line-height: 1.3;
+  }
+
+  .check {
+    margin-top: 18px; padding: 12px 16px;
+    border: 1px solid; border-radius: 3px;
+    display: flex; flex-wrap: wrap; align-items: center;
+    justify-content: space-between; gap: 10px 18px;
+    font-size: 15px;
+  }
+  .check.is-ok    { border-color: var(--ready);       background: var(--ready-bg);  color: var(--ready); }
+  .check.is-fault { border-color: var(--action-edge); background: var(--action-bg); color: var(--action); }
+  .check-text { font-weight: 600; }
+  .check-demo {
+    background: none; border: 1px solid currentColor; border-radius: 2px;
+    font: inherit; font-size: 13px; font-weight: 500;
+    color: inherit; padding: 4px 11px; cursor: pointer; opacity: .8;
+  }
+  .check-demo:hover { opacity: 1; }
+
+  .tally {
+    margin: 14px 0 0; padding-top: 14px; border-top: 1px solid var(--rule);
+    font-size: 14px; color: var(--ink-soft);
+    font-variant-numeric: tabular-nums;
+    display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: baseline;
+  }
+  .tally b { color: var(--ink); font-weight: 600; }
+  .shortfall {
+    font-weight: 600; color: var(--action);
+    border: 1px solid var(--action-edge); background: var(--action-bg);
+    border-radius: 2px; padding: 2px 9px;
+  }
+  .inventory {
+    display: flex; flex-wrap: wrap; align-items: center;
+    gap: 8px 20px; font-size: 14px; color: var(--ink-soft);
+    font-variant-numeric: tabular-nums;
+  }
+  .inv-item { display: inline-flex; align-items: center; gap: 7px; }
+  .inv-item.is-unknown { color: var(--action); font-weight: 600; }
+
+  /* ---------- confirm ---------- */
+  .confirm-row { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; }
+  .confirm {
+    font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+    font-weight: 700; text-transform: uppercase; letter-spacing: .07em;
+    font-size: clamp(19px, 2.6vw, 23px);
+    padding: 16px 34px; border-radius: 3px;
+    border: 2px solid var(--ink); background: var(--ink); color: var(--ground);
+    cursor: pointer; transition: opacity .12s ease;
+  }
+  .confirm:hover { opacity: .86; }
+  .confirm[disabled] {
+    background: transparent; color: var(--ink-faint);
+    border-color: var(--rule-strong); cursor: default; opacity: 1;
+  }
+  .confirm-note { font-size: 15px; color: var(--ink-soft); margin: 0; }
+
+  /* ---------- reference chart ---------- */
+  .chart-frame {
+    background: var(--surface); border: 1px solid var(--rule);
+    border-radius: 4px; padding: clamp(16px, 3vw, 26px); overflow-x: auto;
+  }
+  .chart { width: 100%; border-collapse: collapse; min-width: 620px; }
+  .chart caption {
+    text-align: left; font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+    font-weight: 700; text-transform: uppercase; letter-spacing: .06em;
+    font-size: clamp(19px, 2.6vw, 23px); margin-bottom: 4px;
+  }
+  .chart-intro { font-size: 14px; color: var(--ink-soft); margin: 0 0 18px; }
+  .chart th {
+    font-family: "IBM Plex Mono", monospace; font-weight: 500;
+    font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--ink-faint); text-align: center; padding: 0 0 8px;
+  }
+  .chart th.rowhead { text-align: left; width: 44%; }
+  .chart tbody th {
+    text-align: left; font-family: "IBM Plex Sans", sans-serif;
+    font-size: 15px; font-weight: 500; text-transform: none;
+    letter-spacing: 0; color: var(--ink); padding: 9px 14px 9px 0;
+    border-top: 1px solid var(--rule);
+  }
+  .chart td { border-top: 1px solid var(--rule); padding: 9px 3px; text-align: center; }
+  .chart tr.group th {
+    font-family: "Barlow Condensed", sans-serif; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .14em; font-size: 12px;
+    color: var(--ink-faint); padding: 20px 0 6px; border-top: none;
+  }
+  .chart tr.group td { border-top: none; padding: 0; }
+  .swatch { display: inline-block; border: 2px solid; vertical-align: middle; }
+  .swatch[data-cap="black"] {
+    width: 30px; height: 22px; border-radius: 3px;
+    background: var(--cap-black); border-color: var(--cap-black-ed);
+  }
+  .swatch[data-cap="blue"] {
+    width: 25px; height: 18px; border-radius: 3px;
+    background-color: var(--cap-blue); border-color: var(--cap-blue-ed);
+    background-image: repeating-linear-gradient(90deg,
+      rgba(0,0,0,.28) 0 1px, rgba(255,255,255,.10) 1px 4px);
+  }
+  .swatch[data-cap="red"] {
+    width: 24px; height: 18px; border-radius: 7px;
+    background: var(--cap-red); border-color: var(--cap-red-ed);
+  }
+  .swatch[data-cap="jet"] {
+    width: 28px; height: 20px; border-radius: 3px;
+    background: var(--cap-white); border-color: var(--cap-white-ed);
+  }
+  .swatch[data-cap="sb"] {
+    width: 11px; height: 22px; border-radius: 2px;
+    background: var(--cap-white); border-color: var(--cap-white-ed);
+  }
+  .swatch[data-cap="flap"] {
+    width: 30px; height: 14px; border-radius: 2px;
+    background: var(--cap-white); border-color: var(--cap-white-ed);
+  }
+  .swatch[data-cap="none"] {
+    width: 22px; height: 13px; border-radius: 3px;
+    background: transparent; border-color: var(--cap-none-ed); border-style: dashed;
+  }
+  .fnkey {
+    display: block; font-family: "IBM Plex Mono", monospace;
+    font-size: 10px; color: var(--ink-faint); margin-top: 3px;
+    letter-spacing: .04em;
+  }
+
+  /* ---------- footnotes ---------- */
+  .notes {
+    border-top: 1px solid var(--rule); padding-top: 20px;
+    display: grid; gap: 16px;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  }
+  .note h3 {
+    font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+    font-weight: 600; text-transform: uppercase; letter-spacing: .13em;
+    font-size: 13px; color: var(--ink-faint); margin: 0 0 5px;
+  }
+  .note p { margin: 0; font-size: 14px; color: var(--ink-soft); line-height: 1.55; }
+  .note code {
+    font-family: "IBM Plex Mono", monospace; font-size: 12.5px;
+    background: var(--surface-sunk); padding: 1px 5px; border-radius: 2px; color: var(--ink);
+  }
+  .reset {
+    background: none; border: none; padding: 0; font: inherit; font-size: 14px;
+    color: var(--ink-faint); text-decoration: underline; text-underline-offset: 3px; cursor: pointer;
+  }
+  .reset:hover { color: var(--ink); }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <h1>Bravo Caps Card</h1>
+    <span class="stamp">Prototype</span>
+  </header>
+
+  <section>
+    <p class="section-label">Which aircraft are you flying?</p>
+    <div class="fleet" id="fleet"></div>
+  </section>
+
+  <section>
+    <p class="section-label">Handles you own</p>
+    <div class="inventory" id="inventory"></div>
+  </section>
+
+  <div class="banner" id="banner" role="status" aria-live="polite">
+    <div class="banner-mark" id="bannerMark">✓</div>
+    <div>
+      <p class="banner-head" id="bannerHead">No cap changes needed</p>
+      <p class="banner-sub" id="bannerSub">The quadrant is already set up correctly.</p>
+    </div>
+  </div>
+
+  <div class="quadrant-frame">
+    <div class="quadrant-head">
+      <h2 class="craft" id="craftName">—</h2>
+      <span class="orient">Lever 1 at left · as you face the quadrant</span>
+    </div>
+    <p class="archetype" id="archetypeLine">—</p>
+    <div class="quadrant" id="quadrant"></div>
+    <div class="check" id="check"></div>
+    <p class="tally" id="tally"></p>
+  </div>
+
+  <div class="confirm-row">
+    <button class="confirm" id="confirmBtn" type="button">The levers are set</button>
+    <p class="confirm-note" id="confirmNote">Set the caps as shown above, then confirm.</p>
+  </div>
+
+  <div class="chart-frame">
+    <table class="chart">
+      <caption>Every layout</caption>
+      <tbody id="chartBody"></tbody>
+    </table>
+    <p class="chart-intro" id="chartFoot"></p>
+  </div>
+
+  <section class="notes">
+    <div class="note">
+      <h3>Verified hardware</h3>
+      <p>The axis and detent numbers under each lever are measured, not assumed: positions 1–6 report HID <code>Y X Rz Ry Rx Z</code>, with reverse-detent buttons <code>24 25 26 27 28 33</code>. Those buttons are what make the reverser check possible — the axis reads <code>0</code> on both sides of the gate, so the button is the only signal that a lever is in reverse.</p>
+    </div>
+    <div class="note">
+      <h3>Layouts are yours, mapping is mine</h3>
+      <p>The eleven layouts come from your spec. Which aircraft belongs to which layout is my guess for demo purposes, and is the part meant to be derived from the sim rather than hand-written.</p>
+    </div>
+    <div class="note">
+      <h3>Shape as well as colour</h3>
+      <p>Every handle is drawn to its own silhouette — flat black throttle blocks, ribbed blue prop heads, domed red mixture heads, waisted white jet throttles, the tall SPEED BRAKE blade and the squat FLAP block. Shape says as much as colour, so the card still reads in poor light.</p>
+    </div>
+    <div class="note">
+      <h3>Demo state</h3>
+      <p>"The levers are set" records this layout as the current physical setup, so the next aircraft diffs against it. <button class="reset" id="resetBtn" type="button">Reset to nothing set</button></p>
+    </div>
+  </section>
+
+</div>
+
+<script>
+  "use strict";
+
+  // The jet set is three distinct parts. SPEED BRAKE and FLAP are one-offs and
+  // carry their function printed on them; the four throttle heads are identical.
+  var B = "black", U = "blue", R = "red", J = "jet", S = "sb", F = "flap", X = "none";
+  var CAP_ORDER = [B, U, R, J, S, F];
+
+  // Layouts exactly as specified. fn = function label, null for an unused position.
+  var LAYOUTS = {
+    prop_1_fixed: { group: "Props", name: "Single engine, fixed-pitch prop",
+      caps: [B, R, X, X, X, X], fns: ["Throttle", "Mixture", null, null, null, null] },
+    prop_1_cs: { group: "Props", name: "Single engine, constant-speed prop",
+      caps: [B, U, R, X, X, X], fns: ["Throttle", "Prop", "Mixture", null, null, null] },
+    prop_2_fixed: { group: "Props", name: "Twin engine, fixed-pitch prop",
+      caps: [B, B, R, R, X, X], fns: ["Throttle 1", "Throttle 2", "Mixture 1", "Mixture 2", null, null] },
+    prop_2_cs: { group: "Props", name: "Twin engine, constant-speed prop",
+      caps: [B, B, U, U, R, R], fns: ["Throttle 1", "Throttle 2", "Prop 1", "Prop 2", "Mixture 1", "Mixture 2"] },
+
+    fadec_1: { group: "Props with FADEC", name: "Single engine",
+      caps: [B, X, X, X, X, X], fns: ["Throttle", null, null, null, null, null] },
+    fadec_2: { group: "Props with FADEC", name: "Twin engine",
+      caps: [B, B, X, X, X, X], fns: ["Throttle 1", "Throttle 2", null, null, null, null] },
+
+    jet_1: { group: "Jets", name: "Single engine",
+      caps: [S, X, J, X, X, F], fns: ["Speed brake", null, "Engine 1", null, null, "Flaps"] },
+    jet_2: { group: "Jets", name: "Twin engine",
+      caps: [S, X, J, J, X, F], fns: ["Speed brake", null, "Engine 1", "Engine 2", null, "Flaps"] },
+    jet_3: { group: "Jets", name: "Tri engine",
+      caps: [S, X, J, J, J, F], fns: ["Speed brake", null, "Engine 1", "Engine 2", "Engine 3", "Flaps"] },
+    jet_4: { group: "Jets", name: "Four engine",
+      caps: [S, J, J, J, J, F], fns: ["Speed brake", "Engine 1", "Engine 2", "Engine 3", "Engine 4", "Flaps"] },
+
+    glider: { group: "Gliders", name: "All gliders",
+      caps: [S, X, X, X, X, X], fns: ["Speed brake", null, null, null, null, null] }
+  };
+
+  // Demo fleet. The aircraft-to-layout mapping is illustrative only.
+  var FLEET = [
+    { name: "Cessna 172",        layout: "prop_1_fixed" },
+    { name: "Bonanza G36",       layout: "prop_1_cs" },
+    { name: "Grand Caravan",     layout: "prop_1_cs" },
+    { name: "TBM 930",           layout: "fadec_1" },
+    { name: "Diamond DA62",      layout: "fadec_2" },
+    { name: "Baron G58",         layout: "prop_2_cs" },
+    { name: "King Air 350i",     layout: "prop_2_cs" },
+    { name: "Citation CJ4",      layout: "jet_2" },
+    { name: "PMDG 737-800",      layout: "jet_2" },
+    { name: "PMDG 777F",         layout: "jet_2" },
+    { name: "Boeing 727",        layout: "jet_3" },
+    { name: "Boeing 747-8i",     layout: "jet_4" },
+    { name: "Discus-2c",         layout: "glider" }
+  ];
+
+  var AXIS   = ["Y", "X", "Rz", "Ry", "Rx", "Z"];
+  var DETENT = [24, 25, 26, 27, 28, 33];
+  var CAP_LABEL = {
+    black: "Black", blue: "Blue", red: "Red",
+    jet: "White throttle", sb: "SPEED BRAKE", flap: "FLAP", none: "No handle"
+  };
+  var STORE_KEY = "bravo-caps-card.physical.v3";
+
+  // Confirmed from photographs of the actual handle sets.
+  var INVENTORY = { black: 2, blue: 2, red: 2, jet: 4, sb: 1, flap: 1 };
+
+  var selectedIx = 0;
+  var physicalLayout = null;
+  // Demo stand-in for live hardware. In the real launcher this comes from the
+  // Bravo's detent buttons (24, 25, 26, 27, 28, 33), which is the only signal
+  // the hardware gives for reverse - the axis reads 0 either side of the gate.
+  var reversedIx = null;
+
+  try {
+    var saved = window.localStorage.getItem(STORE_KEY);
+    if (saved && LAYOUTS[saved]) { physicalLayout = saved; }
+  } catch (e) { /* storage unavailable - start with nothing set */ }
+
+  function el(tag, cls, text) {
+    var n = document.createElement(tag);
+    if (cls) { n.className = cls; }
+    if (text !== undefined && text !== null) { n.textContent = text; }
+    return n;
+  }
+
+  function tallyText(caps) {
+    var counts = {};
+    caps.forEach(function (c) { if (c !== X) { counts[c] = (counts[c] || 0) + 1; } });
+    var parts = [];
+    CAP_ORDER.forEach(function (c) {
+      if (counts[c]) { parts.push(counts[c] + " × " + CAP_LABEL[c]); }
+    });
+    return parts.length ? parts.join(", ") : "none";
+  }
+
+  function countCaps(caps) {
+    var counts = {};
+    caps.forEach(function (c) { if (c !== X) { counts[c] = (counts[c] || 0) + 1; } });
+    return counts;
+  }
+
+  // Which colours this layout needs more of than we know we have.
+  function shortfalls(caps) {
+    var counts = countCaps(caps);
+    var out = [];
+    CAP_ORDER.forEach(function (c) {
+      var need = counts[c] || 0;
+      if (!need) { return; }
+      var have = INVENTORY[c];
+      if (have === null || have === undefined) {
+        out.push({ cap: c, need: need, have: null });
+      } else if (need > have) {
+        out.push({ cap: c, need: need, have: have });
+      }
+    });
+    return out;
+  }
+
+  function buildInventory() {
+    var host = document.getElementById("inventory");
+    CAP_ORDER.forEach(function (c) {
+      var have = INVENTORY[c];
+      var item = el("span", "inv-item" + (have === null ? " is-unknown" : ""));
+      var sw = el("span", "swatch");
+      sw.setAttribute("data-cap", c);
+      item.appendChild(sw);
+      item.appendChild(el("span", null,
+        have === null ? CAP_LABEL[c] + " — not recorded" : have + " × " + CAP_LABEL[c]));
+      host.appendChild(item);
+    });
+  }
+
+  function buildFleet() {
+    var host = document.getElementById("fleet");
+    FLEET.forEach(function (craft, ix) {
+      var b = el("button", null, craft.name);
+      b.type = "button";
+      b.addEventListener("click", function () { selectedIx = ix; render(); });
+      host.appendChild(b);
+    });
+  }
+
+  function buildChart() {
+    var body = document.getElementById("chartBody");
+
+    var head = document.createElement("tr");
+    head.appendChild(el("th", "rowhead", "Layout"));
+    for (var i = 1; i <= 6; i++) { head.appendChild(el("th", null, "Lvr " + i)); }
+    body.appendChild(head);
+
+    var lastGroup = null;
+    Object.keys(LAYOUTS).forEach(function (key) {
+      var L = LAYOUTS[key];
+      if (L.group !== lastGroup) {
+        var g = document.createElement("tr");
+        g.className = "group";
+        var gh = el("th", null, L.group);
+        gh.colSpan = 7;
+        g.appendChild(gh);
+        body.appendChild(g);
+        lastGroup = L.group;
+      }
+      var tr = document.createElement("tr");
+      tr.appendChild(el("th", null, L.name));
+      L.caps.forEach(function (cap, i) {
+        var td = document.createElement("td");
+        var sw = el("span", "swatch");
+        sw.setAttribute("data-cap", cap);
+        td.appendChild(sw);
+        if (L.fns[i]) { td.appendChild(el("span", "fnkey", L.fns[i])); }
+        tr.appendChild(td);
+      });
+      body.appendChild(tr);
+    });
+
+    document.getElementById("chartFoot").textContent =
+      "Both full sets fit exactly: a twin with constant-speed props uses all 6 prop handles, " +
+      "and a four-engine jet uses all 6 jet handles. Nothing is ever short.";
+  }
+
+  function render() {
+    var craft = FLEET[selectedIx];
+    var L = LAYOUTS[craft.layout];
+    var cur = physicalLayout ? LAYOUTS[physicalLayout] : null;
+
+    document.getElementById("craftName").textContent = craft.name;
+
+    var arch = document.getElementById("archetypeLine");
+    arch.textContent = "";
+    arch.appendChild(document.createTextNode(L.group === "Gliders" ? "Layout: " : "Layout: "));
+    arch.appendChild(el("b", null, L.group + " · " + L.name));
+
+    var quad = document.getElementById("quadrant");
+    quad.textContent = "";
+    var changes = 0;
+
+    L.caps.forEach(function (cap, i) {
+      var wasCap = cur ? cur.caps[i] : null;
+      var needsChange = wasCap !== null && wasCap !== cap;
+      if (needsChange) { changes++; }
+
+      var col = el("div", "lever" + (needsChange ? " is-change" : "") + (cap === X ? " is-empty" : ""));
+
+      var slot = el("div", "cap-slot");
+      var capEl = el("div", "cap");
+      capEl.setAttribute("data-cap", cap);
+      slot.appendChild(capEl);
+      if (cap === J) {
+        var rev = el("div", "rev");
+        rev.setAttribute("data-rev", reversedIx === i ? "deployed" : "stowed");
+        slot.appendChild(rev);
+      }
+      col.appendChild(slot);
+      col.appendChild(el("div", "stem"));
+
+      var plate = el("div", "plate");
+      plate.appendChild(el("span"));
+      col.appendChild(plate);
+
+      col.appendChild(el("div", "pos", "LEVER " + (i + 1)));
+      col.appendChild(el("div", "cap-name", CAP_LABEL[cap]));
+      col.appendChild(el("div", "fn", L.fns[i] || "Not used"));
+      col.appendChild(el("div", "hw", AXIS[i] + " · rev " + DETENT[i]));
+
+      if (needsChange) {
+        col.appendChild(el("div", "change-chip",
+          wasCap === X ? "Add a cap" : (cap === X ? "Remove the cap" : "Change from " + CAP_LABEL[wasCap])));
+      }
+      quad.appendChild(col);
+    });
+
+    // --- quadrant check: is anything sitting past the reverse detent? ---
+    var check = document.getElementById("check");
+    check.textContent = "";
+    var firstJet = L.caps.indexOf(J);
+    var faulted = reversedIx !== null && L.caps[reversedIx] === J;
+
+    check.className = "check " + (faulted ? "is-fault" : "is-ok");
+    check.appendChild(el("span", "check-text", faulted
+      ? "Lever " + (reversedIx + 1) + " (" + L.fns[reversedIx] +
+        ") is in reverse. Push it fully forward before you fly."
+      : (firstJet === -1
+          ? "Every lever is forward of the reverse detent."
+          : "Reversers stowed. Every lever is forward of the reverse detent.")));
+
+    if (firstJet !== -1) {
+      var demo = el("button", "check-demo", faulted ? "Clear the fault" : "Simulate a reverser left up");
+      demo.type = "button";
+      demo.addEventListener("click", function () {
+        reversedIx = faulted ? null : firstJet;
+        render();
+      });
+      check.appendChild(demo);
+    }
+
+    var short = shortfalls(L.caps);
+
+    var tally = document.getElementById("tally");
+    tally.textContent = "";
+    var used = el("span");
+    used.appendChild(document.createTextNode("Handles used: "));
+    used.appendChild(el("b", null, tallyText(L.caps)));
+    tally.appendChild(used);
+    short.forEach(function (s) {
+      tally.appendChild(el("span", "shortfall", s.have === null
+        ? "Needs " + s.need + " × " + CAP_LABEL[s.cap] + " — none recorded"
+        : "Needs " + s.need + " × " + CAP_LABEL[s.cap] + ", you have " + s.have));
+    });
+
+    var banner = document.getElementById("banner");
+    var mark = document.getElementById("bannerMark");
+    var head = document.getElementById("bannerHead");
+    var sub  = document.getElementById("bannerSub");
+    var btn  = document.getElementById("confirmBtn");
+    var note = document.getElementById("confirmNote");
+
+    if (short.length) {
+      var names = short.map(function (s) {
+        return s.need + " " + CAP_LABEL[s.cap];
+      }).join(" and ");
+      banner.className = "banner is-action";
+      mark.textContent = "!";
+      head.textContent = "You are missing handles";
+      sub.textContent = "The " + craft.name + " needs " + names +
+        ". Fit what you have and check the card before you fly.";
+      btn.disabled = true;
+      btn.textContent = "Cannot confirm";
+      note.textContent = "This layout cannot be built with the handles on record.";
+    } else if (faulted) {
+      banner.className = "banner is-action";
+      mark.textContent = "!";
+      head.textContent = "A reverser is still up";
+      sub.textContent = "Lever " + (reversedIx + 1) + " (" + L.fns[reversedIx] +
+        ") is past the reverse detent. Push it fully forward before you fly.";
+      btn.disabled = true;
+      btn.textContent = "Cannot confirm";
+      note.textContent = "Clear the reverser first.";
+    } else if (!cur) {
+      banner.className = "banner is-action";
+      mark.textContent = "!";
+      head.textContent = "Set up all six levers";
+      sub.textContent = "Nothing is recorded yet, so check every position against the card below.";
+      btn.disabled = false;
+      btn.textContent = "The levers are set";
+      note.textContent = "Set the caps as shown, then confirm.";
+    } else if (changes === 0) {
+      banner.className = "banner is-ready";
+      mark.textContent = "✓";
+      head.textContent = "No cap changes needed";
+      sub.textContent = "The quadrant is already set up for the " + craft.name + ". Nothing to do.";
+      btn.disabled = true;
+      btn.textContent = "Already set";
+      note.textContent = "Currently set up as: " + cur.group + " · " + cur.name + ".";
+    } else {
+      banner.className = "banner is-action";
+      mark.textContent = String(changes);
+      head.textContent = changes === 1 ? "Change 1 lever" : "Change " + changes + " levers";
+      sub.textContent = "Marked in amber below. Currently set up as: " + cur.group + " · " + cur.name + ".";
+      btn.disabled = false;
+      btn.textContent = "The levers are set";
+      note.textContent = "Change the marked levers, then confirm.";
+    }
+
+    var buttons = document.getElementById("fleet").querySelectorAll("button");
+    for (var i = 0; i < buttons.length; i++) {
+      buttons[i].setAttribute("aria-pressed", String(i === selectedIx));
+    }
+  }
+
+  document.getElementById("confirmBtn").addEventListener("click", function () {
+    physicalLayout = FLEET[selectedIx].layout;
+    try { window.localStorage.setItem(STORE_KEY, physicalLayout); } catch (e) { /* not persisted */ }
+    render();
+  });
+
+  document.getElementById("resetBtn").addEventListener("click", function () {
+    physicalLayout = null;
+    try { window.localStorage.removeItem(STORE_KEY); } catch (e) { /* nothing to clear */ }
+    render();
+  });
+
+  buildInventory();
+  buildFleet();
+  buildChart();
+  render();
+</script>

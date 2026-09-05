@@ -1,0 +1,1454 @@
+<title>Preflight Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<style>
+  /* ------------------------------------------------------------------
+     737-200 flight deck. Single committed visual world, so no theme
+     switching - every colour is painted explicitly and the page holds on
+     either host ground.
+
+     Structure is carried over from CommPanel and ClaudeSoundtrack: a metal
+     chassis, recessed plates, visible screws, engraved labels sitting on a
+     dark shadow, lamps with bloom, monospace readouts. Only the palette
+     changes - Boeing cockpit grey and annunciator amber in place of brass.
+     ------------------------------------------------------------------ */
+  :root {
+    /* chassis */
+    --chassis-hi:   #6E7478;
+    --chassis:      #565C60;
+    --chassis-lo:   #41464A;
+    --recess:       #22262A;
+    --recess-deep:  #191D20;
+    --bezel:        #131618;
+    --glass:        #0D1012;
+    --edge-hi:      #7E858A;
+    --edge-sh:      #0B0D0E;
+    --screw:        #8C9296;
+    --screw-lo:     #4A4F53;
+
+    /* placard text - aged white, never pure */
+    --placard:      #E4E2DA;
+    --placard-dim:  #98A0A4;
+    --placard-faint:#697276;
+    --engrave:      #0B0D0E;
+
+    /* annunciators and lamps */
+    --amber:        #F0A81E;
+    --amber-bright: #FFC44D;
+    --amber-dim:    #6B4C10;
+    --green:        #4FD964;
+    --green-dim:    #1C4423;
+    --red:          #FF543E;
+    --red-dim:      #4E1912;
+    --cyan:         #5AC8FF;
+    --cyan-dim:     #14384A;
+
+    /* chart */
+    --chart-ground: #0E1315;
+    --chart-grid:   #1E2A2E;
+    --chart-route:  #F0A81E;
+    --chart-fix:    #C8D2D6;
+
+    --f-placard: "Barlow Semi Condensed", "Arial Narrow", sans-serif;
+    --f-readout: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    /* Text size. The panel was drawn at readout-instrument sizes (8-16px)
+       and the person it is for is 84. zoom scales everything - text, caps
+       diagram, spacing - in proportion, so the layout keeps its shape.
+       Default is a third larger; A- / A+ in the title bar adjust it and the
+       choice is remembered on this computer. */
+    zoom: 1.33;
+    background: #0A0C0D;
+    color: var(--placard);
+    font-family: var(--f-placard);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Borderless window: the page draws its own chrome, so nothing
+     Windows-shaped sits above the panel. Text selection is off everywhere
+     except real inputs - dragging a panel should move the window, not
+     highlight a label. */
+  html, body { height: 100%; overflow: hidden; }
+  body { user-select: none; -webkit-user-select: none; }
+  input, textarea { user-select: text; -webkit-user-select: text; }
+
+  .deck {
+    height: 100%;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: clamp(8px, 1.4vw, 16px);
+    display: flex; flex-direction: column;
+  }
+  .chassis { flex: 1 1 auto; overflow-y: auto; overflow-x: hidden; }
+
+  /* ---- title strip ------------------------------------------------- */
+  .titlebar {
+    display: flex; align-items: center; gap: 12px;
+    padding: 7px 10px 7px 14px;
+    margin-bottom: 8px;
+    border-radius: 4px;
+    background: linear-gradient(180deg, var(--chassis-hi) 0%, var(--chassis) 45%, var(--chassis-lo) 100%);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.22), 0 2px 6px rgba(0,0,0,.55);
+    -webkit-app-region: drag;
+    cursor: default;
+  }
+  .titlebar .name {
+    font-weight: 700; letter-spacing: .22em; text-transform: uppercase;
+    font-size: 12px; color: var(--placard);
+    text-shadow: 0 -1px 0 var(--engrave), 0 1px 0 rgba(255,255,255,.10);
+  }
+  .titlebar .spacer { flex: 1 1 auto; }
+  .winbtn {
+    width: 34px; height: 24px; cursor: pointer;
+    display: grid; place-items: center;
+    font-family: var(--f-readout); font-size: 13px; line-height: 1;
+    color: var(--placard-dim);
+    background: linear-gradient(180deg, #3E4448, #2A2F32);
+    border: 1px solid #0A0C0D; border-radius: 2px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.10);
+  }
+  .winbtn:hover { color: var(--placard); }
+  .winbtn.close:hover { color: #fff; background: linear-gradient(180deg, #C0392B, #8E241A); }
+  .winbtn:focus-visible { outline: 2px solid var(--cyan); outline-offset: 1px; }
+
+  /* Bottom-right grip, since there is no frame to drag. */
+  .grip {
+    position: fixed; right: 2px; bottom: 2px; width: 18px; height: 18px;
+    cursor: nwse-resize; opacity: .5;
+    background:
+      linear-gradient(135deg, transparent 45%, var(--placard-faint) 45%, var(--placard-faint) 55%, transparent 55%),
+      linear-gradient(135deg, transparent 70%, var(--placard-faint) 70%, var(--placard-faint) 80%, transparent 80%);
+  }
+  .grip:hover { opacity: 1; }
+
+  /* ---- chassis ---------------------------------------------------- */
+  .chassis {
+    background: linear-gradient(180deg, var(--chassis-hi) 0%, var(--chassis) 14%, var(--chassis-lo) 100%);
+    border-radius: 5px;
+    padding: clamp(10px, 1.6vw, 18px);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.22),
+      inset 0 -2px 6px rgba(0,0,0,.55),
+      0 18px 44px rgba(0,0,0,.6);
+    position: relative;
+  }
+  /* brushed-metal grain, cheap and subtle */
+  .chassis::before {
+    content: ""; position: absolute; inset: 0; border-radius: 5px; pointer-events: none;
+    background: repeating-linear-gradient(90deg,
+      rgba(255,255,255,.020) 0 1px, rgba(0,0,0,.020) 1px 3px);
+    mix-blend-mode: overlay;
+  }
+
+  .screw {
+    position: absolute; width: 13px; height: 13px; border-radius: 50%;
+    background: radial-gradient(circle at 34% 30%, var(--screw), var(--screw-lo) 68%, #2C3033 100%);
+    box-shadow: 0 1px 2px rgba(0,0,0,.75), inset 0 0 0 1px rgba(0,0,0,.45);
+  }
+  .screw::after {
+    content: ""; position: absolute; left: 50%; top: 50%;
+    width: 8px; height: 1.6px; background: rgba(0,0,0,.72);
+    transform: translate(-50%,-50%) rotate(var(--slot, 28deg));
+    border-radius: 1px;
+  }
+  .screw.tl { top: 7px;    left: 7px;  --slot: 22deg; }
+  .screw.tr { top: 7px;    right: 7px; --slot: -46deg; }
+  .screw.bl { bottom: 7px; left: 7px;  --slot: 71deg; }
+  .screw.br { bottom: 7px; right: 7px; --slot: 12deg; }
+
+  /* ---- annunciator strip ------------------------------------------ */
+  .annun {
+    display: flex; flex-wrap: wrap; align-items: stretch; gap: 4px;
+    background: var(--recess-deep);
+    border-radius: 3px;
+    padding: 5px;
+    box-shadow: inset 0 2px 6px rgba(0,0,0,.85), 0 1px 0 rgba(255,255,255,.14);
+    margin-bottom: clamp(10px, 1.6vw, 16px);
+  }
+  .ann {
+    flex: 1 1 auto; min-width: 104px;
+    text-align: center;
+    font-weight: 700; letter-spacing: .1em; font-size: 12px;
+    text-transform: uppercase;
+    padding: 9px 8px 7px;
+    border-radius: 2px;
+    border: 1px solid #000;
+    background: #101416;
+    color: #2C3236;
+    text-shadow: 0 1px 0 rgba(0,0,0,.9);
+    line-height: 1.1;
+  }
+  .ann.lit-amber {
+    background: linear-gradient(180deg, #4A3408, #2E2007);
+    color: var(--amber-bright);
+    text-shadow: 0 0 9px rgba(240,168,30,.85), 0 1px 0 #000;
+    box-shadow: inset 0 0 14px rgba(240,168,30,.30);
+  }
+  .ann.lit-red {
+    background: linear-gradient(180deg, #4A1611, #2C0D0A);
+    color: #FF8B79;
+    text-shadow: 0 0 9px rgba(255,84,62,.9), 0 1px 0 #000;
+    box-shadow: inset 0 0 14px rgba(255,84,62,.30);
+  }
+  .ann.lit-green {
+    background: linear-gradient(180deg, #113D1B, #0A2411);
+    color: #8CF39B;
+    text-shadow: 0 0 9px rgba(79,217,100,.8), 0 1px 0 #000;
+    box-shadow: inset 0 0 14px rgba(79,217,100,.26);
+  }
+
+  /* ---- aircraft selector bar --------------------------------------- */
+  .acbar {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px;
+    background: linear-gradient(180deg, var(--recess) 0%, var(--recess-deep) 100%);
+    border-radius: 4px; padding: 12px 14px;
+    margin-bottom: clamp(10px, 1.6vw, 16px);
+    box-shadow:
+      inset 0 2px 7px rgba(0,0,0,.8),
+      inset 0 -1px 0 rgba(255,255,255,.07),
+      0 1px 0 rgba(255,255,255,.15);
+  }
+  /* Outcome of "Set up levers". Sits under the aircraft bar and stays put
+     until the next attempt, so a result cannot be missed. */
+  .setupmsg {
+    border-radius: 4px; padding: 10px 14px;
+    margin: -6px 0 clamp(10px, 1.6vw, 16px) 0;
+    font-size: 13px; line-height: 1.45; white-space: pre-wrap;
+    box-shadow: inset 0 1px 4px rgba(0,0,0,.6);
+  }
+  .setupmsg.ok  { background: rgba(60,140,70,.16);  color: #b7e3bd; border-left: 3px solid #3c8c46; }
+  .setupmsg.bad { background: rgba(170,60,50,.16);  color: #f0b9b3; border-left: 3px solid #aa3c32; }
+
+  /* Test mode: a checklist laid over the map. The map container becomes the
+     positioning context only while testing, so nothing else moves. Steps the
+     app can check tick themselves; steps only a person can judge are clicked. */
+  .map-wrap.testing { position: relative; }
+  .test-overlay {
+    position: absolute; inset: 0; overflow: auto;
+    background: rgba(8,10,12,.94); color: var(--placard);
+    padding: 12px 14px; font-size: 13px; line-height: 1.4;
+    box-shadow: inset 0 0 0 1px #000;
+  }
+  .test-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .test-head .ttl { font-weight: 700; letter-spacing: .16em; text-transform: uppercase; font-size: 12px; color: var(--placard); }
+  .test-head .spacer { flex: 1 1 auto; }
+  .test-err { color: #f0b9b3; margin: 6px 0; }
+  .tstep { display: grid; grid-template-columns: 26px 1fr; gap: 4px 10px; padding: 7px 6px; border-radius: 3px; }
+  .tstep + .tstep { border-top: 1px solid rgba(255,255,255,.06); }
+  .tstep .box { font-size: 18px; line-height: 1; text-align: center; color: var(--placard-dim); }
+  .tstep.done .box { color: #8CF39B; }
+  .tstep.manual { cursor: pointer; }
+  .tstep.manual:hover { background: rgba(255,255,255,.04); }
+  .tstep .lbl { font-weight: 600; }
+  .tstep.done .lbl { color: #b7e3bd; }
+  .tstep .exp { grid-column: 2; color: var(--placard-dim); font-size: 12px; }
+  .tstep .why { grid-column: 2; font-size: 12px; color: #f0c98a; }
+  .tstep.done .why { color: #9bd3a3; }
+  .tstep .kind { grid-column: 2; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--placard-faint); }
+  .test-actions { display: flex; gap: 10px; margin: 10px 0 4px; flex-wrap: wrap; }
+  .acbar-label {
+    font-weight: 700; letter-spacing: .2em; font-size: 12px;
+    text-transform: uppercase; color: var(--placard);
+    text-shadow: 0 -1px 0 var(--engrave);
+    white-space: nowrap;
+  }
+
+  /* A native select on purpose. It behaves the way every other program on his
+     computer behaves, works with the keyboard, and cannot be got wrong. A
+     hand-built dropdown would look more like the panel and be worse to use. */
+  #acSelect {
+    flex: 1 1 260px; min-width: 220px;
+    font-family: var(--f-placard); font-size: 16px; font-weight: 600;
+    letter-spacing: .05em;
+    color: var(--placard);
+    background: #11161A;
+    border: 1px solid #000; border-radius: 2px;
+    padding: 10px 12px;
+    box-shadow: inset 0 2px 5px rgba(0,0,0,.8);
+  }
+  #acSelect:focus-visible { outline: 2px solid var(--cyan); outline-offset: 1px; }
+  #acSelect optgroup { font-style: normal; color: var(--placard-faint); background: #0D1114; }
+  #acSelect option { color: var(--placard); background: #11161A; font-weight: 500; }
+
+  .pbtn {
+    font-family: var(--f-placard); font-weight: 700;
+    letter-spacing: .12em; text-transform: uppercase; font-size: 12px;
+    padding: 11px 16px; cursor: pointer; white-space: nowrap;
+    color: var(--placard);
+    background: linear-gradient(180deg, #3E4448, #2A2F32);
+    border: 1px solid #0A0C0D; border-radius: 2px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.10), 0 2px 3px rgba(0,0,0,.5);
+    text-shadow: 0 -1px 0 rgba(0,0,0,.8);
+    text-decoration: none; display: inline-block;
+  }
+  .pbtn:hover { color: var(--amber-bright); }
+  .pbtn:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+  .pbtn.go {
+    color: #07110A;
+    background: linear-gradient(180deg, #7BE08C, #3FA451);
+    text-shadow: 0 1px 0 rgba(255,255,255,.25);
+  }
+  .pbtn.go:hover { color: #07110A; filter: brightness(1.08); }
+
+  /* ---- mismatch / plan alert --------------------------------------- */
+  .alert {
+    display: flex; align-items: flex-start; gap: 12px;
+    border-radius: 3px; padding: 13px 15px;
+    margin-bottom: clamp(10px, 1.6vw, 16px);
+    border: 1px solid;
+  }
+  .alert.hidden { display: none; }
+  .alert.warn { background: rgba(240,168,30,.10); border-color: var(--amber-dim); }
+  .alert.ok   { background: rgba(79,217,100,.08); border-color: var(--green-dim); }
+  /* Neutral: a state that is fine and needs nothing - flying without a plan
+     is a choice, not a fault, and amber every launch teaches people to
+     ignore amber. */
+  .alert.info { background: rgba(120,140,160,.08); border-color: #4A555F; }
+  .alert-mark {
+    flex: none; width: 26px; height: 26px; border-radius: 50%;
+    display: grid; place-items: center;
+    border: 2px solid currentColor;
+    font-weight: 700; font-size: 16px; line-height: 1;
+  }
+  .alert.warn .alert-mark { color: var(--amber); }
+  .alert.ok   .alert-mark { color: var(--green); }
+  .alert.info .alert-mark { color: var(--placard-dim); }
+  .alert-body { min-width: 0; flex: 1 1 auto; }
+  .alert-head {
+    font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+    font-size: 15px; margin: 0 0 3px;
+  }
+  .alert.warn .alert-head { color: var(--amber-bright); }
+  .alert.ok   .alert-head { color: #8CF39B; }
+  .alert.info .alert-head { color: var(--placard); }
+  .alert-text {
+    margin: 0; font-family: var(--f-readout); font-size: 11.5px;
+    line-height: 1.6; color: var(--placard-dim);
+  }
+  .alert-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+
+  /* ---- two-pane layout -------------------------------------------- */
+  .panes {
+    display: grid;
+    grid-template-columns: minmax(320px, 400px) 1fr;
+    gap: clamp(10px, 1.6vw, 16px);
+    align-items: start;
+  }
+  @media (max-width: 900px) { .panes { grid-template-columns: 1fr; } }
+
+  /* ---- recessed plate --------------------------------------------- */
+  .plate {
+    position: relative;
+    background: linear-gradient(180deg, var(--recess) 0%, var(--recess-deep) 100%);
+    border-radius: 4px;
+    padding: 14px 14px 16px;
+    box-shadow:
+      inset 0 2px 7px rgba(0,0,0,.8),
+      inset 0 -1px 0 rgba(255,255,255,.07),
+      0 1px 0 rgba(255,255,255,.15);
+  }
+  .plate-title {
+    font-weight: 700; letter-spacing: .22em; font-size: 12px;
+    text-transform: uppercase; color: var(--placard);
+    text-shadow: 0 -1px 0 var(--engrave), 0 1px 0 rgba(255,255,255,.10);
+    padding-bottom: 8px; margin-bottom: 12px;
+    border-bottom: 1px solid rgba(0,0,0,.6);
+    box-shadow: 0 1px 0 rgba(255,255,255,.07);
+    display: flex; justify-content: space-between; align-items: baseline; gap: 10px;
+  }
+  .plate-title .sub {
+    font-family: var(--f-readout); font-size: 10px; letter-spacing: .08em;
+    color: var(--placard-faint); font-weight: 400;
+  }
+
+  /* ---- checklist --------------------------------------------------- */
+  /* Boeing normal-procedures format: CHALLENGE .... RESPONSE, leader dots
+     between, response set apart. The dot leader is what makes it read as a
+     checklist rather than a list of settings. */
+  .cl { display: flex; flex-direction: column; gap: 1px; }
+
+  .cl-row {
+    display: flex; align-items: baseline; gap: 7px;
+    padding: 7px 6px;
+    border-radius: 2px;
+  }
+  .cl-row + .cl-row { border-top: 1px solid rgba(0,0,0,.35); }
+  .cl-row.attn { background: rgba(240,168,30,.07); }
+  .cl-row.stop { background: rgba(255,84,62,.09); }
+
+  .lamp {
+    flex: none; width: 11px; height: 11px; border-radius: 50%;
+    background: #0C0F10;
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,.9), inset 0 1px 2px rgba(0,0,0,.8);
+    position: relative; top: -1px;
+  }
+  .lamp.g { background: var(--green);  box-shadow: 0 0 8px rgba(79,217,100,.85),  inset 0 0 0 1px rgba(0,0,0,.5); }
+  .lamp.a { background: var(--amber);  box-shadow: 0 0 8px rgba(240,168,30,.85),  inset 0 0 0 1px rgba(0,0,0,.5); }
+  .lamp.r { background: var(--red);    box-shadow: 0 0 9px rgba(255,84,62,.9),    inset 0 0 0 1px rgba(0,0,0,.5); }
+  .lamp.c { background: var(--cyan);   box-shadow: 0 0 8px rgba(90,200,255,.8),   inset 0 0 0 1px rgba(0,0,0,.5); }
+  .lamp.off { background: #171B1D; }
+
+  .cl-chal {
+    font-weight: 600; letter-spacing: .085em; font-size: 14px;
+    text-transform: uppercase; color: var(--placard);
+    text-shadow: 0 -1px 0 var(--engrave);
+    white-space: nowrap;
+  }
+  /* The leader dots are what make this read as a checklist rather than a list
+     of settings, so they have to be clearly visible, not a hairline. */
+  .cl-lead {
+    flex: 1 1 auto; min-width: 14px;
+    align-self: center;
+    height: 5px;
+    background-image: radial-gradient(circle, var(--placard-dim) 1px, transparent 1.2px);
+    background-size: 5px 5px;
+    background-position: center;
+    background-repeat: repeat-x;
+    opacity: .85;
+  }
+  .cl-resp {
+    font-family: var(--f-readout); font-size: 12.5px; font-weight: 500;
+    letter-spacing: .04em; white-space: nowrap;
+    color: var(--placard);
+  }
+  .cl-resp.g { color: #8CF39B; }
+  .cl-resp.a { color: var(--amber-bright); }
+  .cl-resp.r { color: #FF8B79; }
+  .cl-resp.d { color: var(--placard-faint); }
+
+  .cl-note {
+    font-family: var(--f-readout); font-size: 10.5px; line-height: 1.5;
+    color: var(--placard-dim);
+    padding: 0 6px 8px 25px;
+    margin-top: -2px;
+  }
+  .cl-note.warn { color: var(--amber); }
+  .cl-note.bad  { color: #FF8B79; }
+
+  .cl-complete {
+    margin-top: 14px; padding-top: 11px;
+    border-top: 1px solid rgba(0,0,0,.6);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.07);
+    text-align: center;
+    font-weight: 700; letter-spacing: .2em; font-size: 12px;
+    text-transform: uppercase;
+  }
+  .cl-complete.hold { color: #FF8B79; text-shadow: 0 0 10px rgba(255,84,62,.5); }
+
+  /* ---- start button ------------------------------------------------ */
+  .start {
+    margin-top: 12px; width: 100%;
+    font-family: var(--f-placard); font-weight: 700;
+    letter-spacing: .18em; text-transform: uppercase; font-size: 15px;
+    padding: 14px; border-radius: 3px; cursor: not-allowed;
+    color: #6B7276;
+    background: linear-gradient(180deg, #3E4448, #2A2F32);
+    border: 1px solid #0A0C0D;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.10), 0 2px 4px rgba(0,0,0,.5);
+    text-shadow: 0 -1px 0 rgba(0,0,0,.8);
+  }
+  .start:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+
+  /* ---- map --------------------------------------------------------- */
+  /* Drawn chart only. Real FAA underlays were built and then dropped -
+     SimBrief's own app already does charts well, and carrying tile services
+     meant a licence question, a US-only coverage limit and another thing to
+     fail when the internet is down. See notes/chart_underlays.md. */
+  .map-wrap {
+    background: var(--chart-ground);
+    border-radius: 3px;
+    box-shadow: inset 0 0 0 1px #000, inset 0 3px 12px rgba(0,0,0,.9);
+    overflow: hidden;
+  }
+  svg { display: block; width: 100%; height: auto; }
+
+  .rt-line   { stroke: var(--chart-route); stroke-width: 1.6; fill: none; }
+  .rt-glow   { stroke: var(--chart-route); stroke-width: 5; fill: none; opacity: .13; }
+  .fix-sym   { stroke: var(--chart-fix); stroke-width: 1.2; fill: none; }
+  .fix-apt   { stroke: #8CF39B; stroke-width: 1.6; fill: none; }
+  .fix-lbl {
+    font-family: "IBM Plex Mono", monospace; font-size: 8.5px;
+    fill: var(--chart-fix); letter-spacing: .04em;
+  }
+  .fix-lbl.apt { fill: #8CF39B; font-weight: 600; font-size: 10px; }
+  .fix-lbl.tp  { fill: var(--amber); }
+  .grid-line { stroke: var(--chart-grid); stroke-width: .6; }
+  .awy-lbl {
+    font-family: "IBM Plex Mono", monospace; font-size: 8px;
+    fill: var(--amber); letter-spacing: .1em;
+  }
+
+  /* ---- profile ----------------------------------------------------- */
+  .prof-fill { fill: rgba(240,168,30,.12); }
+  .prof-line { stroke: var(--amber); stroke-width: 1.4; fill: none; }
+  .prof-axis { stroke: var(--chart-grid); stroke-width: .6; }
+  .prof-lbl {
+    font-family: "IBM Plex Mono", monospace; font-size: 8px;
+    fill: var(--placard-faint);
+  }
+
+  /* ---- lever caps diagram ------------------------------------------ */
+  /* Handle silhouettes follow the real parts: the black throttle is a tall
+     flat block, the blue prop head a ribbed barrel, the red mixture head
+     domed, the jet throttle waisted, SPEED BRAKE a tall blade and FLAP a
+     squat block. Shape carries the same information as colour, which matters
+     because on jets every handle is white. */
+  .capsblock { margin-top: 12px; }
+  .capsblock .plate-title { margin-bottom: 10px; }
+  .quadrant {
+    display: grid; grid-template-columns: repeat(6, 1fr);
+    gap: 6px; padding: 10px 4px 4px;
+    background: var(--recess-deep); border-radius: 3px;
+    box-shadow: inset 0 2px 7px rgba(0,0,0,.8);
+    overflow-x: auto;
+  }
+  .lever { display: flex; flex-direction: column; align-items: center;
+           padding: 4px 2px 8px; border-radius: 2px; }
+  .lever.is-empty { opacity: .55; }
+  .cap-slot { position: relative; height: 46px;
+              display: flex; align-items: flex-end; justify-content: center; }
+  .cap { border: 2px solid; }
+  .cap[data-cap="black"] { width: 48px; height: 38px; border-radius: 4px 4px 3px 3px;
+    background: #12151A; border-color: #767F8B;
+    background-image: linear-gradient(180deg, rgba(255,255,255,.16), transparent 42%); }
+  .cap[data-cap="blue"] { width: 40px; height: 30px; border-radius: 5px;
+    background-color: #3B85E8; border-color: #7FB2F2;
+    background-image: repeating-linear-gradient(90deg, rgba(0,0,0,.26) 0 2px, rgba(255,255,255,.10) 2px 6px); }
+  .cap[data-cap="red"] { width: 38px; height: 30px; border-radius: 11px 11px 8px 8px;
+    background-color: #E14848; border-color: #F08A8A;
+    background-image: radial-gradient(120% 90% at 35% 22%, rgba(255,255,255,.30), transparent 58%); }
+  .cap[data-cap="jet"] { width: 44px; height: 36px; background: #F2F5F8; border: none;
+    clip-path: polygon(0 0, 100% 0, 70% 33%, 70% 67%, 100% 100%, 0 100%, 30% 67%, 30% 33%);
+    filter: drop-shadow(1.5px 0 0 #AEB7C2) drop-shadow(-1.5px 0 0 #AEB7C2)
+            drop-shadow(0 1.5px 0 #AEB7C2) drop-shadow(0 -1.5px 0 #AEB7C2); }
+  .cap[data-cap="sb"]   { width: 18px; height: 44px; border-radius: 3px;
+    background: #F2F5F8; border-color: #AEB7C2; }
+  .cap[data-cap="flap"] { width: 46px; height: 26px; border-radius: 3px;
+    background: #F2F5F8; border-color: #AEB7C2; }
+  .cap[data-cap="none"] { width: 38px; height: 22px; border-radius: 4px;
+    background: transparent; border-color: #565E69; border-style: dashed; }
+  .stem { width: 7px; height: 22px;
+          background: linear-gradient(90deg, var(--plate-slot), var(--rule-strong) 45%, var(--plate-slot)); }
+  .lever.is-empty .stem { opacity: .35; }
+  .plate-bar { width: 100%; height: 12px; background: var(--plate); border-radius: 2px;
+               display: grid; place-items: center; }
+  .plate-bar span { display: block; width: 18px; height: 4px;
+                    background: var(--plate-slot); border-radius: 3px; }
+  .lv-pos { font-family: var(--f-readout); font-size: 10px; letter-spacing: .1em;
+            color: var(--placard-faint); margin-top: 8px; }
+  .lv-cap { font-weight: 700; text-transform: uppercase; letter-spacing: .08em;
+            font-size: 12px; color: var(--placard-dim); margin-top: 2px; text-align: center; }
+  .lv-fn  { font-weight: 700; font-size: 14px; line-height: 1.1; margin-top: 4px;
+            text-align: center; color: var(--placard); text-wrap: balance; }
+  .lever.is-empty .lv-fn, .lever.is-empty .lv-cap { color: var(--placard-faint); font-weight: 500; }
+
+  /* ---- data strip -------------------------------------------------- */
+  .strip {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(94px, 1fr));
+    gap: 1px; margin-top: 12px;
+    background: rgba(0,0,0,.5); border-radius: 2px; overflow: hidden;
+  }
+  .cell { background: var(--recess-deep); padding: 8px 9px; }
+  .cell .k {
+    font-size: 9.5px; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--placard-faint); font-weight: 600;
+  }
+  .cell .v {
+    font-family: var(--f-readout); font-size: 14px; font-weight: 500;
+    color: var(--amber-bright); margin-top: 2px;
+    text-shadow: 0 0 7px rgba(240,168,30,.35);
+  }
+  .cell .v.plain { color: var(--placard); text-shadow: none; }
+
+  .footnote {
+    margin-top: 14px; text-align: center;
+    font-family: var(--f-readout); font-size: 10px; line-height: 1.6;
+    color: #5C6367;
+  }
+</style>
+
+<div class="deck">
+
+  <div class="titlebar" id="titlebar">
+    <span class="name">Honeycomb Preflight</span>
+    <span class="spacer"></span>
+    <button class="winbtn" id="textSmaller" type="button" title="Smaller text" aria-label="Smaller text">A&#8722;</button>
+    <button class="winbtn" id="textLarger"  type="button" title="Larger text"  aria-label="Larger text">A+</button>
+    <button class="winbtn" id="winMin" type="button" title="Minimise" aria-label="Minimise">&#8211;</button>
+    <button class="winbtn" id="winMax" type="button" title="Maximise" aria-label="Maximise">&#9633;</button>
+    <button class="winbtn close" id="winClose" type="button" title="Close" aria-label="Close">&#10005;</button>
+  </div>
+
+  <div class="chassis">
+    <span class="screw tl"></span><span class="screw tr"></span>
+    <span class="screw bl"></span><span class="screw br"></span>
+
+    <div class="annun" id="annun"></div>
+
+    <div class="acbar">
+      <label class="acbar-label" for="acSelect">Aircraft</label>
+      <select id="acSelect"></select>
+      <button class="pbtn" id="refreshBtn" type="button">Refresh Flight Plan</button>
+    </div>
+
+    <div class="alert hidden" id="planAlert" role="status" aria-live="polite">
+      <div class="alert-mark" id="alertMark">!</div>
+      <div class="alert-body">
+        <p class="alert-head" id="alertHead"></p>
+        <p class="alert-text" id="alertText"></p>
+        <div class="alert-actions hidden" id="alertActions">
+          <a class="pbtn go" id="sbLink" href="https://dispatch.simbrief.com/options/new"
+             target="_blank" rel="noopener noreferrer">Open SimBrief</a>
+          <button class="pbtn" id="alertRefresh" type="button">I have made the plan &mdash; refresh</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="panes">
+
+      <!-- ============ LEFT: checklist ============ -->
+      <section class="plate">
+        <div class="plate-title">
+          <span>Before Start</span>
+          <span class="sub" id="clStamp"></span>
+        </div>
+        <div class="cl" id="checklist"></div>
+        <div class="cl-complete hold" id="clVerdict"></div>
+        <button class="start" id="startBtn" type="button" disabled>Start Simulator</button>
+      </section>
+
+      <!-- ============ RIGHT: flight plan ============ -->
+      <section class="plate">
+        <div class="plate-title">
+          <span>Flight Plan &mdash; <span id="craftName" style="letter-spacing:.06em">&mdash;</span></span>
+          <span class="sub" id="mapStamp"></span>
+        </div>
+        <div class="map-wrap">
+          <svg id="chart" viewBox="0 0 620 600" role="img"
+               aria-label="Route from Bermuda Dunes to Visalia Municipal"></svg>
+        </div>
+        <div class="map-wrap" style="margin-top:8px"><svg id="profile" viewBox="0 0 620 96" role="img"
+             aria-label="Vertical profile"></svg></div>
+        <div class="strip" id="strip"></div>
+
+        <div class="capsblock">
+          <div class="plate-title">
+            <span>Lever Caps</span>
+            <span class="sub" id="capsStamp"></span>
+          </div>
+          <div class="quadrant" id="quadrant"></div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+  <p class="footnote" id="foot"></p>
+  <div class="grip" id="grip" title="Resize"></div>
+</div>
+
+<script>
+"use strict";
+
+/* Data-driven console. Everything comes from the host application; nothing
+   here is hardcoded state. The PowerShell tools remain the source of truth. */
+
+/* The eleven layouts. caps/fns are per lever, 1 to 6, so the diagram is drawn
+   from the same data the summary line is written from. Mirrors
+   data/lever-layouts.json; that file is the source of truth. */
+var B = "black", U = "blue", R = "red", J = "jet", SB = "sb", FL = "flap", X = "none";
+var LAYOUTS = {
+  prop_1_fixed: { name: "Single engine, fixed-pitch prop", caps: "BLACK and RED on levers 1 and 2",
+    lv: [B,R,X,X,X,X], fns: ["Throttle","Mixture",null,null,null,null] },
+  prop_1_cs: { name: "Single engine, constant-speed prop", caps: "BLACK, BLUE, RED on levers 1 to 3",
+    lv: [B,U,R,X,X,X], fns: ["Throttle","Prop","Mixture",null,null,null] },
+  prop_2_fixed: { name: "Twin engine, fixed-pitch prop", caps: "2 x BLACK, 2 x RED on levers 1 to 4",
+    lv: [B,B,R,R,X,X], fns: ["Throttle 1","Throttle 2","Mixture 1","Mixture 2",null,null] },
+  prop_2_cs: { name: "Twin engine, constant-speed prop", caps: "2 x BLACK, 2 x BLUE, 2 x RED - all six",
+    lv: [B,B,U,U,R,R], fns: ["Throttle 1","Throttle 2","Prop 1","Prop 2","Mixture 1","Mixture 2"] },
+  /* Turboprops: same handles as constant-speed, but the red levers are
+     CONDITION levers, and the sim drives them differently. Measured on the
+     King Air 350 - see data/lever-layouts.json. */
+  turboprop_1: { name: "Single turboprop", caps: "BLACK, BLUE, RED on levers 1 to 3",
+    lv: [B,U,R,X,X,X], fns: ["Power","Prop","Condition",null,null,null] },
+  turboprop_2: { name: "Twin turboprop", caps: "2 x BLACK, 2 x BLUE, 2 x RED - all six",
+    lv: [B,B,U,U,R,R], fns: ["Power 1","Power 2","Prop 1","Prop 2","Condition 1","Condition 2"] },
+  fadec_1: { name: "Single engine, FADEC", caps: "BLACK on lever 1, the rest empty",
+    lv: [B,X,X,X,X,X], fns: ["Throttle",null,null,null,null,null] },
+  fadec_2: { name: "Twin engine, FADEC", caps: "2 x BLACK on levers 1 and 2, the rest empty",
+    lv: [B,B,X,X,X,X], fns: ["Throttle 1","Throttle 2",null,null,null,null] },
+  jet_1: { name: "Single engine jet", caps: "SPEED BRAKE, 1 throttle, FLAP",
+    lv: [SB,X,J,X,X,FL], fns: ["Speed brake",null,"Engine 1",null,null,"Flaps"] },
+  jet_2: { name: "Twin engine jet", caps: "SPEED BRAKE, 2 throttles, FLAP",
+    lv: [SB,X,J,J,X,FL], fns: ["Speed brake",null,"Engine 1","Engine 2",null,"Flaps"] },
+  jet_3: { name: "Tri engine jet", caps: "SPEED BRAKE, 3 throttles, FLAP",
+    lv: [SB,X,J,J,J,FL], fns: ["Speed brake",null,"Engine 1","Engine 2","Engine 3","Flaps"] },
+  jet_4: { name: "Four engine jet", caps: "SPEED BRAKE, 4 throttles, FLAP",
+    lv: [SB,J,J,J,J,FL], fns: ["Speed brake","Engine 1","Engine 2","Engine 3","Engine 4","Flaps"] },
+  glider: { name: "Glider", caps: "SPEED BRAKE only, the rest empty",
+    lv: [SB,X,X,X,X,X], fns: ["Speed brake",null,null,null,null,null] }
+};
+var CAP_LABEL = { black:"Black", blue:"Blue", red:"Red",
+                  jet:"White", sb:"SPEED BRAKE", flap:"FLAP", none:"No cap" };
+
+var FLEET = [
+  { id: "c152", name: "Cessna 152",               type: "C152", layout: "prop_1_fixed" },
+  { id: "c172", name: "Cessna 172 Skyhawk",       type: "C172", layout: "prop_1_fixed" },
+  { id: "da40", name: "Diamond DA40 NG",          type: "DA40", layout: "fadec_1" },
+  { id: "be36", name: "Beechcraft Bonanza G36",   type: "BE36", layout: "prop_1_cs" },
+  { id: "c208", name: "Cessna 208B Caravan",      type: "C208", layout: "prop_1_cs" },
+  { id: "tbm9", name: "Daher TBM 930",            type: "TBM9", layout: "fadec_1" },
+  { id: "da62", name: "Diamond DA62",             type: "DA62", layout: "fadec_2" },
+  { id: "be58", name: "Beechcraft Baron G58",     type: "BE58", layout: "prop_2_cs" },
+  { id: "b350", name: "Beechcraft King Air 350i", type: "B350", layout: "turboprop_2" },
+  { id: "be9l", name: "Beechcraft King Air C90 GTx", type: "BE9L", layout: "turboprop_2" },
+  { id: "c25c", name: "Cessna Citation CJ4",      type: "C25C", layout: "jet_2" },
+  { id: "a20n", name: "Airbus A320neo",           type: "A20N", layout: "jet_2" },
+  { id: "b738", name: "PMDG 737-800",             type: "B738", layout: "jet_2" },
+  { id: "b77l", name: "PMDG 777F",                type: "B77L", layout: "jet_2" },
+  { id: "b78x", name: "Boeing 787-10",            type: "B78X", layout: "jet_2" },
+  { id: "b748", name: "Boeing 747-8i",            type: "B748", layout: "jet_4" },
+  { id: "disc", name: "Discus-2c Glider",         type: "DISC", layout: "glider" }
+];
+
+var S = {
+  config: null,
+  preflight: null,
+  preflightBusy: false,
+  plan: null,
+  planBusy: false,
+  selectedId: null,
+  launched: false
+};
+
+function el(tag, cls, text) {
+  var n = document.createElement(tag);
+  if (cls) { n.className = cls; }
+  if (text != null) { n.textContent = text; }
+  return n;
+}
+function byId(id) { return document.getElementById(id); }
+
+/* A missing element must not be able to stop everything else drawing. One
+   invented id - craftName - threw inside render() and silently killed every
+   renderer after it, so the map, the profile and the caps diagram never ran.
+   Writes go through here, which reports the mistake and carries on. */
+function setText(id, value) {
+  var n = document.getElementById(id);
+  if (!n) {
+    if (!setText.warned) { setText.warned = {}; }
+    if (!setText.warned[id]) {
+      setText.warned[id] = true;
+      post({ action: "uiWarning", detail: "no element with id " + id });
+    }
+    return;
+  }
+  n.textContent = value;
+}
+function craft(id) {
+  for (var i = 0; i < FLEET.length; i++) { if (FLEET[i].id === id) { return FLEET[i]; } }
+  return null;
+}
+function post(msg) {
+  if (window.chrome && window.chrome.webview) { window.chrome.webview.postMessage(msg); }
+}
+
+/* ------------------------------------------------------------------ host -- */
+
+window.APP = {
+  receive: function (msg) {
+    switch (msg.kind) {
+      case "config":
+        S.config = msg;
+        if (!S.selectedId && msg.lastAircraftId) { S.selectedId = msg.lastAircraftId; }
+        break;
+      case "preflightBusy": S.preflightBusy = true; break;
+      case "preflight":     S.preflightBusy = false; S.preflight = msg.data || msg; break;
+      case "planBusy":      S.planBusy = true; break;
+      case "plan":          S.planBusy = false; S.plan = msg.data || msg; break;
+      case "launched":      S.launched = true; break;
+      /* Shown directly rather than folded into the state and re-rendered:
+         it is the outcome of something the user just did, and it must not
+         be wiped by the next background preflight refresh. */
+      case "setupResult":   showSetupResult(msg); return;
+      case "testStatus":    S.test = msg; renderTestOverlay(); return;
+    }
+    render();
+  }
+};
+
+/* --------------------------------------------------------------- render -- */
+
+function verdict() {
+  if (S.preflightBusy || !S.preflight) { return "CHECKING"; }
+  return S.preflight.verdict || "CANNOT RUN";
+}
+
+function renderAnnunciators() {
+  var host = byId("annun");
+  host.textContent = "";
+  var v = verdict();
+  var tiles = [
+    { t: "Master Caution", lit: (v === "NO-GO" || v === "CANNOT RUN") ? "lit-amber" : "" },
+    { t: "Preflight", lit: v === "GO" ? "lit-green" : (v === "CHECKING" ? "" : "lit-red") },
+    { t: "Aircraft", lit: S.selectedId ? "lit-green" : "lit-amber" },
+    { t: "Lever Caps", lit: capsConfirmed() ? "lit-green" : "lit-amber" },
+    { t: "Flight Plan", lit: planTone() },
+    { t: "Sim Ready", lit: canLaunch() ? "lit-green" : "" }
+  ];
+  tiles.forEach(function (x) { host.appendChild(el("div", "ann " + x.lit, x.t)); });
+}
+
+function capsConfirmed() {
+  var a = craft(S.selectedId);
+  return !!(a && S.config && S.config.capsSetForLayout === a.layout);
+}
+
+// PowerShell writes Status with a capital; the host sends status lowercase for
+// its own synthetic cases. Tolerate both in one place.
+function planStatus() { return S.plan ? (S.plan.Status || S.plan.status || null) : null; }
+
+function planTone() {
+  if (!S.plan) { return ""; }
+  if (planStatus() === "Fresh") { return "lit-green"; }
+  if (planStatus() === "Stale" || planStatus() === "Recent") { return "lit-amber"; }
+  return "lit-amber";
+}
+
+function renderAircraftBar() {
+  var sel = byId("acSelect");
+  sel.textContent = "";
+  var use = (S.config && S.config.aircraftUse) || {};
+  var used = FLEET.filter(function (a) { return (use[a.id] || 0) > 0; })
+                  .sort(function (x, y) {
+                    var d = (use[y.id] || 0) - (use[x.id] || 0);
+                    return d !== 0 ? d : x.name.localeCompare(y.name);
+                  });
+  if (used.length) {
+    var g1 = document.createElement("optgroup");
+    g1.label = "Your aircraft — most flown first";
+    used.forEach(function (a) {
+      var o = document.createElement("option");
+      o.value = a.id; o.textContent = a.name + "   (" + use[a.id] + ")";
+      g1.appendChild(o);
+    });
+    sel.appendChild(g1);
+  }
+  var g2 = document.createElement("optgroup");
+  g2.label = used.length ? "All aircraft" : "Choose an aircraft";
+  FLEET.slice().sort(function (x, y) { return x.name.localeCompare(y.name); })
+    .forEach(function (a) {
+      var o = document.createElement("option");
+      o.value = a.id; o.textContent = a.name;
+      g2.appendChild(o);
+    });
+  sel.appendChild(g2);
+  if (S.selectedId) { sel.value = S.selectedId; }
+}
+
+function planState() {
+  var a = craft(S.selectedId);
+  if (S.planBusy) { return "busy"; }
+  if (!S.plan) { return "none"; }
+  var ps = planStatus();
+  if (ps === "NoPilotId") { return "nopilot"; }
+  if (ps === "Unavailable" || ps === "NoSuchUser" ||
+      ps === "NoPlan") { return "noplan"; }
+  if (a && S.plan.AircraftIcao && S.plan.AircraftIcao !== a.type) { return "mismatch"; }
+  if (ps === "Stale") { return "stale"; }
+  return "ok";
+}
+
+function renderAlert() {
+  var box = byId("planAlert"), mark = byId("alertMark"),
+      head = byId("alertHead"), text = byId("alertText"), acts = byId("alertActions");
+  var st = planState();
+  var a = craft(S.selectedId);
+
+  function show(cls, m, h, t, showActions) {
+    box.className = "alert " + cls;
+    mark.textContent = m; head.textContent = h; text.textContent = t;
+    acts.classList.toggle("hidden", !showActions);
+    box.classList.remove("hidden");
+  }
+
+  if (!S.selectedId) {
+    show("warn", "?", "Choose the aircraft you are flying",
+         "Pick it from the list above.", false);
+    return;
+  }
+  if (st === "busy")   { show("warn", "·", "Checking your flight plan", "One moment.", false); return; }
+  // Config always arrives before the plan, so this state happens on every
+  // start. Without it the code fell through to the success branch and read a
+  // null plan, which threw and stopped every renderer after it.
+  if (st === "none")   { show("info", "·", "No flight plan loaded", "You can fly without one. Press refresh to look for a SimBrief plan.", false); return; }
+  if (st === "nopilot") {
+    show("info", "·", "Flying without a flight plan",
+         "That is fine. If you want your SimBrief plan checked against the aircraft, enter your SimBrief Pilot ID below.", true);
+    return;
+  }
+  if (st === "noplan") {
+    show("info", "·", "No flight plan on file - flying free",
+         "That is fine. If you want a route checked, make one on SimBrief for the " + a.name + " and press refresh.", true);
+    return;
+  }
+  if (st === "mismatch") {
+    show("warn", "!", "This plan is for a different aircraft",
+         "You chose the " + a.name + " (" + a.type + "), but the plan is for a " +
+         (S.plan.AircraftName || S.plan.AircraftIcao) + " (" + S.plan.AircraftIcao + "), " +
+         S.plan.OriginIcao + " to " + S.plan.DestIcao +
+         ". Either fly that one instead, or make a new plan.", true);
+    return;
+  }
+  if (st === "stale") {
+    show("warn", "!", "That flight plan is " + S.plan.AgeHours / 24 > 1
+           ? ("That flight plan is " + Math.round(S.plan.AgeHours / 24 * 10) / 10 + " days old")
+           : "That flight plan is old",
+         S.plan.OriginIcao + " to " + S.plan.DestIcao + ", made " + S.plan.GeneratedUtc +
+         " UTC. Still the flight you want?", true);
+    return;
+  }
+  show("ok", "✓", "Flight plan matches",
+       S.plan.OriginIcao + " to " + S.plan.DestIcao + " in the " + a.name + ".", false);
+}
+
+function renderChecklist() {
+  var host = byId("checklist");
+  host.textContent = "";
+  var rows = [];
+  var a = craft(S.selectedId);
+
+  /* A re-check must not blank the list. The old code replaced everything with
+     a single CHECKING row and then repopulated, so every device change during
+     simulator startup made the whole panel flip and come back. The last known
+     result stays on screen and the header says it is refreshing. */
+  if (!S.preflight) {
+    rows.push({ chal: "Preflight", resp: "CHECKING", lamp: "c", tone: "d" });
+  } else if (S.preflight.error) {
+    rows.push({ chal: "Preflight", resp: "CANNOT RUN", lamp: "r", tone: "r", row: "stop",
+                note: String(S.preflight.error).slice(0, 240), noteTone: "bad" });
+  } else {
+    var res = S.preflight.results || [];
+    res.filter(function (r) { return r.State !== "INFO"; })
+       .sort(function (x, y) {
+         var rank = { FAIL: 0, WARN: 1, TODO: 2, SKIP: 3, PASS: 4 };
+         return (rank[x.State] || 9) - (rank[y.State] || 9);
+       })
+       .forEach(function (r) {
+         /* TODO is not WARN and must not look like it. Amber says "something
+            is wrong, deal with it"; TODO means "this has not been set up
+            yet", which on a half-built program is true of several things and
+            will stay true for weeks. Showing both in amber taught the reader
+            that amber means nothing - which is exactly what happened. */
+         var lamp = r.State === "PASS" ? "g"
+                  : r.State === "FAIL" ? "r"
+                  : r.State === "WARN" ? "a"
+                  : r.State === "TODO" ? "c"
+                  : "off";
+         var resp = r.State === "PASS" ? "OK"
+                  : r.State === "TODO" ? "NOT SET UP"
+                  : r.State;
+         rows.push({
+           chal: r.Check,
+           resp: resp,
+           lamp: lamp,
+           tone: lamp === "g" ? "g" : lamp === "r" ? "r" : lamp === "a" ? "a" : "d",
+           row: r.Blocking && r.State === "FAIL" ? "stop" : (lamp === "a" ? "attn" : ""),
+           note: r.Remedy || (r.State === "PASS" ? null : r.Detail),
+           noteTone: r.State === "FAIL" ? "bad" : r.State === "WARN" ? "warn" : ""
+         });
+       });
+  }
+
+  rows.push({ chal: "Aircraft", resp: a ? a.type : "NOT CHOSEN",
+              lamp: a ? "g" : "a", tone: a ? "g" : "a", row: a ? "" : "attn",
+              note: a ? a.name : "Choose from the list at the top.", noteTone: "warn" });
+
+  if (a) {
+    var L = LAYOUTS[a.layout];
+    rows.push({ chal: "Lever Caps", resp: capsConfirmed() ? "SET" : "CHECK",
+                lamp: capsConfirmed() ? "g" : "c",
+                tone: capsConfirmed() ? "g" : "d",
+                row: capsConfirmed() ? "" : "attn",
+                note: L ? L.caps : "No layout known for this aircraft." });
+  }
+
+  rows.forEach(function (c) {
+    var row = el("div", "cl-row" + (c.row ? " " + c.row : ""));
+    row.appendChild(el("span", "lamp " + c.lamp));
+    row.appendChild(el("span", "cl-chal", c.chal));
+    row.appendChild(el("span", "cl-lead"));
+    row.appendChild(el("span", "cl-resp " + (c.tone || ""), c.resp));
+    host.appendChild(row);
+    if (c.note) { host.appendChild(el("div", "cl-note " + (c.noteTone || ""), c.note)); }
+  });
+
+  var v = verdict();
+  var vb = byId("clVerdict");
+  vb.className = "cl-complete" + (v === "GO" ? "" : " hold");
+  vb.textContent = v === "GO" ? "— Ready —"
+                 : v === "CHECKING" ? "— Checking —"
+                 : v === "SETUP NEEDED" ? "— Setup Needed —"
+                 : "— Hold —";
+  var outstanding = rows.filter(function (r) { return r.lamp === "r" || r.lamp === "a"; }).length;
+  setText("clStamp", (S.preflightBusy ? "rechecking · " : "") +
+                     outstanding + " of " + rows.length + " items outstanding");
+}
+
+function canLaunch() {
+  var v = verdict();
+  return (v === "GO" || v === "SETUP NEEDED") && !!S.selectedId && capsConfirmed();
+}
+
+function renderLaunch() {
+  var b = byId("startBtn");
+  b.disabled = !canLaunch();
+  if (S.launched) { b.textContent = "Simulator Starting"; return; }
+  var a = craft(S.selectedId);
+  if (!S.selectedId) { b.textContent = "Choose an aircraft first"; }
+  else if (!capsConfirmed()) { b.textContent = "Confirm the lever caps first"; }
+  else if (verdict() === "NO-GO") { b.textContent = "Fix the items above first"; }
+  else if (verdict() === "CHECKING") { b.textContent = "Checking"; }
+  else { b.textContent = "Start Simulator"; }
+}
+
+function renderPlanPane() {
+  var a = craft(S.selectedId);
+  setText("craftName", a ? a.name : "—");
+  var L = a ? LAYOUTS[a.layout] : null;
+  setText("mapStamp", S.plan && S.plan.OriginIcao
+    ? (S.plan.OriginIcao + " → " + S.plan.DestIcao)
+    : (L ? L.name : ""));
+
+  var strip = byId("strip");
+  strip.textContent = "";
+  function cell(k, v, plain) {
+    var d = el("div", "cell");
+    d.appendChild(el("div", "k", k));
+    d.appendChild(el("div", "v" + (plain ? " plain" : ""), v));
+    strip.appendChild(d);
+  }
+  if (S.plan && S.plan.OriginIcao) {
+    cell("From", S.plan.OriginIcao); cell("To", S.plan.DestIcao);
+    cell("Aircraft", S.plan.AircraftIcao || "—", true);
+    if (S.plan.DistanceNm) { cell("Distance", S.plan.DistanceNm + " NM"); }
+    if (S.plan.CruiseAlt) { cell("Cruise", S.plan.CruiseAlt + " FT"); }
+    if (S.plan.AgeHours != null) { cell("Plan Age", Math.round(S.plan.AgeHours) + " HRS"); }
+  } else if (a) {
+    cell("Aircraft", a.type); cell("Layout", L ? L.name : "—", true);
+  }
+}
+
+function svgEl(tag, attrs) {
+  var n = document.createElementNS("http://www.w3.org/2000/svg", tag);
+  for (var k in attrs) { n.setAttribute(k, attrs[k]); }
+  return n;
+}
+
+/* ---- route chart ----
+   Web Mercator, the projection charts use, scaled freely to fill the plate
+   rather than snapped to any zoom level. Drawn from the flight plan's own
+   waypoints, so it follows whatever plan is loaded. */
+function renderChart() {
+  var s = byId("chart");
+  s.textContent = "";
+  var f = (S.plan && S.plan.Fixes) ? S.plan.Fixes : [];
+  if (f.length < 2) {
+    var t = svgEl("text", { x: 310, y: 300, "text-anchor": "middle", class: "prof-lbl" });
+    t.textContent = S.planBusy ? "Loading flight plan…" : "No flight plan loaded";
+    s.appendChild(t);
+    return;
+  }
+
+  var W = 620, H = 600, PAD = 44;
+  function merc(lat, lon) {
+    var lr = lat * Math.PI / 180;
+    return [lon, Math.log(Math.tan(lr) + 1 / Math.cos(lr)) * 180 / Math.PI];
+  }
+  var pts = f.map(function (p) { return merc(p.lat, p.lon); });
+  var xs = pts.map(function (p) { return p[0]; }), ys = pts.map(function (p) { return p[1]; });
+  var minX = Math.min.apply(null, xs), maxX = Math.max.apply(null, xs);
+  var minY = Math.min.apply(null, ys), maxY = Math.max.apply(null, ys);
+  var scale = Math.min((W - PAD * 2) / Math.max(maxX - minX, 1e-9),
+                       (H - PAD * 2) / Math.max(maxY - minY, 1e-9));
+  var cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
+  function px(p) { return W / 2 + (merc(p.lat, p.lon)[0] - cx) * scale; }
+  function py(p) { return H / 2 - (merc(p.lat, p.lon)[1] - cy) * scale; }
+
+  var lats = f.map(function (p) { return p.lat; }), lons = f.map(function (p) { return p.lon; });
+  for (var la = Math.floor(Math.min.apply(null, lats)); la <= Math.ceil(Math.max.apply(null, lats)); la++) {
+    var y = H / 2 - (merc(la, 0)[1] - cy) * scale;
+    if (y < 8 || y > H - 8) { continue; }
+    s.appendChild(svgEl("line", { x1: 0, y1: y, x2: W, y2: y, class: "grid-line" }));
+    var gl = svgEl("text", { x: 5, y: y - 4, class: "prof-lbl" });
+    gl.textContent = la + "°N"; s.appendChild(gl);
+  }
+  for (var lo = Math.floor(Math.min.apply(null, lons)); lo <= Math.ceil(Math.max.apply(null, lons)); lo++) {
+    var x = W / 2 + (lo - cx) * scale;
+    if (x < 8 || x > W - 8) { continue; }
+    s.appendChild(svgEl("line", { x1: x, y1: 0, x2: x, y2: H, class: "grid-line" }));
+  }
+
+  var d = f.map(function (p, i) { return (i ? "L" : "M") + px(p).toFixed(1) + "," + py(p).toFixed(1); }).join(" ");
+  s.appendChild(svgEl("path", { d: d, class: "rt-glow" }));
+  s.appendChild(svgEl("path", { d: d, class: "rt-line" }));
+
+  var last = null;
+  f.forEach(function (p) {
+    var x = px(p), y = py(p), g = svgEl("g", {});
+    if (p.type === "apt") {
+      g.appendChild(svgEl("circle", { cx: x, cy: y, r: 5.5, class: "fix-apt" }));
+      g.appendChild(svgEl("circle", { cx: x, cy: y, r: 1.6, fill: "#8CF39B" }));
+    } else if (p.type === "vor") {
+      var r = 5.2, poly = [];
+      for (var i = 0; i < 6; i++) {
+        var ang = Math.PI / 180 * (60 * i - 90);
+        poly.push((x + r * Math.cos(ang)).toFixed(1) + "," + (y + r * Math.sin(ang)).toFixed(1));
+      }
+      g.appendChild(svgEl("polygon", { points: poly.join(" "), class: "fix-sym" }));
+    } else if (p.type === "ltlg") {
+      g.appendChild(svgEl("path", { d: "M" + (x - 4) + "," + y + " L" + (x + 4) + "," + y +
+                                       " M" + x + "," + (y - 4) + " L" + x + "," + (y + 4),
+                                    stroke: "#F0A81E", "stroke-width": 1.3 }));
+    } else {
+      g.appendChild(svgEl("polygon", {
+        points: [x + "," + (y - 5), (x + 4.4) + "," + (y + 3), (x - 4.4) + "," + (y + 3)].join(" "),
+        class: "fix-sym" }));
+    }
+    // Close-spaced fixes collide; alternate sides so both stay readable.
+    var isApt = p.type === "apt", left = false;
+    if (last && Math.hypot(x - last.x, y - last.y) < 34) { left = !last.left; }
+    var lbl = svgEl("text", {
+      x: left ? x - (isApt ? 10 : 8) : x + (isApt ? 10 : 8), y: y + (isApt ? 4 : 3),
+      "text-anchor": left ? "end" : "start",
+      class: "fix-lbl" + (isApt ? " apt" : p.type === "ltlg" ? " tp" : "") });
+    lbl.textContent = p.id;
+    g.appendChild(lbl);
+    s.appendChild(g);
+    last = { x: x, y: y, left: left };
+  });
+}
+
+/* ---- vertical profile ---- */
+function renderProfile() {
+  var s = byId("profile");
+  s.textContent = "";
+  var f = (S.plan && S.plan.Fixes) ? S.plan.Fixes : [];
+  if (f.length < 2) { return; }
+
+  var W = 620, H = 96, L = 40, Rr = 12, T = 12, Bm = 20;
+  var maxD = f[f.length - 1].dist || 1;
+  var maxA = Math.max.apply(null, f.map(function (p) { return p.alt || 0; })) * 1.15 || 1000;
+  function px(d) { return L + (d / maxD) * (W - L - Rr); }
+  function py(a) { return H - Bm - (a / maxA) * (H - T - Bm); }
+
+  [0, maxA / 2, maxA].forEach(function (a) {
+    var y = py(a);
+    s.appendChild(svgEl("line", { x1: L, y1: y, x2: W - Rr, y2: y, class: "prof-axis" }));
+    var t = svgEl("text", { x: L - 5, y: y + 3, class: "prof-lbl", "text-anchor": "end" });
+    t.textContent = a < 100 ? "SFC" : Math.round(a / 1000) + "k";
+    s.appendChild(t);
+  });
+
+  var line = f.map(function (p, i) {
+    return (i ? "L" : "M") + px(p.dist).toFixed(1) + "," + py(p.alt || 0).toFixed(1); }).join(" ");
+  s.appendChild(svgEl("path", { d: line + " L" + px(maxD).toFixed(1) + "," + py(0) +
+                                   " L" + px(0) + "," + py(0) + " Z", class: "prof-fill" }));
+  s.appendChild(svgEl("path", { d: line, class: "prof-line" }));
+
+  f.forEach(function (p) {
+    if (p.type !== "ltlg" && p.type !== "apt") { return; }
+    var x = px(p.dist), y = py(p.alt || 0);
+    s.appendChild(svgEl("circle", { cx: x, cy: y, r: 2.2, fill: "#F0A81E" }));
+    var t = svgEl("text", { x: x, y: y - 6, class: "prof-lbl", "text-anchor": "middle" });
+    t.textContent = p.id; s.appendChild(t);
+  });
+}
+
+/* ---- the lever caps, drawn ---- */
+function renderQuadrant() {
+  var host = byId("quadrant");
+  host.textContent = "";
+  var a = craft(S.selectedId);
+  var L = a ? LAYOUTS[a.layout] : null;
+  setText("capsStamp", L ? L.name : "choose an aircraft");
+  if (!L) {
+    var m = el("div", "cl-note", "Choose an aircraft and the lever setup will be shown here.");
+    m.style.gridColumn = "1 / -1";
+    host.appendChild(m);
+    return;
+  }
+  for (var i = 0; i < 6; i++) {
+    var capId = L.lv[i], fn = L.fns[i];
+    var col = el("div", "lever" + (capId === "none" ? " is-empty" : ""));
+    var slot = el("div", "cap-slot");
+    var cap = el("div", "cap");
+    cap.setAttribute("data-cap", capId);
+    slot.appendChild(cap);
+    col.appendChild(slot);
+    col.appendChild(el("div", "stem"));
+    var bar = el("div", "plate-bar"); bar.appendChild(el("span")); col.appendChild(bar);
+    col.appendChild(el("div", "lv-pos", "LEVER " + (i + 1)));
+    col.appendChild(el("div", "lv-cap", CAP_LABEL[capId]));
+    col.appendChild(el("div", "lv-fn", fn || "Not used"));
+    host.appendChild(col);
+  }
+}
+
+function render() {
+  renderAnnunciators();
+  renderAircraftBar();
+  renderAlert();
+  renderChecklist();
+  renderLaunch();
+  renderPlanPane();
+  renderChart();
+  renderProfile();
+  renderQuadrant();
+  setText("foot", S.config && S.config.problem
+    ? S.config.problem
+    : "Preflight and flight plan read live from this computer.");
+}
+
+/* ---------------------------------------------------------------- wiring -- */
+
+byId("acSelect").addEventListener("change", function (e) {
+  S.selectedId = e.target.value;
+  post({ action: "selectAircraft", id: S.selectedId });
+  render();
+  post({ action: "refreshPlan" });
+});
+
+/* Window chrome. Dragging is handed to Windows via WM_NCLBUTTONDOWN rather
+   than tracking mouse moves, so it snaps and behaves like any other window. */
+byId("titlebar").addEventListener("mousedown", function (e) {
+  if (e.target.closest(".winbtn")) { return; }
+  post({ action: "drag" });
+});
+byId("titlebar").addEventListener("dblclick", function (e) {
+  if (!e.target.closest(".winbtn")) { post({ action: "maximise" }); }
+});
+byId("grip").addEventListener("mousedown", function () { post({ action: "resize" }); });
+byId("winMin").addEventListener("click", function () { post({ action: "minimise" }); });
+byId("winMax").addEventListener("click", function () { post({ action: "maximise" }); });
+
+/* Text size. Stored on this computer only; if storage is unavailable the
+   default from the stylesheet stands and the buttons still work for the
+   session. Steps of a tenth, between normal and double. */
+(function textSize() {
+  var KEY = "hc.zoom", MIN = 1.0, MAX = 2.0, DEF = 1.33;
+  function read()  { try { var v = parseFloat(localStorage.getItem(KEY)); return isFinite(v) ? v : DEF; } catch (e) { return DEF; } }
+  function write(v){ try { localStorage.setItem(KEY, String(v)); } catch (e) { /* not remembered, still applied */ } }
+  function apply(v){ v = Math.round(Math.min(MAX, Math.max(MIN, v)) * 10) / 10; document.body.style.zoom = v; write(v); return v; }
+  var cur = apply(read());
+  byId("textSmaller").addEventListener("click", function () { cur = apply(cur - 0.1); });
+  byId("textLarger").addEventListener("click",  function () { cur = apply(cur + 0.1); });
+})();
+byId("winClose").addEventListener("click", function () { post({ action: "close" }); });
+
+byId("refreshBtn").addEventListener("click", function () { post({ action: "refresh" }); });
+byId("alertRefresh").addEventListener("click", function () { post({ action: "refreshPlan" }); });
+byId("sbLink").addEventListener("click", function (e) {
+  e.preventDefault();
+  post({ action: "openSimBrief" });
+});
+byId("startBtn").addEventListener("click", function () {
+  if (canLaunch()) { post({ action: "launch" }); }
+});
+
+/* Confirming the caps is a deliberate act - it is the one step no software can
+   verify, so it must not be something that happens by itself. */
+(function addConfirm() {
+  var bar = document.querySelector(".acbar");
+  var b = el("button", "pbtn go", "Lever caps are set");
+  b.type = "button";
+  b.id = "capsBtn";
+  b.addEventListener("click", function () {
+    var a = craft(S.selectedId);
+    if (a) { post({ action: "confirmCaps", layout: a.layout }); }
+  });
+  bar.appendChild(b);
+
+  /* Writing the lever settings into FSUIPC. Separate from confirming the caps,
+     because they are different promises: that one says "the handles are on the
+     right levers", this one changes a file. It closes FSUIPC to write - FSUIPC
+     rewrites its whole ini on exit, so anything written under it is silently
+     undone - and starts it again afterwards. */
+  var s = el("button", "pbtn", "Set up levers in FSUIPC");
+  s.type = "button";
+  s.id = "setupBtn";
+  s.addEventListener("click", function () {
+    var a = craft(S.selectedId);
+    if (!a) { return; }
+    s.disabled = true;
+    s.textContent = "Setting up…";
+    post({ action: "setupLevers", id: a.id });
+  });
+  bar.appendChild(s);
+
+  /* Recording that MSFS is on the empty Bravo profile. The program cannot read
+     that setting - MSFS keeps it in a cloud-synced binary container - so this
+     is a person saying they have looked, and it is stored with their name and
+     the date. Deliberately worded as a claim about what they can see on
+     screen, not as a switch that changes anything. */
+  /* The button map - trim, autopilot panel, gear, switches, flaps, TOGA. Not
+     per aircraft, so it needs no aircraft chosen. Same close-write-restart
+     dance as the levers; the tool refuses anything not measured. */
+  /* Test mode: the checklist over the map. The steps the program can verify
+     tick themselves; the rest are ticked by the person in the cockpit. */
+  var tb = el("button", "pbtn", "Test the Bravo");
+  tb.type = "button";
+  tb.id = "testBtn";
+  tb.addEventListener("click", function () { post({ action: "startTest" }); });
+  bar.appendChild(tb);
+
+  var bb = el("button", "pbtn", "Set up Bravo buttons in FSUIPC");
+  bb.type = "button";
+  bb.id = "buttonsBtn";
+  bb.addEventListener("click", function () {
+    bb.disabled = true;
+    bb.textContent = "Setting up…";
+    post({ action: "setupButtons" });
+  });
+  bar.appendChild(bb);
+
+  var m = el("button", "pbtn", "MSFS is on the empty Bravo profile");
+  m.type = "button";
+  m.id = "bravoProfileBtn";
+  m.addEventListener("click", function () {
+    m.disabled = true;
+    post({ action: "confirmBravoProfile" });
+  });
+  bar.appendChild(m);
+})();
+
+/* Result of the setup, in plain words, where the aircraft bar can show it. */
+/* ------------------------------------------------------------ test mode -- */
+
+/* What kind of aircraft is chosen, for filtering steps: piston, turboprop,
+   jet, or unknown. From the layout, which is the same fact the profile is
+   written from. */
+function aircraftKind() {
+  var a = craft(S.selectedId);
+  if (!a) { return "unknown"; }
+  if (/^turboprop_/.test(a.layout)) { return "turboprop"; }
+  if (/^jet_/.test(a.layout)) { return "jet"; }
+  if (/^(prop_|fadec_)/.test(a.layout)) { return "piston"; }
+  return "unknown";
+}
+function stepApplies(step, kind) {
+  var w = step.when || "any";
+  if (w === "any") { return true; }
+  if (w === "turboprop_or_jet") { return kind === "turboprop" || kind === "jet"; }
+  return w === kind;
+}
+
+function renderTestOverlay() {
+  var wrap = byId("chart") ? byId("chart").parentNode : null;
+  if (!wrap) { return; }
+  var ov = byId("testOverlay");
+  var t = S.test;
+
+  if (!t || !t.active) {
+    if (ov) { ov.parentNode.removeChild(ov); }
+    wrap.classList.remove("testing");
+    return;
+  }
+  if (!ov) {
+    ov = el("div", "test-overlay", "");
+    ov.id = "testOverlay";
+    wrap.appendChild(ov);
+  }
+  wrap.classList.add("testing");
+  ov.textContent = "";
+
+  var a = craft(S.selectedId);
+  var kind = aircraftKind();
+
+  var head = el("div", "test-head", "");
+  head.appendChild(el("span", "ttl", "Bravo test" + (a ? " — " + a.name : "")));
+  head.appendChild(el("span", "spacer", ""));
+  var end = el("button", "pbtn", "End test");
+  end.type = "button";
+  end.addEventListener("click", function () { post({ action: "endTest" }); });
+  head.appendChild(end);
+  ov.appendChild(head);
+
+  if (t.error) { ov.appendChild(el("div", "test-err", t.error)); }
+
+  var auto   = (t.data && t.data.auto)  || {};
+  var manual = t.manual || {};
+  var steps  = (t.data && t.data.steps) || [];
+
+  /* The write-and-restart, in the overlay where the sequence is visible.
+     Disabled until TO/GA is measured, so the write cannot run ahead of the
+     capture and quietly leave TO/GA out - that is the trap that confused the
+     last attempt. */
+  var acts = el("div", "test-actions", "");
+  var wb = el("button", "pbtn go", "Write and restart FSUIPC");
+  wb.type = "button";
+  var togaOk = auto.toga_captured && auto.toga_captured.pass;
+  wb.disabled = !togaOk || !a;
+  wb.title = togaOk ? "Closes FSUIPC, writes the button map and this aircraft's levers, starts FSUIPC again."
+                    : "Waits for TO/GA to be measured first.";
+  wb.addEventListener("click", function () {
+    wb.disabled = true; wb.textContent = "Writing…";
+    post({ action: "testWrite", id: a ? a.id : "" });
+  });
+  acts.appendChild(wb);
+  ov.appendChild(acts);
+
+  steps.forEach(function (st) {
+    if (!stepApplies(st, kind)) { return; }
+    var isAuto = st.kind === "auto";
+    var res = isAuto ? auto[st.id] : null;
+    var done = isAuto ? !!(res && res.pass) : !!manual[st.id];
+
+    var row = el("div", "tstep " + (isAuto ? "auto" : "manual") + (done ? " done" : ""), "");
+    row.appendChild(el("div", "box", done ? "☑" : "☐"));
+    row.appendChild(el("div", "lbl", st.label));
+    row.appendChild(el("div", "exp", st.expect || ""));
+    if (isAuto) {
+      row.appendChild(el("div", "why", res ? res.why : "not checked yet"));
+      row.appendChild(el("div", "kind", "checked by the program"));
+    } else {
+      row.appendChild(el("div", "kind", done ? "you ticked this" : "click when it does what it should - or tell Mark what it did instead"));
+      row.addEventListener("click", function () {
+        post({ action: "tickStep", id: st.id, done: !done });
+      });
+    }
+    ov.appendChild(row);
+  });
+
+  if (t.data && t.data.checkedUtc) {
+    ov.appendChild(el("div", "kind", "last checked " + t.data.checkedUtc));
+  }
+}
+
+function showSetupResult(m) {
+  var s = byId("setupBtn");
+  if (s) { s.disabled = false; s.textContent = "Set up levers in FSUIPC"; }
+  var mb = byId("bravoProfileBtn");
+  if (mb) { mb.disabled = false; }
+  var bb = byId("buttonsBtn");
+  if (bb) { bb.disabled = false; bb.textContent = "Set up Bravo buttons in FSUIPC"; }
+  var box = byId("setupMsg");
+  if (!box) {
+    box = el("div", "setupmsg", "");
+    box.id = "setupMsg";
+    var bar = document.querySelector(".acbar");
+    if (bar && bar.parentNode) { bar.parentNode.insertBefore(box, bar.nextSibling); }
+  }
+  box.className = "setupmsg " + (m.ok ? "ok" : "bad");
+  box.textContent = m.message || "";
+}
+
+render();
+</script>

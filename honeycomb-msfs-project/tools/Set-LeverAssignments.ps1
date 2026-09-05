@@ -1,0 +1,848 @@
+<#
+.SYNOPSIS
+    Writes Bravo lever assignments into FSUIPC7.ini for one lever layout.
+
+.DESCRIPTION
+    Generates the [Axes] section FSUIPC uses to map the throttle quadrant to
+    simulator controls, for whichever of the eleven layouts is asked for.
+
+    Nothing about this is guessed at where it could be measured:
+
+      * The lever-to-HID-axis map came from sweeping the levers one at a time
+        with Probe-HoneycombDevices and watching which axis moved.
+      * The joystick letter is read from FSUIPC's own [JoyNames] on every run,
+        by looking the Bravo up by name. It is assigned per machine - here it
+        is B only because a vJoy device took A - and it was hardcoded to B for
+        a week. On a machine without vJoy the Bravo will most likely be A,
+        and "BY" there aims every assignment at whatever holds B, or at
+        nothing, with no error from FSUIPC. If the Bravo is not in [JoyNames],
+        nothing is written.
+      * The control numbers came from the Controls List that ships with
+        FSUIPC, not from memory.
+      * The line format is documented in "FSUIPC7 for Advanced Users", under
+        Axis Assignments:
+
+            n=ja,(R)delta(/delay),ForD,ctl1,ctl2,ctl3,ctl4
+
+        j is the joystick, a the axis letter from XYZRUVSTPQMN, and ForD is F
+        for an FS control or D for FSUIPC's own calibration.
+
+    NOT RAW MODE. An R before the delta selects Raw mode, and a hand assignment
+    produced exactly that - "BY,R0,F,..." - which drove the throttle over only a
+    fraction of the lever's travel. The User Guide is explicit about why:
+
+        "When FSUIPC is asked to apply RAW input to a normal analogue control,
+         it scales it by a factor of 256 or 512 to bring it up from its 7 or 8
+         bit range to a full 16 bit value."
+
+    The Bravo is 10-bit, 0-1023, so that assumption is simply wrong for it. The
+    guide's advice for any ordinary lever is to avoid Raw, and the default delta
+    for calibrated input is 256 - Raw's default is 1.
+
+    Raw is a property of the whole joystick, not of one axis: "All 6 axes on a
+    specific joystick must be read in the one mode." Every line written here is
+    calibrated, so that holds by construction - but a hand-assigned Raw axis on
+    the same device would break it, and FSUIPC will not say so.
+
+    THE AXIS LETTERS ARE MEASURED. DO NOT DERIVE THEM.
+
+        lever   1   2   3   4   5   6
+        HID     Y   X   Rz  Ry  Rx  Z
+        FSUIPC  Y   X   R   V   U   Z
+
+    FSUIPC's own device scan (FSUIPC7.log) lists the Bravo as exactly six
+    axes, "Max=R1023,U1023,V1023,X1023,Y1023,Z1023", so the letters are that
+    closed set. Five were tied to levers by wiring candidate letters to
+    throttle 1 and throttle 2 and pushing levers; lever 4 is the one letter
+    left over. Two theories were tried first - "letters follow HID usage" and
+    "rotational axes are lettered in descriptor order" - and each predicted
+    lever 5 wrong. There is no rule here worth writing down; the table is the
+    fact.
+
+    If a lever ever drives the wrong control, -AxisLetters corrects it without
+    editing this file. Prefer measuring again over reasoning about why.
+
+.PARAMETER Layout
+    Which of the eleven layouts to write. See data/lever-layouts.json.
+
+.PARAMETER JoystickLetter
+    Override only. Left blank, the Bravo is looked up in FSUIPC's [JoyNames]
+    by name, and the run refuses if it is not there. Given, the letter must
+    still name a device FSUIPC knows, and that device is printed so a wrong
+    letter is visible rather than silent.
+
+.PARAMETER AxisLetters
+    FSUIPC axis letters for levers 1 to 6, in order. The default, Y X R V U Z,
+    was measured lever by lever - see the notes above. A comma-separated list
+    works from a shell as well as a PowerShell array.
+
+.PARAMETER FsuipcRoot
+    Where FSUIPC7.ini lives.
+
+.PARAMETER WhatIf
+    Show what would be written and change nothing.
+
+.EXAMPLE
+    .\Set-LeverAssignments.ps1 -Layout jet_2 -WhatIf
+
+.EXAMPLE
+    .\Set-LeverAssignments.ps1 -Layout prop_2_cs
+#>
+[CmdletBinding(SupportsShouldProcess)]
+param(
+    # Which layout to write. Optional when -Aircraft is given and the aircraft
+    # is in the curated table, which then supplies it.
+    [ValidateSet('prop_1_fixed','prop_1_cs','prop_2_fixed','prop_2_cs',
+                 'fadec_1','fadec_2','jet_1','jet_2','jet_3','jet_4','glider',
+                 'turboprop_1','turboprop_2')]
+    [string]   $Layout = '',
+
+    # Write a per-aircraft FSUIPC profile instead of the global section:
+    # [Profile.<Aircraft>] listing the title substring, and [Axes.<Aircraft>]
+    # carrying the lines. FSUIPC switches to it when an aircraft whose title
+    # contains the substring loads. The name is also the table key.
+    [string]   $Aircraft = '',
+
+    # The substring FSUIPC matches the sim's aircraft title on. Defaults to
+    # -Aircraft. FSUIPC7 always matches by substring, so "DA62" is enough for
+    # "DA62 Passengers".
+    [string]   $Match = '',
+
+    # Empty the global [Axes] section, leaving only its timing parameters. Once
+    # every aircraft has a profile the global section is what an UNPROFILED
+    # aircraft gets, and no levers at all is better than somebody else's layout
+    # presented as if it were right. Deliberately a separate, explicit action.
+    [switch]   $ClearGlobal,
+
+    # The curated aircraft table. Defaults to data/lever-layouts.json beside
+    # this tool's folder.
+    [string]   $DataFile = '',
+    # Blank on purpose. Resolved from [JoyNames] below; see the notes above.
+    [string]   $JoystickLetter = '',
+    # MEASURED, all six. See the notes above - two theories both got this wrong.
+    [string[]] $AxisLetters    = @('Y','X','R','V','U','Z'),
+    # Delta is the smallest change FSUIPC will act on, not a timing value, but
+    # it reads as lag: move the lever slowly and nothing happens until the
+    # threshold is crossed, then it jumps.
+    #
+    # 256 is the documented default for calibrated input, chosen for devices in
+    # general. This one is 10-bit, and FSUIPC's input spans about 32768, so one
+    # physical step of the lever is 32 units - and 256 means ignoring movement
+    # until eight steps have gone by. 32 is therefore the finest value that
+    # still corresponds to something real on the hardware.
+    #
+    # If a lever ever twitches while untouched, its pot is noisy and this is the
+    # number to raise.
+    [int]      $Delta          = 32,
+    # Which family of sim controls to drive.
+    #
+    #   Axis    AXIS_THROTTLE1_SET and friends. Range -16383 (idle) to +16383,
+    #           so the whole lever maps straight across with no folding.
+    #   Legacy  THROTTLE1_SET and friends. 0 to 16383 forward, negative being
+    #           the reverse zone, so the range has to be folded into its top
+    #           half to keep the reverse zone out of the lever's travel.
+    #
+    # The reverse zone is what separates them, and this quadrant does not use
+    # it - the axis saturates at 0 at the detent and the detent button is the
+    # reverse signal. FSUIPC's own UseAxisControlsForNRZ setting exists to
+    # switch to the AXIS_ family in exactly that no-reverse-zone case, which is
+    # why Axis is the default here.
+    [ValidateSet('Axis','Legacy')]
+    [string]   $ControlFamily  = 'Axis',
+
+    # Left unset these follow ControlFamily, because the right arithmetic is a
+    # property of the control's range rather than a free choice. Set them only
+    # to override.
+    [nullable[double]] $AxisScale  = $null,
+    [nullable[int]]    $AxisOffset = $null,
+    [string]   $FsuipcRoot     = 'C:\FSUIPC7',
+    [switch]   $WaitForExit,
+    [int]      $TimeoutSeconds = 300
+)
+
+Set-StrictMode -Version 2.0
+$ErrorActionPreference = 'Stop'
+
+# Control numbers, read from "Controls List for MSFS Build 122.txt".
+#
+# The two families take different value ranges, so the family and the
+# arithmetic below have to move together. Picking a control from one and a
+# range from the other is silent: the lever moves, just not correctly.
+#
+#   Axis    -16383 idle .. +16383 max      scale -1,   offset 0
+#   Legacy       0 idle .. +16383 max      scale -0.5, offset +8192
+#           (negative being Legacy's reverse zone, which is why its range has
+#            to be folded into the top half)
+#
+# THE INPUT RANGE IS +-16384. The manual says this in its worked example for
+# these parameters, and it is correct. Elsewhere it describes calibrated
+# DirectInput values as varying "between large numbers like -32767 and +32767",
+# and that sentence does not apply here.
+#
+# Halving these scales was tried and is a regression: it sends only the middle
+# half of the control's range, giving a throttle that jumps straight to about
+# 15% and stops around 85%. Do not repeat it. The theory behind it was that
+# output clamping explained a dead zone at both ends of the travel; the test
+# disproved it in one attempt.
+#
+# The small dead regions at both extremes are not from this arithmetic, which
+# covers the full range to within one unit at each end. They are mechanical -
+# the lever keeps moving after the pot has reached its electrical limit - plus
+# whatever idle and full-power detents the aircraft models. Neither is
+# reachable from this file.
+#
+# The negative sign is the measured direction of this quadrant: FSUIPC reads
+# positive at the detent and negative at full forward, opposite to the HID
+# numbers.
+$CTRL_BY_FAMILY = @{
+
+    # The modern direct-axis controls. Range -16383 (idle) to +16383 (max).
+    Axis = @{
+        ThrottleAll = 65765; PropAll = 66291; MixtureAll = 66292
+        Throttle1   = 66420; Throttle2 = 66423; Throttle3 = 66426; Throttle4 = 66429
+        Prop1       = 66421; Prop2     = 66424; Prop3     = 66427; Prop4     = 66430
+        Mixture1    = 66422; Mixture2  = 66425; Mixture3  = 66428; Mixture4  = 66431
+        Spoiler     = 66382; Flaps     = 66534
+        # Turboprop condition levers. NOT mixture: the King Air 350 ignored
+        # AXIS_MIXTURE1/2_SET on levers 5 and 6 while 1-4 worked. These are the
+        # only condition-lever controls, so they are the same in both families.
+        ConditionAll = 67365
+        Condition1   = 67372; Condition2 = 67379; Condition3 = 67386; Condition4 = 67393
+    }
+
+    # The older family, which carries the reverse zone below zero. Kept so the
+    # two can be compared directly rather than swapped on a hunch.
+    Legacy = @{
+        ThrottleAll = 65697; PropAll = 65767; MixtureAll = 65773
+        Throttle1   = 65820; Throttle2 = 65821; Throttle3 = 65822; Throttle4 = 65823
+        Prop1       = 65923; Prop2     = 65924; Prop3     = 65925; Prop4     = 65926
+        Mixture1    = 65919; Mixture2  = 65920; Mixture3  = 65921; Mixture4  = 65922
+        Spoiler     = 65786; Flaps     = 65698
+        # No legacy condition-lever controls exist; these are the AXIS_ ones.
+        ConditionAll = 67365
+        Condition1   = 67372; Condition2 = 67379; Condition3 = 67386; Condition4 = 67393
+    }
+}
+
+# Names for the trailing comment, matching FSUIPC's own style.
+$CTRL_NAME = @{
+    65697 = 'THROTTLE_SET';  65767 = 'PROP_PITCH_SET'; 65773 = 'MIXTURE_SET'
+    65820 = 'THROTTLE1_SET'; 65821 = 'THROTTLE2_SET';  65822 = 'THROTTLE3_SET'; 65823 = 'THROTTLE4_SET'
+    65923 = 'PROP_PITCH1_SET'; 65924 = 'PROP_PITCH2_SET'; 65925 = 'PROP_PITCH3_SET'; 65926 = 'PROP_PITCH4_SET'
+    65919 = 'MIXTURE1_SET'; 65920 = 'MIXTURE2_SET'; 65921 = 'MIXTURE3_SET'; 65922 = 'MIXTURE4_SET'
+    65786 = 'SPOILERS_SET'; 65698 = 'FLAPS_SET'
+
+    65765 = 'AXIS_THROTTLE_SET'; 66291 = 'AXIS_PROPELLER_SET'; 66292 = 'AXIS_MIXTURE_SET'
+    66420 = 'AXIS_THROTTLE1_SET'; 66423 = 'AXIS_THROTTLE2_SET'; 66426 = 'AXIS_THROTTLE3_SET'; 66429 = 'AXIS_THROTTLE4_SET'
+    66421 = 'AXIS_PROPELLER1_SET'; 66424 = 'AXIS_PROPELLER2_SET'; 66427 = 'AXIS_PROPELLER3_SET'; 66430 = 'AXIS_PROPELLER4_SET'
+    66422 = 'AXIS_MIXTURE1_SET'; 66425 = 'AXIS_MIXTURE2_SET'; 66428 = 'AXIS_MIXTURE3_SET'; 66431 = 'AXIS_MIXTURE4_SET'
+    66382 = 'AXIS_SPOILER_SET'; 66534 = 'AXIS_FLAPS_SET'
+
+    67365 = 'AXIS_CONDITION_LEVER_SET'
+    67372 = 'AXIS_CONDITION_LEVER_1_SET'; 67379 = 'AXIS_CONDITION_LEVER_2_SET'
+    67386 = 'AXIS_CONDITION_LEVER_3_SET'; 67393 = 'AXIS_CONDITION_LEVER_4_SET'
+}
+
+# What each lever drives, per layout. Index 0-5 is lever 1-6; $null means the
+# lever is unused and gets no assignment at all.
+$LAYOUTS = @{
+    prop_1_fixed = @('ThrottleAll', 'MixtureAll', $null, $null, $null, $null)
+    prop_1_cs    = @('ThrottleAll', 'PropAll', 'MixtureAll', $null, $null, $null)
+    prop_2_fixed = @('Throttle1', 'Throttle2', 'Mixture1', 'Mixture2', $null, $null)
+    prop_2_cs    = @('Throttle1', 'Throttle2', 'Prop1', 'Prop2', 'Mixture1', 'Mixture2')
+    fadec_1      = @('ThrottleAll', $null, $null, $null, $null, $null)
+    fadec_2      = @('Throttle1', 'Throttle2', $null, $null, $null, $null)
+    jet_1        = @('Spoiler', $null, 'Throttle1', $null, $null, 'Flaps')
+    jet_2        = @('Spoiler', $null, 'Throttle1', 'Throttle2', $null, 'Flaps')
+    jet_3        = @('Spoiler', $null, 'Throttle1', 'Throttle2', 'Throttle3', 'Flaps')
+    jet_4        = @('Spoiler', 'Throttle1', 'Throttle2', 'Throttle3', 'Throttle4', 'Flaps')
+    glider       = @('Spoiler', $null, $null, $null, $null, $null)
+
+    # Turboprops. Same handles as the constant-speed layouts - black, blue,
+    # red - but the red levers are CONDITION levers and take the condition
+    # controls, not mixture. Measured on the King Air 350: levers 5 and 6 on
+    # AXIS_MIXTURE did nothing while 1-4 worked.
+    turboprop_1  = @('ThrottleAll', 'PropAll', 'ConditionAll', $null, $null, $null)
+    turboprop_2  = @('Throttle1', 'Throttle2', 'Prop1', 'Prop2', 'Condition1', 'Condition2')
+}
+
+
+# Through "powershell -File", a comma-separated argument arrives as ONE string
+# rather than an array - the same trap Invoke-Preflight guards -Only against.
+# Split it here so the tool behaves the same from a shell as from PowerShell.
+if ($AxisLetters.Count -eq 1 -and $AxisLetters[0] -match ',') {
+    $AxisLetters = @($AxisLetters[0] -split '\s*,\s*' | Where-Object { $_ })
+}
+$AxisLetters = @($AxisLetters | ForEach-Object { $_.Trim().ToUpper() })
+if ($AxisLetters.Count -ne 6) {
+    throw ("AxisLetters needs exactly 6 entries, one per lever - got {0}: {1}" -f $AxisLetters.Count, ($AxisLetters -join ' '))
+}
+
+$CTRL = $CTRL_BY_FAMILY[$ControlFamily]
+
+# --- what are we writing, and for which aircraft? ----------------------------
+# Lever number (1-6) -> preset name, for aircraft that do not consume a sim
+# axis event on some lever and need FSUIPC's "Send Preset to FS" instead.
+# Filled from the aircraft table's leverPresets. Empty means every lever is a
+# plain control.
+$LeverPresets = @{}
+# Lever number -> @{ press = preset; release = preset } for what pulling that
+# lever BELOW its detent does on this aircraft, when it is not the standard
+# reverse-thrust event. The King Air's condition levers use its community
+# cut-off / low-idle presets. Filled from the aircraft table's detentPresets.
+$DetentPresets = @{}
+$Aircraft = $Aircraft.Trim()
+$Match    = $Match.Trim()
+if ($Aircraft -and -not $Match) { $Match = $Aircraft }
+
+if ($ClearGlobal -and ($Layout -or $Aircraft)) {
+    throw "-ClearGlobal empties the global section and takes no -Layout or -Aircraft."
+}
+
+if ($Aircraft -and -not $Layout) {
+    # The curated table decides. Classification cannot be read from the sim's
+    # packages on MSFS 2024 - they are opaque .fsarchive blobs - so the table
+    # is the only source, and an aircraft not in it is refused rather than
+    # guessed. The refusal names the two facts that would settle it.
+    if (-not $DataFile) {
+        $DataFile = [System.IO.Path]::Combine($PSScriptRoot, '..', 'data', 'lever-layouts.json')
+    }
+    if (-not (Test-Path -LiteralPath $DataFile)) { throw "No aircraft table at $DataFile" }
+
+    $table = Get-Content -LiteralPath $DataFile -Raw | ConvertFrom-Json
+    $entries = @()
+    if ($table.PSObject.Properties['aircraft']) { $entries = @($table.aircraft) }
+
+    # Matched on icao as well as match/name, because the app knows an aircraft
+    # by its ICAO type (it stores lastAircraftId as "b350") and that is what it
+    # will pass. Case-insensitive on all three.
+    $hit = @($entries | Where-Object {
+        $_.match -eq $Aircraft -or $_.name -eq $Aircraft -or
+        ($_.PSObject.Properties['icao'] -and $_.icao -and ([string]$_.icao).ToUpper() -eq $Aircraft.ToUpper())
+    })
+
+    if ($hit.Count -eq 0) {
+        Write-Host ''
+        Write-Host ('"{0}" is not in the aircraft table, so nothing was written.' -f $Aircraft) -ForegroundColor Red
+        Write-Host ''
+        Write-Host 'The sim does not say what levers an aircraft has, so it has to be told once.' -ForegroundColor Yellow
+        Write-Host 'Two questions decide the layout:' -ForegroundColor Yellow
+        Write-Host '  1. Does it have a propeller lever?' -ForegroundColor Yellow
+        Write-Host '  2. Does it have a mixture (or condition) lever?' -ForegroundColor Yellow
+        Write-Host ('Add the answers to {0} under "aircraft", or pass -Layout directly.' -f $DataFile) -ForegroundColor Yellow
+        if ($entries.Count -gt 0) {
+            Write-Host ('Known: {0}' -f (($entries | ForEach-Object { $_.match }) -join ', ')) -ForegroundColor DarkGray
+        }
+        exit 2
+    }
+    if ($hit.Count -gt 1) {
+        throw ("The aircraft table matches ""{0}"" more than once: {1}" -f $Aircraft, (($hit | ForEach-Object { $_.name }) -join '; '))
+    }
+
+    $Layout = [string]$hit[0].layout
+
+    # The table entry's "match" is the PROFILE NAME - what [Profile.X],
+    # [Axes.X] and [Buttons.X] are all called. The argument may have been an
+    # ICAO type or the long name (the app passes "b350"), and naming sections
+    # after that would produce [Axes.b350] with a [Profile.King Air 350] that
+    # never refers to it. So once the entry is known, the profile name comes
+    # from it, and so does the default title substring (overridden by
+    # titleMatch below, or by an explicit -Match).
+    $Aircraft = [string]$hit[0].match
+    if (-not $PSBoundParameters.ContainsKey('Match')) { $Match = $Aircraft }
+
+    # Per-lever presets, for levers this aircraft does not drive from an axis
+    # event. The Asobo King Air 350i's condition levers are the case in point:
+    # neither AXIS_MIXTURE nor AXIS_CONDITION_LEVER moved them, because the
+    # aircraft consumes a 3-position enum, so a preset in myevents.txt does
+    # the mapping and FSUIPC sends the preset instead of a control.
+    if ($hit[0].PSObject.Properties['leverPresets'] -and $hit[0].leverPresets) {
+        foreach ($p in $hit[0].leverPresets.PSObject.Properties) {
+            $leverNo = 0
+            if ([int]::TryParse($p.Name, [ref]$leverNo) -and $leverNo -ge 1 -and $leverNo -le 6 -and $p.Value) {
+                $LeverPresets[$leverNo] = [string]$p.Value
+            } else {
+                throw ("Aircraft table: leverPresets for ""{0}"" has a bad entry ""{1}"" - keys must be lever numbers 1-6." -f $Aircraft, $p.Name)
+            }
+        }
+    }
+
+    if ($hit[0].PSObject.Properties['detentPresets'] -and $hit[0].detentPresets) {
+        foreach ($p in $hit[0].detentPresets.PSObject.Properties) {
+            $leverNo = 0
+            if ([int]::TryParse($p.Name, [ref]$leverNo) -and $leverNo -ge 1 -and $leverNo -le 6 -and $p.Value) {
+                $DetentPresets[$leverNo] = @{
+                    press   = [string]$p.Value.press
+                    release = [string]$p.Value.release
+                }
+            } else {
+                throw ("Aircraft table: detentPresets for ""{0}"" has a bad entry ""{1}"" - keys must be lever numbers 1-6." -f $Aircraft, $p.Name)
+            }
+        }
+    }
+
+    # The title substring comes from the table's titleMatch when it has one.
+    # It must be read from the title FSUIPC logs, never guessed from a package
+    # name - the 350's package is "kingair350", its title is "Beechcraft King
+    # Air", and the guess produced a flight with no working levers.
+    # Tested on whether -Match was actually passed, not on whether $Match is
+    # empty: by this point it has already been defaulted to the profile name
+    # above, so an emptiness test never fires. That silent miss is exactly what
+    # a WhatIf run caught.
+    if (-not $PSBoundParameters.ContainsKey('Match') -and
+        $hit[0].PSObject.Properties['titleMatch'] -and $hit[0].titleMatch) {
+        $Match = ([string]$hit[0].titleMatch).Trim()
+    }
+
+    if (-not $LAYOUTS.ContainsKey($Layout)) {
+        throw ("Aircraft table gives ""{0}"" layout ""{1}"", which this tool does not know." -f $Aircraft, $Layout)
+    }
+    Write-Host ('Aircraft table: "{0}" -> {1}  ({2})' -f $hit[0].name, $Layout, $hit[0].verified)
+}
+
+if (-not $ClearGlobal -and -not $Layout) {
+    throw "Give -Layout, or -Aircraft for one that is in the aircraft table, or -ClearGlobal."
+}
+
+# Defaulted here rather than in the param block because they depend on the
+# family. An explicit value always wins, so an override is still possible.
+if ($null -eq $AxisScale)  { $AxisScale  = if ($ControlFamily -eq 'Axis') { -1.0 } else { -0.5 } }
+if ($null -eq $AxisOffset) { $AxisOffset = if ($ControlFamily -eq 'Axis') {    0 } else {  8192 } }
+
+$ini = [System.IO.Path]::Combine($FsuipcRoot, 'FSUIPC7.ini')
+
+# A title substring nobody has measured is the one thing this tool cannot
+# check against the sim - except by asking FSUIPC what it has seen. Its log
+# records every aircraft title loaded (Aircraft="..."). If it has seen titles
+# and none contains the substring, the profile will never attach and every
+# lever is dead: that is exactly how "Skyhawk" (real title "C172SP G1000
+# Passengers") and "King Air 350" (real title "Beechcraft King Air") failed.
+# Not a refusal, because an aircraft never yet loaded has no title to match.
+$titlesSeen = @()
+foreach ($lg in @('FSUIPC7.log', 'FSUIPC7_prev.log')) {
+    $lp = [System.IO.Path]::Combine($FsuipcRoot, $lg)
+    if (Test-Path -LiteralPath $lp) {
+        $titlesSeen += [regex]::Matches((Get-Content -Raw -LiteralPath $lp), 'Aircraft="([^"]+)"') | ForEach-Object { $_.Groups[1].Value }
+    }
+}
+$titlesSeen = @($titlesSeen | Sort-Object -Unique)
+if ($titlesSeen.Count -and -not ($titlesSeen | Where-Object { $_.IndexOf($Match, [StringComparison]::OrdinalIgnoreCase) -ge 0 })) {
+    Write-Host ''
+    Write-Host ('WARNING: FSUIPC has never seen an aircraft title containing "{0}". The levers will do NOTHING until the title matches.' -f $Match)
+    Write-Host ('         Titles it has logged: {0}' -f ($titlesSeen -join ' | '))
+    Write-Host '         If the aircraft is loaded in the sim right now, the substring in lever-layouts.json is wrong.'
+    Write-Host ''
+}
+if (-not (Test-Path -LiteralPath $ini)) { throw "No FSUIPC7.ini at $ini" }
+
+# FSUIPC holds its settings in memory and writes the whole ini out when it
+# closes. Editing the file underneath a running copy does not fail - it is
+# simply undone later, with no error and no clue as to why the assignments
+# vanished. Refuse instead.
+# "Running" means a running FSUIPC7 that owns THIS ini - the one in the folder
+# its executable runs from. Writing some other folder's FSUIPC7.ini, such as a
+# test copy, is safe while FSUIPC is up, and refusing it would make the write
+# path untestable whenever the sim is in use. If the process path cannot be
+# read, assume it is ours: the cautious answer costs a restart, the other
+# costs the user's assignments.
+$running = $null
+$fsuipc  = @(Get-Process -Name 'FSUIPC7' -ErrorAction SilentlyContinue)
+if ($fsuipc.Count -gt 0) {
+    $iniDir   = [System.IO.Path]::GetFullPath($FsuipcRoot).TrimEnd('\')
+    $procDirs = @($fsuipc | ForEach-Object {
+        try { [System.IO.Path]::GetDirectoryName($_.Path) } catch { $null }
+    } | Where-Object { $_ })
+    $ownsThis = @($procDirs | Where-Object { $_.TrimEnd('\') -ieq $iniDir })
+    if ($procDirs.Count -eq 0 -or $ownsThis.Count -gt 0) { $running = $fsuipc }
+}
+
+if ($running -and $WaitForExit -and -not $WhatIfPreference) {
+    Write-Host ''
+    Write-Host 'Waiting for FSUIPC7 to close. Close it from its tray icon.' -ForegroundColor Yellow
+    Write-Host 'The simulator can stay running - only FSUIPC needs to go.' -ForegroundColor Yellow
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    while (Get-Process -Name 'FSUIPC7' -ErrorAction SilentlyContinue) {
+        if ((Get-Date) -gt $deadline) {
+            Write-Host ("Gave up after {0} seconds. Nothing written." -f $TimeoutSeconds) -ForegroundColor Red
+            exit 2
+        }
+        Start-Sleep -Milliseconds 500
+    }
+    # FSUIPC writes its settings during shutdown, not before it.
+    Start-Sleep -Milliseconds 750
+    $running = $null
+    Write-Host 'FSUIPC7 closed.' -ForegroundColor Green
+}
+
+if ($running -and -not $WhatIfPreference) {
+    Write-Host ''
+    Write-Host 'FSUIPC7 is running, so nothing was written.' -ForegroundColor Red
+    Write-Host ''
+    Write-Host 'It keeps its settings in memory and writes the whole file out when it' -ForegroundColor Yellow
+    Write-Host 'closes, so anything written now would be quietly undone - no error, no' -ForegroundColor Yellow
+    Write-Host 'sign of what happened. Close FSUIPC7 from its tray icon and run this again.' -ForegroundColor Yellow
+    exit 2
+}
+
+# --- which joystick is the Bravo? -------------------------------------------
+# Read here, after the running check, so that with -WaitForExit the file is
+# the one FSUIPC just wrote rather than a stale copy. Under -WhatIf FSUIPC may
+# still be running and this is whatever is on disk.
+#
+# Only the letter entries are used. The numeric ids (3=Bravo...) are
+# DirectInput's and change when devices are re-plugged; the JoyLetters
+# facility - on by default in FSUIPC7 - exists so that assignments survive
+# that. Letters run A-Z omitting I and O, and users may rename them, so any
+# single letter is accepted. The .GUID lines are skipped by requiring a bare
+# letter before the equals sign.
+$existing = @(Get-Content -LiteralPath $ini)
+
+$joyNames = @{}
+$inJoy    = $false
+foreach ($line in $existing) {
+    if ($line -match '^\s*\[JoyNames\]\s*$') { $inJoy = $true; continue }
+    if ($inJoy -and $line -match '^\s*\[') { break }
+    if ($inJoy -and $line -match '^\s*([A-Za-z])\s*=\s*(.+?)\s*$') {
+        $joyNames[$Matches[1].ToUpper()] = $Matches[2]
+    }
+}
+
+function Format-JoyNames {
+    if ($joyNames.Count -eq 0) { return '(none - FSUIPC has not recorded any device with a letter)' }
+    return (($joyNames.Keys | Sort-Object | ForEach-Object { '{0} = {1}' -f $_, $joyNames[$_] }) -join '; ')
+}
+
+# The HID product string is "Honeycomb Bravo Throttle Quadrant"; FSUIPC
+# recorded it as "Bravo Throttle Quadrant". Match loosely on the two words
+# rather than either exact string.
+$BravoNamePattern = '(?i)bravo.*throttle'
+
+if ($JoystickLetter) {
+    $JoystickLetter = $JoystickLetter.Trim().ToUpper()
+    if ($JoystickLetter.Length -ne 1 -or -not $joyNames.ContainsKey($JoystickLetter)) {
+        Write-Host ''
+        Write-Host ('-JoystickLetter {0} is not a device FSUIPC knows, so nothing was written.' -f $JoystickLetter) -ForegroundColor Red
+        Write-Host ('FSUIPC lists: {0}' -f (Format-JoyNames)) -ForegroundColor Yellow
+        exit 2
+    }
+    $deviceName = $joyNames[$JoystickLetter]
+    if ($deviceName -notmatch $BravoNamePattern) {
+        # Allowed, since it was asked for explicitly - but said out loud.
+        Write-Host ''
+        Write-Host ('Note: joystick {0} is "{1}", which is not the Bravo. Writing to it anyway because -JoystickLetter was given.' -f $JoystickLetter, $deviceName) -ForegroundColor Yellow
+    }
+} else {
+    $found = @($joyNames.Keys | Where-Object { $joyNames[$_] -match $BravoNamePattern } | Sort-Object)
+
+    if ($found.Count -eq 0) {
+        Write-Host ''
+        Write-Host 'FSUIPC has no record of the Bravo Throttle Quadrant, so nothing was written.' -ForegroundColor Red
+        Write-Host ''
+        Write-Host ('Devices FSUIPC does know: {0}' -f (Format-JoyNames)) -ForegroundColor Yellow
+        Write-Host ''
+        Write-Host 'FSUIPC records a device the first time it runs with that device plugged in.' -ForegroundColor Yellow
+        Write-Host 'Plug the Bravo in, start FSUIPC7 once, close it, and run this again.' -ForegroundColor Yellow
+        exit 2
+    }
+    if ($found.Count -gt 1) {
+        # Two letters for one device happens when it was re-plugged with a new
+        # instance GUID and FSUIPC gave it a fresh letter. Either could be the
+        # live one; guessing would put the assignments on the dead one.
+        Write-Host ''
+        Write-Host ('FSUIPC lists the Bravo under more than one letter ({0}), so nothing was written.' -f ($found -join ', ')) -ForegroundColor Red
+        Write-Host 'Only one of them is the device that is plugged in now, and there is no way to tell' -ForegroundColor Yellow
+        Write-Host 'which from the file. Remove the stale entries from [JoyNames] in FSUIPC7.ini,' -ForegroundColor Yellow
+        Write-Host 'with FSUIPC closed, then run this again.' -ForegroundColor Yellow
+        exit 2
+    }
+    $JoystickLetter = $found[0]
+    $deviceName     = $joyNames[$JoystickLetter]
+}
+
+# --- build the section -------------------------------------------------------
+# A profile's axes live in [Axes.<name>]; the global ones in [Axes]. The
+# manual puts PollInterval "into the main [Axes] section", so the timing lines
+# are written only there.
+$sectionName = if ($Aircraft) { 'Axes.' + $Aircraft } else { 'Axes' }
+$controls    = if ($ClearGlobal) { @($null, $null, $null, $null, $null, $null) } else { $LAYOUTS[$Layout] }
+
+$lines = New-Object System.Collections.ArrayList
+[void]$lines.Add('[' + $sectionName + ']')
+if (-not $Aircraft) {
+    [void]$lines.Add('PollInterval=10')
+    [void]$lines.Add('RangeRepeatRate=10')
+}
+
+$n = 0
+for ($lever = 0; $lever -lt 6; $lever++) {
+    $role = $controls[$lever]
+    if ($null -eq $role) { continue }
+    $c = $CTRL[$role]
+    # Documented format, FSUIPC7 for Advanced Users, "Axis Assignments":
+    #   n=ja,(R)delta(/delay),ForD,ctl1,ctl2,ctl3,ctl4
+    # An R prefix on the delta means Raw mode; no prefix means calibrated.
+    # F sends an FS control, D sends to FSUIPC's calibration.
+    #
+    # A trailing ",*<number>" multiplies the axis value before it is sent and
+    # ",+<number>" or ",-<number>" then shifts it. The manual requires the
+    # multiply to come first, and performs it first.
+    #
+    # Formatted invariantly on purpose. This is a config file another program
+    # parses, and a machine with a comma decimal separator would write "*-0,5",
+    # which would be read as two parameters rather than one number.
+    $axis = '{0}{1}' -f $JoystickLetter, $AxisLetters[$lever]
+
+    $adj = ''
+    if ($AxisScale -ne 1) {
+        $adj += ',*' + $AxisScale.ToString([cultureinfo]::InvariantCulture)
+    }
+    if ($AxisOffset -ne 0) {
+        $sign = if ($AxisOffset -gt 0) { '+' } else { '-' }
+        $adj += ',' + $sign + [math]::Abs($AxisOffset)
+    }
+
+    # A preset takes the control's place in the line, as P<PresetName>, and
+    # FSUIPC comments it "Preset Control". Format copied from a line FSUIPC
+    # wrote itself after a hand assignment:
+    #   2=BZ,32,F,PKA350_Condition1_Axis,0,0,0,*-1	-{ TO SIM: Preset Control }-
+    if ($LeverPresets.ContainsKey($lever + 1)) {
+        $ctlField = 'P' + $LeverPresets[$lever + 1]
+        $comment  = 'Preset Control'
+    } else {
+        $ctlField = [string]$c
+        $comment  = $CTRL_NAME[$c]
+    }
+
+    [void]$lines.Add(("{0}={1},{2},F,{3},0,0,0{4}`t-{{ TO SIM: {5} }}-" -f `
+        $n, $axis, $Delta, $ctlField, $adj, $comment))
+    $n++
+}
+
+$section = $lines -join "`r`n"
+
+# --- what pulling a lever BELOW its detent does, per aircraft -----------------
+# The Bravo's axis saturates at the detent, so the detent BUTTON is the only
+# signal that a lever has gone below it - measured, and the reason reverse
+# thrust is a button here and not part of the axis. What that button should do
+# follows from the lever's role in this layout:
+#
+#   Throttle n     reverse thrust for engine n - SET_THROTTLEn_REVERSE_THRUST_ON
+#                  on press, _OFF on release, so the sim's reverser state always
+#                  matches where the lever physically is (a toggle would drift)
+#   ThrottleAll    the same, for all engines
+#   any lever with a detentPresets entry in the aircraft table (the King Air's
+#                  condition levers: cut off below the detent, low idle back
+#                  above it) - community presets, press and release
+#   anything else  nothing
+#
+# The button numbers come from data/bravo-buttons.json, the one measured
+# physical map, and an unmeasured one is skipped rather than guessed.
+$btnLines = New-Object System.Collections.ArrayList
+$btnSectionName = ''
+if ($Aircraft -and -not $ClearGlobal) {
+    $btnSectionName = 'Buttons.' + $Aircraft
+    $btnFile = [System.IO.Path]::Combine($PSScriptRoot, '..', 'data', 'bravo-buttons.json')
+    $btnTable = $null
+    if (Test-Path -LiteralPath $btnFile) { $btnTable = Get-Content -LiteralPath $btnFile -Raw | ConvertFrom-Json }
+
+    $REV_ON  = @{ Throttle1 = 67400; Throttle2 = 67401; Throttle3 = 67402; Throttle4 = 67403; ThrottleAll = 67398 }
+    $REV_OFF = @{ Throttle1 = 67404; Throttle2 = 67405; Throttle3 = 67406; Throttle4 = 67407; ThrottleAll = 67399 }
+    $REV_NAME = @{ Throttle1 = 'THROTTLE1'; Throttle2 = 'THROTTLE2'; Throttle3 = 'THROTTLE3'; Throttle4 = 'THROTTLE4'; ThrottleAll = 'ALL' }
+    # Feather, from the Controls List: TOGGLE_FEATHER_SWITCH_n 66537-66540, all engines 66536.
+    $FEATHER      = @{ Prop1 = 66537; Prop2 = 66538; Prop3 = 66539; Prop4 = 66540; PropAll = 66536 }
+    $FEATHER_NAME = @{ Prop1 = 'TOGGLE_FEATHER_SWITCH_1'; Prop2 = 'TOGGLE_FEATHER_SWITCH_2'; Prop3 = 'TOGGLE_FEATHER_SWITCH_3'; Prop4 = 'TOGGLE_FEATHER_SWITCH_4'; PropAll = 'TOGGLE_FEATHER_SWITCHES' }
+
+    $bn = 0
+    for ($lever = 0; $lever -lt 6; $lever++) {
+        $role = $controls[$lever]
+        if ($null -eq $role) { continue }
+        $leverNo = $lever + 1
+        $det = $null
+        if ($btnTable -and $btnTable.controls.PSObject.Properties['DETENT_' + $leverNo]) { $det = $btnTable.controls.('DETENT_' + $leverNo) }
+        if ($null -eq $det -or -not [bool]$det.verified -or $null -eq $det.fsuipc) {
+            Write-Host ('Lever {0}: detent button not measured - no below-detent action written for it.' -f $leverNo) -ForegroundColor Yellow
+            continue
+        }
+        $b = [int]$det.fsuipc
+
+        if ($DetentPresets.ContainsKey($leverNo)) {
+            $dp = $DetentPresets[$leverNo]
+            if ($dp.press)   { [void]$btnLines.Add(('{0}=P{1},{2},CP{3},0' -f $bn, $JoystickLetter, $b, $dp.press)   + "`t; lever $leverNo below detent -> " + $dp.press);   $bn++ }
+            if ($dp.release) { [void]$btnLines.Add(('{0}=U{1},{2},CP{3},0' -f $bn, $JoystickLetter, $b, $dp.release) + "`t; lever $leverNo back above detent -> " + $dp.release); $bn++ }
+        } elseif ($REV_ON.ContainsKey($role) -and ($Layout -like 'jet_*' -or $Layout -like 'turboprop_*')) {
+            # Only aircraft that HAVE reversers get reverse lines. A piston's
+            # throttle lever below the detent does nothing in the aircraft, and
+            # writing SET_REVERSE_THRUST for it would be a line that looks like
+            # a feature and is not. The first write did exactly that for the
+            # DA62 and Bonanza.
+            [void]$btnLines.Add(('{0}=P{1},{2},C{3},0' -f $bn, $JoystickLetter, $b, $REV_ON[$role])  + "`t; lever $leverNo below detent -> SET_" + $REV_NAME[$role] + "_REVERSE_THRUST_ON");  $bn++
+            [void]$btnLines.Add(('{0}=U{1},{2},C{3},0' -f $bn, $JoystickLetter, $b, $REV_OFF[$role]) + "`t; lever $leverNo back above detent -> SET_" + $REV_NAME[$role] + "_REVERSE_THRUST_OFF"); $bn++
+        } elseif ($FEATHER.ContainsKey($role) -and $Layout -like 'turboprop_*') {
+            # A turboprop's prop lever below its detent is FEATHER. The first
+            # design gave props no below-detent action at all, and a tester
+            # pulling lever 3 down on the King Air got nothing, with no row in
+            # the checklist saying nothing was expected. MSFS offers only a
+            # toggle for feather - no explicit on/off - so it is sent on press
+            # and again on release; that follows the lever as long as the sim's
+            # feather state was in step to begin with, which is the honest
+            # limit of what a toggle can do. Pistons keep nothing: their prop
+            # levers do not feather.
+            [void]$btnLines.Add(('{0}=P{1},{2},C{3},0' -f $bn, $JoystickLetter, $b, $FEATHER[$role]) + "`t; lever $leverNo below detent -> " + $FEATHER_NAME[$role] + " (feather)");   $bn++
+            [void]$btnLines.Add(('{0}=U{1},{2},C{3},0' -f $bn, $JoystickLetter, $b, $FEATHER[$role]) + "`t; lever $leverNo back above detent -> " + $FEATHER_NAME[$role] + " (unfeather)"); $bn++
+        }
+    }
+}
+# Two levers resolving to one button means the physical map is wrong, and
+# writing it would make one lever fire another's action with no error from
+# FSUIPC. This happened: a capture with lever 3 already below its detent
+# shifted DETENT_3..5 by one lever and left 5 and 6 both on 132.
+if ($btnLines.Count -gt 0) {
+    $seen = @{}
+    foreach ($bl in $btnLines) {
+        if ($bl -match '^\d+=[PU][A-Z],(\d+),.*?; lever (\d+) ') {
+            $btn = $Matches[1]; $lv = $Matches[2]
+            if ($seen.ContainsKey($btn) -and $seen[$btn] -ne $lv) {
+                throw ("Refusing to write: levers {0} and {1} both resolve to FSUIPC button {2}. The button table is wrong - recapture the detents with EVERY lever above its detent first." -f $seen[$btn], $lv, $btn)
+            }
+            $seen[$btn] = $lv
+        }
+    }
+}
+$btnSection = if ($btnLines.Count) { (@('[' + $btnSectionName + ']') + @($btnLines)) -join "`r`n" } else { '' }
+
+Write-Host ''
+Write-Host ('Section: [{0}]   Layout: {1}' -f $sectionName, $(if ($ClearGlobal) { '(cleared)' } else { $Layout }))
+if ($Aircraft) { Write-Host ('Profile: [Profile.{0}] matches aircraft titles containing "{1}"' -f $Aircraft, $Match) }
+Write-Host ('Controls: {0} family, scale {1}, offset {2}, delta {3}' -f `
+    $ControlFamily, $AxisScale.ToString([cultureinfo]::InvariantCulture), $AxisOffset, $Delta)
+Write-Host ('Quadrant: joystick {0} = "{1}" per [JoyNames]; lever letters {2}' -f `
+    $JoystickLetter, $deviceName, ($AxisLetters -join ' '))
+Write-Host ''
+Write-Host $section
+if ($btnSection) { Write-Host ''; Write-Host $btnSection }
+Write-Host ''
+
+if ($WhatIfPreference) {
+    Write-Host 'WhatIf: nothing written.' -ForegroundColor Yellow
+    return
+}
+
+if (-not $PSCmdlet.ShouldProcess($ini, ('replace the [{0}] section' -f $sectionName))) { return }
+
+# --- write it back, replacing only our own section ---------------------------
+# A dated backup every time. This file is the user's whole control setup and
+# is not ours to lose.
+$stamp  = Get-Date -Format 'yyyyMMdd-HHmmss'
+$backup = [System.IO.Path]::Combine($FsuipcRoot, "FSUIPC7.ini.$stamp.bak")
+Copy-Item -LiteralPath $ini -Destination $backup -Force
+Write-Host ("Backed up to {0}" -f $backup)
+
+# $existing was read above, after FSUIPC had closed, so it is current.
+$out      = New-Object System.Collections.ArrayList
+$inAxes   = $false
+$replaced = $false
+$headerRx = '^\s*\[' + [regex]::Escape($sectionName) + '\]\s*$'
+
+foreach ($line in $existing) {
+    if ($line -match $headerRx) {
+        $inAxes = $true; $replaced = $true
+        [void]$out.AddRange([string[]]($section -split "`r`n"))
+        continue
+    }
+    # Any other section header ends ours. Other profiles' [Axes.X] sections
+    # are other headers, so they pass through untouched.
+    if ($inAxes -and $line -match '^\s*\[') { $inAxes = $false }
+    if (-not $inAxes) { [void]$out.Add($line) }
+}
+if (-not $replaced) {
+    [void]$out.Add('')
+    [void]$out.AddRange([string[]]($section -split "`r`n"))
+}
+
+# --- the aircraft's own [Buttons.<name>] section: replace or append ---------
+# Same rule as the axes: only this aircraft's section is touched, other
+# aircraft's button sections and the global [Buttons] pass through.
+if ($btnSectionName) {
+    # With lines: replace the section, or append it. With NO lines: remove
+    # any existing section, because a stale one would keep sending what the
+    # aircraft no longer calls for - the first write gave pistons reverse
+    # lines, and leaving those in place on a rewrite would be the same lie
+    # with a newer timestamp.
+    $bHeaderRx = '^\s*\[' + [regex]::Escape($btnSectionName) + '\]\s*$'
+    $out2 = New-Object System.Collections.ArrayList
+    $inB = $false; $bReplaced = $false
+    foreach ($line in $out) {
+        if ($line -match $bHeaderRx) {
+            $inB = $true; $bReplaced = $true
+            if ($btnLines.Count -gt 0) { [void]$out2.AddRange([string[]]($btnSection -split "`r`n")) }
+            continue
+        }
+        if ($inB -and $line -match '^\s*\[') { $inB = $false }
+        if (-not $inB) { [void]$out2.Add($line) }
+    }
+    if (-not $bReplaced -and $btnLines.Count -gt 0) {
+        [void]$out2.Add('')
+        [void]$out2.AddRange([string[]]($btnSection -split "`r`n"))
+    }
+    if ($bReplaced -and $btnLines.Count -eq 0) { Write-Host ('Removed a stale [{0}] section - this aircraft has no below-detent actions.' -f $btnSectionName) -ForegroundColor Yellow }
+    $out = $out2
+}
+
+# --- make sure the profile exists and lists the aircraft ---------------------
+# [Axes.<name>] does nothing on its own. FSUIPC only consults it for aircraft
+# listed in [Profile.<name>], as "n=<substring>" lines. So the profile section
+# is created if missing, and the substring added if the section is there but
+# does not list it - without disturbing anything else the user put in it.
+if ($Aircraft) {
+    $profRx    = '^\s*\[Profile\.' + [regex]::Escape($Aircraft) + '\]\s*$'
+    $profStart = -1
+    $profEnd   = $out.Count          # exclusive; section runs to next header or EOF
+    for ($i = 0; $i -lt $out.Count; $i++) {
+        if ($profStart -lt 0) {
+            if ($out[$i] -match $profRx) { $profStart = $i }
+        } elseif ($out[$i] -match '^\s*\[') { $profEnd = $i; break }
+    }
+
+    if ($profStart -lt 0) {
+        [void]$out.Add('')
+        [void]$out.Add('[Profile.' + $Aircraft + ']')
+        [void]$out.Add('1=' + $Match)
+        Write-Host ('Created [Profile.{0}] with 1={1}' -f $Aircraft, $Match)
+    } else {
+        $listed = $false
+        $maxN   = 0
+        for ($i = $profStart + 1; $i -lt $profEnd; $i++) {
+            if ($out[$i] -match '^\s*(\d+)\s*=\s*(.*?)\s*$') {
+                if ([int]$Matches[1] -gt $maxN) { $maxN = [int]$Matches[1] }
+                if ($Matches[2] -eq $Match) { $listed = $true }
+            }
+        }
+        if (-not $listed) {
+            # Insert after the last numbered line, keeping FSUIPC's numbering.
+            $insertAt = $profStart + 1
+            for ($i = $profStart + 1; $i -lt $profEnd; $i++) {
+                if ($out[$i] -match '^\s*\d+\s*=') { $insertAt = $i + 1 }
+            }
+            $out.Insert($insertAt, ('{0}={1}' -f ($maxN + 1), $Match))
+            Write-Host ('Added {0}={1} to existing [Profile.{2}]' -f ($maxN + 1), $Match, $Aircraft)
+        }
+    }
+}
+
+# No BOM. PowerShell's -Encoding UTF8 writes one on 5.1, and this file did not
+# have one - adding invisible bytes to the front of a config file that another
+# program parses is not a change to make by accident. Also CRLF, as Windows ini
+# files are.
+[System.IO.File]::WriteAllText($ini, (($out -join "`r`n") + "`r`n"),
+    (New-Object System.Text.UTF8Encoding($false)))
+Write-Host ("Wrote {0} assignments to {1}" -f $n, $ini) -ForegroundColor Green
+Write-Host ''
+Write-Host 'Start FSUIPC7 again - it reads this file at startup.' -ForegroundColor Yellow
+Write-Host ''
+if ($Aircraft) {
+    Write-Host ('Load an aircraft whose title contains "{0}" and move each lever: it should' -f $Match) -ForegroundColor Yellow
+    Write-Host 'drive what the comment on its line says, over the whole travel.' -ForegroundColor Yellow
+} elseif (-not $ClearGlobal) {
+    Write-Host 'Move each lever and check it drives what the comment on its line says,' -ForegroundColor Yellow
+    Write-Host 'over the whole travel.' -ForegroundColor Yellow
+}
