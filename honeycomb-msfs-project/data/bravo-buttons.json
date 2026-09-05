@@ -391,13 +391,13 @@
                                             ]
                               },
                 "TRIM_UP":  {
-                                "note":  "Measured backwards on the 172 (2026-09-05): forward must send ELEV_TRIM_DN. repeat = clicks per wheel notch; 1 was far too slow.",
+                                "note":  "Measured backwards on the 172 (2026-09-05): forward must send ELEV_TRIM_DN. repeat = clicks per wheel notch; 1 was far too slow, 4 too fast, 3 chosen by Mark 2026-09-05.",
                                 "press":  [
                                               65607,
                                               0,
                                               "ELEV_TRIM_DN"
                                           ],
-                                "repeat":  4
+                                "repeat":  3
                             },
                 "TRIM_DOWN":  {
                                   "note":  "See TRIM_UP.",
@@ -406,7 +406,7 @@
                                                 0,
                                                 "ELEV_TRIM_UP"
                                             ],
-                                  "repeat":  4
+                                  "repeat":  3
                               },
                 "SWITCH_1":  {
                                  "press":  [

@@ -274,6 +274,7 @@ but has not loaded them with FSUIPC running.
 - The red mixture cap sits on **lever 2** in the fixed-pitch layout (letter X). Say "lever 2", never "lever 6", when talking about it.
 - **Measured 2026-09-05 on BigBoy: the DC-3 title is `Douglas DC-3 METAL LEFT`** - the livery is part of the title, so the substring is `Douglas DC-3`. Layout `prop_2_cs`, not yet flown.
 - **`myevents.txt` is installed by `Set-LeverAssignments` after every real write** (copied from `data/` into the FSUIPC folder when missing or different). BigBoy's log showed it had never been installed, which would have left the King Air condition levers dead there.
+- **Launcher UI, settled 2026-09-05 (Mark):** every action button lives in the top bar in the order done - caps, levers, buttons, empty profile, Start Simulator - and is **amber until done, green after**; "done" is read from FSUIPC7.ini by the app (`ReadFsuipcState`), not from a note. Setup shows a **meter** while running and a **pop-up** at the end; failures are appended to `%LOCALAPPDATA%HoneycombAssignmentsetup-errors.log` and the pop-up names the file. One refresh button only. "Test the Bravo" is in a bottom bar. Trim wheel `repeat` is **3**.
 - **Capture rule for latching controls: the control must NOT already be in the
   asked-for position.** A diff against the baseline sees nothing, and the next
   thing moved is recorded under that name. It happened: lever 3 was already

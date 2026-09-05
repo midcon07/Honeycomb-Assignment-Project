@@ -215,16 +215,56 @@
       inset 0 -1px 0 rgba(255,255,255,.07),
       0 1px 0 rgba(255,255,255,.15);
   }
-  /* Outcome of "Set up levers". Sits under the aircraft bar and stays put
-     until the next attempt, so a result cannot be missed. */
-  .setupmsg {
-    border-radius: 4px; padding: 10px 14px;
-    margin: -6px 0 clamp(10px, 1.6vw, 16px) 0;
-    font-size: 13px; line-height: 1.45; white-space: pre-wrap;
+  /* Progress of a setup action, under the aircraft bar. Shown only while
+     something is running; the outcome goes to a pop-up window, not here. */
+  .meter {
+    display: flex; align-items: center; gap: 12px;
+    margin: -6px 0 clamp(10px, 1.6vw, 16px) 0; padding: 8px 14px;
+    background: var(--recess-deep); border-radius: 4px;
     box-shadow: inset 0 1px 4px rgba(0,0,0,.6);
   }
-  .setupmsg.ok  { background: rgba(60,140,70,.16);  color: #b7e3bd; border-left: 3px solid #3c8c46; }
-  .setupmsg.bad { background: rgba(170,60,50,.16);  color: #f0b9b3; border-left: 3px solid #aa3c32; }
+  .meter .track { flex: 1; height: 10px; background: #0A0C0D; border-radius: 5px; overflow: hidden; }
+  .meter .fill  { height: 100%; width: 0; background: linear-gradient(90deg, #C99A2E, #F0C85A); transition: width .4s ease; }
+  .meter .txt   { font-family: var(--f-placard); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--placard); white-space: nowrap; }
+
+  /* The pop-up: outcome of a setup action. */
+  .modal-back {
+    position: fixed; inset: 0; z-index: 50;
+    background: rgba(0,0,0,.62); display: flex; align-items: center; justify-content: center;
+  }
+  .modal {
+    width: min(560px, 90vw); max-height: 80vh; overflow: auto;
+    background: linear-gradient(180deg, #3E4448, #2A2F32); border: 1px solid #0A0C0D; border-radius: 4px;
+    box-shadow: 0 12px 40px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.10);
+    padding: 18px 20px;
+  }
+  .modal h2 { margin: 0 0 10px; font-family: var(--f-placard); font-size: 16px; letter-spacing: .14em; text-transform: uppercase; }
+  .modal.ok  h2 { color: #8CF39B; }
+  .modal.bad h2 { color: #F09A90; }
+  .modal p { margin: 0 0 12px; font-size: 14px; line-height: 1.5; color: var(--placard); }
+  .modal .path { font-family: var(--f-readout); font-size: 13px; color: var(--amber-bright); word-break: break-all; }
+  .modal pre {
+    display: none; margin: 0 0 12px; padding: 10px; max-height: 40vh; overflow: auto;
+    background: #0E1113; border-radius: 3px; font-size: 12px; line-height: 1.4; color: #C9D0D4; white-space: pre-wrap;
+  }
+  .modal.open-details pre { display: block; }
+  .modal .row { display: flex; gap: 8px; justify-content: flex-end; }
+
+  /* Button states: amber until the step is done and confirmed, green after.
+     Grey is for buttons that carry no state (refresh) or cannot be pressed. */
+  .pbtn.todo { color: #1A1300; background: linear-gradient(180deg, #F0C85A, #C99A2E); text-shadow: 0 1px 0 rgba(255,255,255,.25); }
+  .pbtn.todo:hover { color: #1A1300; filter: brightness(1.08); }
+  .pbtn.done { color: #07110A; background: linear-gradient(180deg, #7BE08C, #3FA451); text-shadow: 0 1px 0 rgba(255,255,255,.25); }
+  .pbtn.done:hover { color: #07110A; filter: brightness(1.08); }
+  .pbtn:disabled { color: #6B7276; background: linear-gradient(180deg, #3E4448, #2A2F32); cursor: not-allowed; text-shadow: 0 -1px 0 rgba(0,0,0,.8); filter: none; }
+
+  /* Bottom bar: the test lives here, below everything it tests. */
+  .bottombar {
+    display: flex; justify-content: center; margin-top: clamp(10px, 1.6vw, 16px);
+    padding: 12px 14px; border-radius: 4px;
+    background: linear-gradient(180deg, var(--recess) 0%, var(--recess-deep) 100%);
+    box-shadow: inset 0 2px 7px rgba(0,0,0,.8), inset 0 -1px 0 rgba(255,255,255,.07), 0 1px 0 rgba(255,255,255,.15);
+  }
 
   /* Test mode: a checklist laid over the map. The map container becomes the
      positioning context only while testing, so nothing else moves. Steps the
@@ -336,7 +376,7 @@
   /* SimBrief Pilot ID entry. Lives in the alert actions because the alert is
      where the page says "enter your Pilot ID" - a promise the page used to
      make with no box to type into. */
-  .pid-row { display: flex; align-items: center; gap: 8px; flex-basis: 100%; margin-top: 4px; }
+  .pid-row { display: flex; align-items: center; gap: 8px; }
   .pid-row label { font-family: var(--f-placard); font-weight: 700; letter-spacing: .12em; text-transform: uppercase; font-size: 12px; color: var(--placard); white-space: nowrap; }
   .pid-input { font-family: var(--f-mono, monospace); font-size: 15px; width: 9em; padding: 8px 10px; color: var(--amber-bright, #ffb84d); background: #0E1113; border: 1px solid #0A0C0D; border-radius: 2px; box-shadow: inset 0 2px 4px rgba(0,0,0,.6); }
   .pid-input:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
@@ -605,6 +645,11 @@
       <button class="pbtn" id="refreshBtn" type="button">Refresh Flight Plan</button>
     </div>
 
+    <div class="meter hidden" id="meter" role="status" aria-live="polite">
+      <div class="track"><div class="fill" id="meterFill"></div></div>
+      <span class="txt" id="meterText"></span>
+    </div>
+
     <div class="alert hidden" id="planAlert" role="status" aria-live="polite">
       <div class="alert-mark" id="alertMark">!</div>
       <div class="alert-body">
@@ -613,7 +658,6 @@
         <div class="alert-actions hidden" id="alertActions">
           <a class="pbtn go" id="sbLink" href="https://dispatch.simbrief.com/options/new"
              target="_blank" rel="noopener noreferrer">Open SimBrief</a>
-          <button class="pbtn" id="alertRefresh" type="button">I have made the plan &mdash; refresh</button>
           <div class="pid-row">
             <label for="pilotIdInput">SimBrief Pilot ID</label>
             <input class="pid-input" id="pilotIdInput" type="text" inputmode="numeric" autocomplete="off" placeholder="number">
@@ -633,7 +677,6 @@
         </div>
         <div class="cl" id="checklist"></div>
         <div class="cl-complete hold" id="clVerdict"></div>
-        <button class="start" id="startBtn" type="button" disabled>Start Simulator</button>
       </section>
 
       <!-- ============ RIGHT: flight plan ============ -->
@@ -660,6 +703,8 @@
       </section>
 
     </div>
+
+    <div class="bottombar" id="bottombar"></div>
   </div>
 
   <p class="footnote" id="foot"></p>
@@ -792,6 +837,7 @@ window.APP = {
       /* Shown directly rather than folded into the state and re-rendered:
          it is the outcome of something the user just did, and it must not
          be wiped by the next background preflight refresh. */
+      case "setupProgress": showMeter(msg); return;
       case "setupResult":   showSetupResult(msg); return;
       case "testStatus":    S.test = msg; renderTestOverlay(); return;
     }
@@ -1022,9 +1068,46 @@ function canLaunch() {
   return (v === "GO" || v === "SETUP NEEDED") && !!S.selectedId && capsConfirmed();
 }
 
+/* Amber = not done yet, green = done and confirmed, grey = cannot be pressed.
+   "Done" comes from the host, which reads FSUIPC's own file. */
+function setState(id, state) {
+  var b = byId(id);
+  if (!b) { return; }
+  b.classList.remove("todo", "done");
+  if (state) { b.classList.add(state); }
+}
+function renderButtons() {
+  var a = craft(S.selectedId);
+  var c = S.config || {};
+  setState("capsBtn", capsConfirmed() ? "done" : "todo");
+  var lv = byId("setupBtn");
+  if (lv) { lv.disabled = !a; }
+  setState("setupBtn", a && (c.leversWrittenIcao || []).indexOf(a.type) >= 0 ? "done" : "todo");
+  setState("buttonsBtn", c.buttonsWritten ? "done" : "todo");
+  setState("bravoProfileBtn", c.bravoProfileConfirmed ? "done" : "todo");
+  setState("testBtn", testComplete() ? "done" : "todo");
+}
+/* Every applicable step ticked, in a test that is running. */
+function testComplete() {
+  var t = S.test;
+  if (!t || !t.active || !t.data || !t.data.steps) { return false; }
+  var kind = aircraftKind(), auto = t.data.auto || {}, manual = t.manual || {};
+  var any = false;
+  for (var i = 0; i < t.data.steps.length; i++) {
+    var st = t.data.steps[i];
+    if (!stepApplies(st, kind)) { continue; }
+    any = true;
+    var done = st.kind === "auto" ? !!(auto[st.id] && auto[st.id].pass) : !!manual[st.id];
+    if (!done) { return false; }
+  }
+  return any;
+}
+
 function renderLaunch() {
   var b = byId("startBtn");
+  if (!b) { return; }
   b.disabled = !canLaunch();
+  setState("startBtn", S.launched ? "done" : (canLaunch() ? "todo" : null));
   if (S.launched) { b.textContent = "Simulator Starting"; return; }
   var a = craft(S.selectedId);
   if (!S.selectedId) { b.textContent = "Choose an aircraft first"; }
@@ -1223,6 +1306,7 @@ function render() {
   renderAlert();
   renderChecklist();
   renderLaunch();
+  renderButtons();
   renderPlanPane();
   renderChart();
   renderProfile();
@@ -1269,9 +1353,8 @@ byId("winMax").addEventListener("click", function () { post({ action: "maximise"
 byId("winClose").addEventListener("click", function () { post({ action: "close" }); });
 
 byId("refreshBtn").addEventListener("click", function () { post({ action: "refresh" }); });
-byId("alertRefresh").addEventListener("click", function () { post({ action: "refreshPlan" }); });
 byId("pilotIdSave").addEventListener("click", function () {
-  var id = byId("pilotIdInput").value.replace(/D/g, "");
+  var id = byId("pilotIdInput").value.replace(/\D/g, "");
   byId("pilotIdInput").value = id;
   post({ action: "setPilotId", id: id });
 });
@@ -1280,15 +1363,11 @@ byId("sbLink").addEventListener("click", function (e) {
   e.preventDefault();
   post({ action: "openSimBrief" });
 });
-byId("startBtn").addEventListener("click", function () {
-  if (canLaunch()) { post({ action: "launch" }); }
-});
-
 /* Confirming the caps is a deliberate act - it is the one step no software can
    verify, so it must not be something that happens by itself. */
 (function addConfirm() {
   var bar = document.querySelector(".acbar");
-  var b = el("button", "pbtn go", "Lever caps are set");
+  var b = el("button", "pbtn", "Lever caps are set");
   b.type = "button";
   b.id = "capsBtn";
   b.addEventListener("click", function () {
@@ -1324,11 +1403,11 @@ byId("startBtn").addEventListener("click", function () {
      dance as the levers; the tool refuses anything not measured. */
   /* Test mode: the checklist over the map. The steps the program can verify
      tick themselves; the rest are ticked by the person in the cockpit. */
-  var tb = el("button", "pbtn", "Test the Bravo");
+  var tb = el("button", "pbtn todo", "Test the Bravo");
   tb.type = "button";
   tb.id = "testBtn";
   tb.addEventListener("click", function () { post({ action: "startTest" }); });
-  bar.appendChild(tb);
+  byId("bottombar").appendChild(tb);
 
   var bb = el("button", "pbtn", "Set up Bravo buttons in FSUIPC");
   bb.type = "button";
@@ -1348,6 +1427,19 @@ byId("startBtn").addEventListener("click", function () {
     post({ action: "confirmBravoProfile" });
   });
   bar.appendChild(m);
+
+  /* Start Simulator, last in the row because it is the last thing done. It
+     used to sit under the checklist with one grey look whether or not it
+     could be pressed; here it is amber when ready, grey when not, green once
+     the simulator is starting. */
+  var st = el("button", "pbtn", "Start Simulator");
+  st.type = "button";
+  st.id = "startBtn";
+  st.disabled = true;
+  st.addEventListener("click", function () {
+    if (canLaunch()) { post({ action: "launch" }); }
+  });
+  bar.appendChild(st);
 })();
 
 /* Result of the setup, in plain words, where the aircraft bar can show it. */
@@ -1453,6 +1545,47 @@ function renderTestOverlay() {
   }
 }
 
+function showMeter(m) {
+  var box = byId("meter");
+  box.classList.remove("hidden");
+  byId("meterFill").style.width = Math.max(0, Math.min(100, m.pct || 0)) + "%";
+  setText("meterText", m.text || "");
+}
+
+/* The pop-up. One window, one OK. A failure says where the log is and keeps
+   the tool's words behind a "details" button, so the window itself stays
+   short enough to read at a glance. */
+function showDialog(ok, title, body, path, details) {
+  var old = byId("modalBack");
+  if (old) { old.parentNode.removeChild(old); }
+  var back = el("div", "modal-back", ""); back.id = "modalBack";
+  var box = el("div", "modal " + (ok ? "ok" : "bad"), "");
+  box.appendChild(el("h2", "", title));
+  box.appendChild(el("p", "", body));
+  if (path) {
+    var p = el("p", "", "");
+    p.appendChild(el("span", "path", path));
+    box.appendChild(p);
+  }
+  var pre = null;
+  if (details) { pre = el("pre", "", details); box.appendChild(pre); }
+  var row = el("div", "row", "");
+  if (pre) {
+    var d = el("button", "pbtn", "Details");
+    d.type = "button";
+    d.addEventListener("click", function () { box.classList.toggle("open-details"); });
+    row.appendChild(d);
+  }
+  var okb = el("button", "pbtn go", "OK");
+  okb.type = "button";
+  okb.addEventListener("click", function () { back.parentNode.removeChild(back); });
+  row.appendChild(okb);
+  box.appendChild(row);
+  back.appendChild(box);
+  document.body.appendChild(back);
+  okb.focus();
+}
+
 function showSetupResult(m) {
   var s = byId("setupBtn");
   if (s) { s.disabled = false; s.textContent = "Set up levers in FSUIPC"; }
@@ -1460,15 +1593,15 @@ function showSetupResult(m) {
   if (mb) { mb.disabled = false; }
   var bb = byId("buttonsBtn");
   if (bb) { bb.disabled = false; bb.textContent = "Set up Bravo buttons in FSUIPC"; }
-  var box = byId("setupMsg");
-  if (!box) {
-    box = el("div", "setupmsg", "");
-    box.id = "setupMsg";
-    var bar = document.querySelector(".acbar");
-    if (bar && bar.parentNode) { bar.parentNode.insertBefore(box, bar.nextSibling); }
+  byId("meter").classList.add("hidden");
+  var what = m.what || "Setup";
+  if (m.ok) {
+    showDialog(true, what + " — done", "Finished with no errors.", null, m.message || "");
+  } else {
+    showDialog(false, what + " — errors were logged",
+      "Nothing was written. The errors are in this file; send it to Mark.",
+      m.logPath || "", m.message || "");
   }
-  box.className = "setupmsg " + (m.ok ? "ok" : "bad");
-  box.textContent = m.message || "";
 }
 
 render();

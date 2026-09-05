@@ -307,7 +307,7 @@ internal sealed partial class MainForm : Form
                     var id = msg.TryGetProperty("id", out var v) ? v.GetString() : null;
                     if (string.IsNullOrWhiteSpace(id))
                     {
-                        await Send(new { kind = "setupResult", ok = false, message = "No aircraft chosen." });
+                        await SetupDone(false, "No aircraft chosen.", "Set up levers in FSUIPC");
                         break;
                     }
                     await SetupLeversAsync(id);
@@ -324,12 +324,7 @@ internal sealed partial class MainForm : Form
                         Path.Combine(Runner.ToolsDir, "Confirm-SimBravoProfile.ps1"));
                     var said = (res.StdOut + "\n" + res.StdErr).Trim();
                     Program.Log($"confirmBravoProfile exit {res.ExitCode}");
-                    await Send(new
-                    {
-                        kind = "setupResult",
-                        ok = res.ExitCode == 0,
-                        message = said
-                    });
+                    await SetupDone(res.ExitCode == 0, said, "MSFS is on the empty Bravo profile");
                     await PushPreflightAsync(true);
                     break;
                 }
@@ -354,6 +349,7 @@ internal sealed partial class MainForm : Form
                     // close and restart FSUIPC themselves; running them here, in
                     // order, is the whole point of test mode.
                     var id = msg.TryGetProperty("id", out var v) ? v.GetString() : null;
+                    _batching = true; _batchErrors.Clear();
                     await SetupButtonsAsync();
                     // Each lever write only touches its own aircraft, so a stale
                     // below-detent section on a piston (left by the first, wrong
@@ -363,6 +359,11 @@ internal sealed partial class MainForm : Form
                         if (!string.Equals(piston, id, StringComparison.OrdinalIgnoreCase))
                             await SetupLeversAsync(piston);
                     if (!string.IsNullOrWhiteSpace(id)) await SetupLeversAsync(id);
+                    _batching = false;
+                    await SetupDone(_batchErrors.Count == 0,
+                        _batchErrors.Count == 0 ? "Button map and lever settings written. FSUIPC has been restarted."
+                                                : string.Join("\n\n", _batchErrors),
+                        "Write and restart FSUIPC");
                     await PushTestStatusAsync();
                     break;
                 }
@@ -405,16 +406,114 @@ internal sealed partial class MainForm : Form
         await PushPlanAsync();
     }
 
-    private Task PushConfigAsync() => Send(new
+    private Task PushConfigAsync()
     {
-        kind = "config",
-        exists = _cfg != null,
-        problem = _cfgProblem,
-        pilotId = _cfg?.SimBriefPilotId ?? "",
-        lastAircraftId = _cfg?.LastAircraftId ?? "",
-        capsSetForLayout = _cfg?.CapsSetForLayout ?? "",
-        aircraftUse = _cfg?.AircraftUse ?? new Dictionary<string, int>()
-    });
+        // The page colours its buttons from these: amber until the thing is
+        // done, green after. "Done" is read from FSUIPC's own file, not from
+        // a note the app made, so a hand-edit or a reinstall shows truthfully.
+        var (levers, buttons) = ReadFsuipcState();
+        return Send(new
+        {
+            kind = "config",
+            exists = _cfg != null,
+            problem = _cfgProblem,
+            pilotId = _cfg?.SimBriefPilotId ?? "",
+            lastAircraftId = _cfg?.LastAircraftId ?? "",
+            capsSetForLayout = _cfg?.CapsSetForLayout ?? "",
+            aircraftUse = _cfg?.AircraftUse ?? new Dictionary<string, int>(),
+            bravoProfileConfirmed = !string.IsNullOrWhiteSpace(_cfg?.MsfsBravoProfileConfirmedUtc),
+            leversWrittenIcao = levers,
+            buttonsWritten = buttons
+        });
+    }
+
+    /// <summary>
+    /// What FSUIPC's ini already holds: which curated aircraft (by ICAO) have
+    /// a written [Axes.&lt;profile&gt;] section, and whether the global
+    /// [Buttons] section carries the Bravo map (30+ numbered lines; the
+    /// writer produces 45, a hand-made section a handful).
+    /// </summary>
+    private (string[] levers, bool buttons) ReadFsuipcState()
+    {
+        try
+        {
+            var root = _cfg?.FsuipcRoot;
+            if (string.IsNullOrWhiteSpace(root)) root = Runner.FindFsuipcRoot();
+            if (string.IsNullOrWhiteSpace(root)) return (Array.Empty<string>(), false);
+            var ini = Path.Combine(root, "FSUIPC7.ini");
+            if (!File.Exists(ini)) return (Array.Empty<string>(), false);
+
+            var filled = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var cur = ""; var globalButtons = 0;
+            foreach (var raw in File.ReadAllLines(ini))
+            {
+                var l = raw.Trim();
+                if (l.StartsWith('[') && l.EndsWith(']')) { cur = l[1..^1]; continue; }
+                if (l.Length == 0 || !char.IsDigit(l[0]) || !l.Contains('=')) continue;
+                filled.Add(cur);
+                if (cur.Equals("Buttons", StringComparison.OrdinalIgnoreCase)) globalButtons++;
+            }
+
+            var icaos = new List<string>();
+            var table = Path.Combine(Runner.ToolsDir, "..", "data", "lever-layouts.json");
+            if (File.Exists(table))
+            {
+                using var doc = JsonDocument.Parse(File.ReadAllText(table));
+                if (doc.RootElement.TryGetProperty("aircraft", out var arr))
+                    foreach (var a in arr.EnumerateArray())
+                    {
+                        var icao  = a.TryGetProperty("icao",  out var i) ? i.GetString() : null;
+                        var match = a.TryGetProperty("match", out var m) ? m.GetString() : null;
+                        if (icao != null && match != null && filled.Contains("Axes." + match)) icaos.Add(icao);
+                    }
+            }
+            return (icaos.ToArray(), globalButtons >= 30);
+        }
+        catch (Exception ex)
+        {
+            Program.LogError("read FSUIPC state", ex);
+            return (Array.Empty<string>(), false);
+        }
+    }
+
+    // ---- setup progress and outcome -------------------------------------
+
+    public static string SetupLogPath { get; } =
+        Path.Combine(Path.GetDirectoryName(Program.LogPath)!, "setup-errors.log");
+
+    private Task Progress(int pct, string text) => Send(new { kind = "setupProgress", pct, text });
+
+    // Several writes in a row (the test's write-and-restart) report once, at
+    // the end, rather than popping a window per step.
+    private bool _batching;
+    private readonly List<string> _batchErrors = new();
+
+    /// <summary>
+    /// The end of a setup action. Failures go to the setup error log in full,
+    /// and the page gets a short outcome to show in a window: the tool's own
+    /// words and, on failure, where the log is.
+    /// </summary>
+    private async Task SetupDone(bool ok, string said, string what)
+    {
+        if (_batching)
+        {
+            if (!ok) _batchErrors.Add(what + ":\n" + said);
+            return;
+        }
+        string logPath = null;
+        if (!ok)
+        {
+            try
+            {
+                File.AppendAllText(SetupLogPath,
+                    $"==== {DateTime.Now:yyyy-MM-dd HH:mm:ss}  {what}\r\n{said}\r\n\r\n");
+                logPath = SetupLogPath;
+            }
+            catch (Exception ex) { Program.LogError("setup error log", ex); }
+        }
+        await Send(new { kind = "setupResult", ok, what, message = said, logPath });
+        await PushConfigAsync();
+    }
 
     private Task PushPreflightAsync() => PushPreflightAsync(false);
 
@@ -495,21 +594,18 @@ internal sealed partial class MainForm : Form
     private async Task SetupLeversAsync(string aircraftId)
     {
         Program.Log("setupLevers: " + aircraftId);
-        await Send(new { kind = "setupResult", ok = true, message = "Closing FSUIPC so its settings file can be written…" });
+        const string what = "Set up levers in FSUIPC";
+        await Progress(10, "Closing FSUIPC so its settings file can be written…");
 
         var wasRunning = System.Diagnostics.Process.GetProcessesByName("FSUIPC7").Length > 0;
         if (!Runner.StopFsuipc(TimeSpan.FromSeconds(10)))
         {
-            await Send(new
-            {
-                kind = "setupResult",
-                ok = false,
-                message = "FSUIPC7 would not close, so nothing was written.\n" +
-                          "Close it from its icon near the clock, then try again."
-            });
+            await SetupDone(false, "FSUIPC7 would not close, so nothing was written.\n" +
+                                   "Close it from its icon near the clock, then try again.", what);
             return;
         }
 
+        await Progress(40, "Writing the lever settings…");
         var res = await Runner.PowerShellAsync(
             Path.Combine(Runner.ToolsDir, "Set-LeverAssignments.ps1"),
             "-Aircraft", aircraftId);
@@ -522,16 +618,13 @@ internal sealed partial class MainForm : Form
 
         var root = _cfg?.FsuipcRoot;
         if (string.IsNullOrWhiteSpace(root)) root = Runner.FindFsuipcRoot();
+        await Progress(85, "Starting FSUIPC again…");
         if (wasRunning && !string.IsNullOrWhiteSpace(root))
             Program.Log("FSUIPC7 restarted after setup: " + Runner.LaunchFsuipc(root));
 
         Program.Log($"setupLevers finished, exit {res.ExitCode}");
-        await Send(new
-        {
-            kind = "setupResult",
-            ok,
-            message = (ok ? "Done.\n\n" : "Nothing was written.\n\n") + said
-        });
+        await Progress(100, ok ? "Done." : "Nothing was written.");
+        await SetupDone(ok, said, what);
 
         // The gate reports lever assignments and profiles, so it is now stale.
         await PushPreflightAsync(true);
@@ -548,16 +641,18 @@ internal sealed partial class MainForm : Form
     private async Task SetupButtonsAsync()
     {
         Program.Log("setupButtons");
-        await Send(new { kind = "setupResult", ok = true, message = "Closing FSUIPC so its settings file can be written…" });
+        const string what = "Set up Bravo buttons in FSUIPC";
+        await Progress(10, "Closing FSUIPC so its settings file can be written…");
 
         var wasRunning = System.Diagnostics.Process.GetProcessesByName("FSUIPC7").Length > 0;
         if (!Runner.StopFsuipc(TimeSpan.FromSeconds(10)))
         {
-            await Send(new { kind = "setupResult", ok = false,
-                message = "FSUIPC7 would not close, so nothing was written.\nClose it from its icon near the clock, then try again." });
+            await SetupDone(false, "FSUIPC7 would not close, so nothing was written.\n" +
+                                   "Close it from its icon near the clock, then try again.", what);
             return;
         }
 
+        await Progress(40, "Writing the button map…");
         var res = await Runner.PowerShellAsync(
             Path.Combine(Runner.ToolsDir, "Set-BravoButtons.ps1"));
         var said = (res.StdOut + "\n" + res.StdErr).Trim();
@@ -565,11 +660,13 @@ internal sealed partial class MainForm : Form
 
         var root = _cfg?.FsuipcRoot;
         if (string.IsNullOrWhiteSpace(root)) root = Runner.FindFsuipcRoot();
+        await Progress(85, "Starting FSUIPC again…");
         if (wasRunning && !string.IsNullOrWhiteSpace(root))
             Program.Log("FSUIPC7 restarted after button setup: " + Runner.LaunchFsuipc(root));
 
         Program.Log($"setupButtons finished, exit {res.ExitCode}");
-        await Send(new { kind = "setupResult", ok, message = (ok ? "Done.\n\n" : "Nothing was written.\n\n") + said });
+        await Progress(100, ok ? "Done." : "Nothing was written.");
+        await SetupDone(ok, said, what);
         await PushPreflightAsync(true);
     }
 
