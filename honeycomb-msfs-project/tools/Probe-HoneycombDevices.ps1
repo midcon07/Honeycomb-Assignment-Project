@@ -75,7 +75,13 @@ param(
     [switch] $Sample,
     [string] $Json,
     [switch] $All,
-    [int]    $IntervalMs = 80
+    [int]    $IntervalMs = 80,
+    # Guided capture: walks through data/bravo-buttons.json asking for each
+    # control to be pressed, records the button number it sees, and writes
+    # the file back with that control marked verified. Pass the file's path.
+    [string] $Capture = '',
+    # Re-ask for controls already verified.
+    [switch] $Recapture
 )
 
 Set-StrictMode -Version Latest
@@ -541,6 +547,125 @@ $devices = @(Get-CandidateDevices -IncludeAll:$All)
 if ($devices.Count -eq 0) {
     Write-Host 'No matching HID devices found.' -ForegroundColor Yellow
     return
+}
+
+function Start-CaptureSession {
+    <#
+        Guided capture of the Bravo's button numbers into a JSON table.
+
+        For each control in the table that is not yet verified (or all of
+        them with -Recapture), it asks for that control to be operated, then
+        watches the device until a button appears that was not down a moment
+        before. That new button is the answer. It diffs against the CURRENT
+        pressed set rather than looking for "any button", because the Bravo
+        always reports its switch and gear positions as held buttons - nine
+        of them at rest on this unit - and a fresh press has to be told apart
+        from those.
+
+        After each capture it waits for the pressed set to settle and takes
+        that as the new baseline. A momentary button returns the set to what
+        it was; a latching switch or the mode selector leaves a new button
+        down. Both work without the table having to say which is which.
+
+        Writes back after every control, so an interrupted session loses
+        nothing already measured. Numbers are stored twice: the prober's
+        1-based count, and FSUIPC's number for the same button (one less, and
+        from 132 when above 31 - the rule in the FSUIPC User Guide, checked
+        against a measurement on this unit: prober 33 was FSUIPC 132).
+
+        Keys: S skips the current control, Q stops.
+    #>
+    param([string] $Path, [switch] $All)
+
+    if (-not (Test-Path -LiteralPath $Path)) { throw "No button table at $Path" }
+    $table = Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json
+
+    $dev = @($devices | Where-Object { $_.Name -match '(?i)bravo' } | Select-Object -First 1)
+    if ($dev.Count -eq 0) { Write-Host 'The Bravo is not connected. Plug it in and run this again.' -ForegroundColor Red; return 2 }
+    $dev = $dev[0]
+
+    function Get-Pressed {
+        $s = Read-DeviceState -Path $dev.Path -TimeoutMs 400
+        if ($null -eq $s) { return $null }
+        return @($s.Buttons | ForEach-Object { [int]$_ })
+    }
+    function Wait-Settled {
+        # The pressed set unchanged for 600 ms.
+        $last = Get-Pressed; $since = Get-Date
+        while (((Get-Date) - $since).TotalMilliseconds -lt 600) {
+            Start-Sleep -Milliseconds 100
+            $now = Get-Pressed
+            if ($null -eq $now) { continue }
+            if (($now -join ',') -ne ($last -join ',')) { $last = $now; $since = Get-Date }
+        }
+        return $last
+    }
+    function Save {
+        [System.IO.File]::WriteAllText($Path, (($table | ConvertTo-Json -Depth 10) + "`r`n"), (New-Object System.Text.UTF8Encoding($false)))
+    }
+    function To-Fsuipc { param([int] $Prober) $f = $Prober - 1; if ($f -gt 31) { $f += 100 }; return $f }
+
+    $names = @($table.controls.PSObject.Properties | ForEach-Object { $_.Name })
+    $todo  = @($names | Where-Object { $All -or -not [bool]$table.controls.$_.verified })
+    if ($todo.Count -eq 0) { Write-Host 'Every control is already verified. Use -Recapture to measure again.' -ForegroundColor Green; return 0 }
+
+    Write-Host ''
+    Write-Host ('Capturing {0} control(s) from the {1}.' -f $todo.Count, $dev.Name) -ForegroundColor Cyan
+    Write-Host 'Do exactly what each line asks, then leave it. S = skip this one, Q = stop.' -ForegroundColor Cyan
+    Write-Host ''
+
+    $baseline = Wait-Settled
+    if ($null -eq $baseline) { Write-Host 'Could not read the Bravo.' -ForegroundColor Red; return 2 }
+    Write-Host ('At rest, these buttons are held: {0}' -f $(if ($baseline.Count) { $baseline -join ', ' } else { 'none' })) -ForegroundColor DarkGray
+
+    $done = 0
+    foreach ($name in $todo) {
+        $c = $table.controls.$name
+        Write-Host ''
+        Write-Host ('>> {0}: {1}' -f $name, $c.label) -ForegroundColor Yellow
+
+        $hit = $null
+        while ($null -eq $hit) {
+            # KeyAvailable throws when input is redirected (no console). That
+            # only means the skip/stop keys are unavailable; the capture itself
+            # needs no keyboard, so carry on rather than fall over.
+            $k = $null
+            try { if ([Console]::KeyAvailable) { $k = [Console]::ReadKey($true) } } catch { $k = $null }
+            if ($null -ne $k) {
+                if ($k.Key -eq 'S') { Write-Host '   skipped' -ForegroundColor DarkGray; break }
+                if ($k.Key -eq 'Q') { Write-Host ('Stopped. {0} captured this session; the file is saved.' -f $done) -ForegroundColor Yellow; return 0 }
+            }
+            Start-Sleep -Milliseconds 60
+            $now = Get-Pressed
+            if ($null -eq $now) { continue }
+            $new = @($now | Where-Object { $baseline -notcontains $_ })
+            if ($new.Count -eq 1) { $hit = [int]$new[0] }
+            elseif ($new.Count -gt 1) {
+                Write-Host ('   more than one new button appeared ({0}) - release everything and do just that one' -f ($new -join ', ')) -ForegroundColor Red
+                $baseline = Wait-Settled
+            }
+        }
+        if ($null -eq $hit) { continue }
+
+        $fs = To-Fsuipc $hit
+        $c.prober = $hit; $c.fsuipc = $fs; $c.verified = $true
+        Save
+        $done++
+        Write-Host ('   captured: prober button {0} = FSUIPC button {1}   (saved)' -f $hit, $fs) -ForegroundColor Green
+
+        # Momentary buttons return to the old baseline; latching ones leave a
+        # new one down. Either way, whatever it settles to is the baseline now.
+        $baseline = Wait-Settled
+    }
+
+    Write-Host ''
+    Write-Host ('Finished: {0} control(s) captured and saved to {1}' -f $done, $Path) -ForegroundColor Green
+    return 0
+}
+
+if ($Capture) {
+    $rc = Start-CaptureSession -Path $Capture -All:$Recapture
+    exit $rc
 }
 
 if ($Sample) {
