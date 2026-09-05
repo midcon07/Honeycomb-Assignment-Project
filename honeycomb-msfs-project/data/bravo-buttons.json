@@ -67,16 +67,16 @@
                      "MODE_IAS":  {
                                       "label":  "mode selector turned to IAS",
                                       "kind":  "latching",
-                                      "prober":  null,
-                                      "fsuipc":  null,
-                                      "verified":  false
+                                      "prober":  17,
+                                      "fsuipc":  16,
+                                      "verified":  true
                                   },
                      "MODE_CRS":  {
                                       "label":  "mode selector turned to CRS",
                                       "kind":  "latching",
-                                      "prober":  null,
-                                      "fsuipc":  null,
-                                      "verified":  false
+                                      "prober":  18,
+                                      "fsuipc":  17,
+                                      "verified":  true
                                   },
                      "MODE_HDG":  {
                                       "label":  "mode selector turned to HDG",
@@ -179,9 +179,9 @@
                      "SWITCH_6":  {
                                       "label":  "switch 6 flipped ON - the SAME direction you called ON for switches 1 to 5",
                                       "kind":  "latching",
-                                      "prober":  null,
-                                      "fsuipc":  null,
-                                      "verified":  false
+                                      "prober":  44,
+                                      "fsuipc":  143,
+                                      "verified":  true
                                   },
                      "SWITCH_7":  {
                                       "label":  "switch 7 (rightmost) flipped ON",
@@ -193,16 +193,16 @@
                      "FLAPS_UP":  {
                                       "label":  "flap handle pushed UP one notch (less flap)",
                                       "kind":  "momentary",
-                                      "prober":  null,
-                                      "fsuipc":  null,
-                                      "verified":  false
+                                      "prober":  16,
+                                      "fsuipc":  15,
+                                      "verified":  true
                                   },
                      "FLAPS_DOWN":  {
                                         "label":  "flap handle pulled DOWN one notch (more flap)",
                                         "kind":  "momentary",
-                                        "prober":  null,
-                                        "fsuipc":  null,
-                                        "verified":  false
+                                        "prober":  15,
+                                        "fsuipc":  14,
+                                        "verified":  true
                                     }
                  },
     "$mapComment":  "Each entry: press = [control, parameter, name] sent when the button goes down; release = sent when it goes up; when = a table of condition-control -\u003e [control, parameter, name], written as FSUIPC compound lines CP(+joy,conditionButton). Names are for the ini comment only; the numbers are what FSUIPC reads.",
