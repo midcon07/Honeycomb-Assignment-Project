@@ -1,4 +1,4 @@
-{
+﻿{
     "$comment":  "Source of truth for Bravo physical lever layouts. Generates the pre-flight caps card, the in-sim panel, and the per-aircraft profiles. See data/README.md for the classification rule and the known gaps.",
     "schemaVersion":  1,
     "handles":  {
@@ -431,6 +431,20 @@
                                    },
                          "layout":  "fadec_2",
                          "verified":  "flown 2026-09-03"
+                     },
+                     {
+                         "name":  "Cessna 172 Skyhawk",
+                         "icao":  "C172",
+                         "match":  "Skyhawk",
+                         "titleMatch":  "Skyhawk",
+                         "facts":  {
+                                       "category":  "prop",
+                                       "engines":  1,
+                                       "propControl":  false,
+                                       "mixtureControl":  true
+                                   },
+                         "layout":  "prop_1_fixed",
+                         "verified":  "type - fixed-pitch prop, mixture; titleMatch REASONED from the 2020 title (Cessna Skyhawk G1000 Asobo), not yet read from FSUIPC7.log; not yet flown"
                      },
                      {
                          "name":  "Beechcraft Bonanza G36",
