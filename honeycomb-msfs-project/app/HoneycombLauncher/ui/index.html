@@ -225,6 +225,34 @@
   }
   .setupmsg.ok  { background: rgba(60,140,70,.16);  color: #b7e3bd; border-left: 3px solid #3c8c46; }
   .setupmsg.bad { background: rgba(170,60,50,.16);  color: #f0b9b3; border-left: 3px solid #aa3c32; }
+
+  /* Test mode: a checklist laid over the map. The map container becomes the
+     positioning context only while testing, so nothing else moves. Steps the
+     app can check tick themselves; steps only a person can judge are clicked. */
+  .map-wrap.testing { position: relative; }
+  .test-overlay {
+    position: absolute; inset: 0; overflow: auto;
+    background: rgba(8,10,12,.94); color: var(--placard);
+    padding: 12px 14px; font-size: 13px; line-height: 1.4;
+    box-shadow: inset 0 0 0 1px #000;
+  }
+  .test-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .test-head .ttl { font-weight: 700; letter-spacing: .16em; text-transform: uppercase; font-size: 12px; color: var(--placard); }
+  .test-head .spacer { flex: 1 1 auto; }
+  .test-err { color: #f0b9b3; margin: 6px 0; }
+  .tstep { display: grid; grid-template-columns: 26px 1fr; gap: 4px 10px; padding: 7px 6px; border-radius: 3px; }
+  .tstep + .tstep { border-top: 1px solid rgba(255,255,255,.06); }
+  .tstep .box { font-size: 18px; line-height: 1; text-align: center; color: var(--placard-dim); }
+  .tstep.done .box { color: #8CF39B; }
+  .tstep.manual { cursor: pointer; }
+  .tstep.manual:hover { background: rgba(255,255,255,.04); }
+  .tstep .lbl { font-weight: 600; }
+  .tstep.done .lbl { color: #b7e3bd; }
+  .tstep .exp { grid-column: 2; color: var(--placard-dim); font-size: 12px; }
+  .tstep .why { grid-column: 2; font-size: 12px; color: #f0c98a; }
+  .tstep.done .why { color: #9bd3a3; }
+  .tstep .kind { grid-column: 2; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--placard-faint); }
+  .test-actions { display: flex; gap: 10px; margin: 10px 0 4px; flex-wrap: wrap; }
   .acbar-label {
     font-weight: 700; letter-spacing: .2em; font-size: 12px;
     text-transform: uppercase; color: var(--placard);
@@ -750,6 +778,7 @@ window.APP = {
          it is the outcome of something the user just did, and it must not
          be wiped by the next background preflight refresh. */
       case "setupResult":   showSetupResult(msg); return;
+      case "testStatus":    S.test = msg; renderTestOverlay(); return;
     }
     render();
   }
@@ -1272,6 +1301,14 @@ byId("startBtn").addEventListener("click", function () {
   /* The button map - trim, autopilot panel, gear, switches, flaps, TOGA. Not
      per aircraft, so it needs no aircraft chosen. Same close-write-restart
      dance as the levers; the tool refuses anything not measured. */
+  /* Test mode: the checklist over the map. The steps the program can verify
+     tick themselves; the rest are ticked by the person in the cockpit. */
+  var tb = el("button", "pbtn", "Test the Bravo");
+  tb.type = "button";
+  tb.id = "testBtn";
+  tb.addEventListener("click", function () { post({ action: "startTest" }); });
+  bar.appendChild(tb);
+
   var bb = el("button", "pbtn", "Set up Bravo buttons in FSUIPC");
   bb.type = "button";
   bb.id = "buttonsBtn";
@@ -1293,6 +1330,108 @@ byId("startBtn").addEventListener("click", function () {
 })();
 
 /* Result of the setup, in plain words, where the aircraft bar can show it. */
+/* ------------------------------------------------------------ test mode -- */
+
+/* What kind of aircraft is chosen, for filtering steps: piston, turboprop,
+   jet, or unknown. From the layout, which is the same fact the profile is
+   written from. */
+function aircraftKind() {
+  var a = craft(S.selectedId);
+  if (!a) { return "unknown"; }
+  if (/^turboprop_/.test(a.layout)) { return "turboprop"; }
+  if (/^jet_/.test(a.layout)) { return "jet"; }
+  if (/^(prop_|fadec_)/.test(a.layout)) { return "piston"; }
+  return "unknown";
+}
+function stepApplies(step, kind) {
+  var w = step.when || "any";
+  if (w === "any") { return true; }
+  if (w === "turboprop_or_jet") { return kind === "turboprop" || kind === "jet"; }
+  return w === kind;
+}
+
+function renderTestOverlay() {
+  var wrap = byId("chart") ? byId("chart").parentNode : null;
+  if (!wrap) { return; }
+  var ov = byId("testOverlay");
+  var t = S.test;
+
+  if (!t || !t.active) {
+    if (ov) { ov.parentNode.removeChild(ov); }
+    wrap.classList.remove("testing");
+    return;
+  }
+  if (!ov) {
+    ov = el("div", "test-overlay", "");
+    ov.id = "testOverlay";
+    wrap.appendChild(ov);
+  }
+  wrap.classList.add("testing");
+  ov.textContent = "";
+
+  var a = craft(S.selectedId);
+  var kind = aircraftKind();
+
+  var head = el("div", "test-head", "");
+  head.appendChild(el("span", "ttl", "Bravo test" + (a ? " — " + a.name : "")));
+  head.appendChild(el("span", "spacer", ""));
+  var end = el("button", "pbtn", "End test");
+  end.type = "button";
+  end.addEventListener("click", function () { post({ action: "endTest" }); });
+  head.appendChild(end);
+  ov.appendChild(head);
+
+  if (t.error) { ov.appendChild(el("div", "test-err", t.error)); }
+
+  var auto   = (t.data && t.data.auto)  || {};
+  var manual = t.manual || {};
+  var steps  = (t.data && t.data.steps) || [];
+
+  /* The write-and-restart, in the overlay where the sequence is visible.
+     Disabled until TO/GA is measured, so the write cannot run ahead of the
+     capture and quietly leave TO/GA out - that is the trap that confused the
+     last attempt. */
+  var acts = el("div", "test-actions", "");
+  var wb = el("button", "pbtn go", "Write and restart FSUIPC");
+  wb.type = "button";
+  var togaOk = auto.toga_captured && auto.toga_captured.pass;
+  wb.disabled = !togaOk || !a;
+  wb.title = togaOk ? "Closes FSUIPC, writes the button map and this aircraft's levers, starts FSUIPC again."
+                    : "Waits for TO/GA to be measured first.";
+  wb.addEventListener("click", function () {
+    wb.disabled = true; wb.textContent = "Writing…";
+    post({ action: "testWrite", id: a ? a.id : "" });
+  });
+  acts.appendChild(wb);
+  ov.appendChild(acts);
+
+  steps.forEach(function (st) {
+    if (!stepApplies(st, kind)) { return; }
+    var isAuto = st.kind === "auto";
+    var res = isAuto ? auto[st.id] : null;
+    var done = isAuto ? !!(res && res.pass) : !!manual[st.id];
+
+    var row = el("div", "tstep " + (isAuto ? "auto" : "manual") + (done ? " done" : ""), "");
+    row.appendChild(el("div", "box", done ? "☑" : "☐"));
+    row.appendChild(el("div", "lbl", st.label));
+    row.appendChild(el("div", "exp", st.expect || ""));
+    if (isAuto) {
+      row.appendChild(el("div", "why", res ? res.why : "not checked yet"));
+      row.appendChild(el("div", "kind", "checked by the program"));
+    } else {
+      row.appendChild(el("div", "kind", done ? "you ticked this" : "click when it does what it should - or tell Mark what it did instead"));
+      row.addEventListener("click", function () {
+        post({ action: "tickStep", id: st.id, done: !done });
+      });
+    }
+    ov.appendChild(row);
+  });
+
+  if (t.data && t.data.checkedUtc) {
+    ov.appendChild(el("div", "kind", "last checked " + t.data.checkedUtc));
+  }
+}
+
 function showSetupResult(m) {
   var s = byId("setupBtn");
   if (s) { s.disabled = false; s.textContent = "Set up levers in FSUIPC"; }

@@ -46,6 +46,17 @@ internal sealed partial class MainForm : Form
     /// </summary>
     private readonly System.Windows.Forms.Timer _slowPoll = new() { Interval = 30000 };
 
+    // Test mode: the checklist overlay on the map. The automatic steps are
+    // re-evaluated on this timer while the mode is on; the manual ticks live
+    // in a small file so they survive a restart and can be read afterwards.
+    private readonly System.Windows.Forms.Timer _testPoll = new() { Interval = 4000 };
+    private bool _testMode;
+    private bool _testPollWired;
+    private bool _testChecking;
+    private static readonly string TestTicksPath = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "HoneycombAssignment", "test-status.json");
+
     private bool _checking;
 
     /// <summary>
@@ -328,6 +339,44 @@ internal sealed partial class MainForm : Form
                 await SetupButtonsAsync();
                 break;
 
+            case "startTest":
+                await EnterTestModeAsync();
+                break;
+
+            case "endTest":
+                LeaveTestMode();
+                await Send(new { kind = "testStatus", active = false });
+                break;
+
+            case "testWrite":
+                {
+                    // The write-and-restart that used to be a hand sequence of
+                    // "close FSUIPC, wait, start it again". Both setup routines
+                    // close and restart FSUIPC themselves; running them here, in
+                    // order, is the whole point of test mode.
+                    var id = msg.TryGetProperty("id", out var v) ? v.GetString() : null;
+                    await SetupButtonsAsync();
+                    if (!string.IsNullOrWhiteSpace(id)) await SetupLeversAsync(id);
+                    await PushTestStatusAsync();
+                    break;
+                }
+
+            case "tickStep":
+                {
+                    var id   = msg.TryGetProperty("id",   out var v) ? v.GetString() : null;
+                    var done = msg.TryGetProperty("done", out var d) && d.ValueKind == JsonValueKind.True;
+                    if (!string.IsNullOrWhiteSpace(id))
+                    {
+                        var ticks = LoadTicks();
+                        if (done) ticks[id] = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
+                        else ticks.Remove(id);
+                        SaveTicks(ticks);
+                        Program.Log($"test step {(done ? "ticked" : "unticked")}: {id}");
+                    }
+                    await PushTestStatusAsync();
+                    break;
+                }
+
             case "openSimBrief":
                 Runner.OpenUrl("https://dispatch.simbrief.com/options/new");
                 break;
@@ -516,6 +565,81 @@ internal sealed partial class MainForm : Form
         Program.Log($"setupButtons finished, exit {res.ExitCode}");
         await Send(new { kind = "setupResult", ok, message = (ok ? "Done.\n\n" : "Nothing was written.\n\n") + said });
         await PushPreflightAsync(true);
+    }
+
+    // ---- test mode ----------------------------------------------------------
+
+    private async Task EnterTestModeAsync()
+    {
+        _testMode = true;
+        if (!_testPollWired)
+        {
+            _testPollWired = true;
+            _testPoll.Tick += async (_, _) =>
+            {
+                if (!_testMode) return;
+                try { await PushTestStatusAsync(); }
+                catch (Exception ex) { Program.LogError("test poll", ex); }
+            };
+        }
+        Program.Log("test mode: on");
+        await PushTestStatusAsync();
+        _testPoll.Start();
+    }
+
+    private void LeaveTestMode()
+    {
+        _testMode = false;
+        _testPoll.Stop();
+        Program.Log("test mode: off");
+    }
+
+    /// <summary>
+    /// Evaluates the automatic steps (tools/Get-TestStatus.ps1), merges the
+    /// person's ticks for the manual ones, and sends the lot to the overlay.
+    /// The tool embeds the plan, so one message carries everything the page
+    /// needs to draw the checklist.
+    /// </summary>
+    private async Task PushTestStatusAsync()
+    {
+        if (_testChecking) return;
+        _testChecking = true;
+        try
+        {
+            var (json, raw) = await Runner.JsonToolAsync(Path.Combine(Runner.ToolsDir, "Get-TestStatus.ps1"));
+            if (json is null)
+            {
+                Program.Log("test status tool returned nothing: " + (raw.StdErr + raw.StdOut).Trim());
+                await Send(new { kind = "testStatus", active = _testMode, error = "The test status tool did not answer. Details: " + Program.LogPath });
+                return;
+            }
+            var ticks = LoadTicks();
+            var payload = $"{{\"kind\":\"testStatus\",\"active\":{(_testMode ? "true" : "false")},\"data\":{json.Value.GetRawText()},\"manual\":{JsonSerializer.Serialize(ticks)}}}";
+            if (!PageIsAlive()) return;
+            await _web.CoreWebView2.ExecuteScriptAsync($"window.APP && window.APP.receive({payload});");
+        }
+        finally { _testChecking = false; }
+    }
+
+    private static Dictionary<string, string> LoadTicks()
+    {
+        try
+        {
+            if (File.Exists(TestTicksPath))
+                return JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(TestTicksPath)) ?? new();
+        }
+        catch (Exception ex) { Program.LogError("LoadTicks", ex); }
+        return new();
+    }
+
+    private static void SaveTicks(Dictionary<string, string> ticks)
+    {
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(TestTicksPath));
+            File.WriteAllText(TestTicksPath, JsonSerializer.Serialize(ticks, new JsonSerializerOptions { WriteIndented = true }));
+        }
+        catch (Exception ex) { Program.LogError("SaveTicks", ex); }
     }
 
     private async Task LaunchAsync()
