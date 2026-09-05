@@ -303,6 +303,27 @@ internal sealed partial class MainForm : Form
                     break;
                 }
 
+            case "confirmBravoProfile":
+                {
+                    // Records that a person has looked. Nothing here can verify
+                    // it - MSFS keeps controller profiles in a cloud-synced
+                    // binary container - so the tool stores who and when, and
+                    // the check says plainly that it is not re-checked.
+                    var res = await Runner.PowerShellAsync(
+                        Path.Combine(Runner.ToolsDir, "Confirm-SimBravoProfile.ps1"),
+                        "-Confirm:$false");
+                    var said = (res.StdOut + "\n" + res.StdErr).Trim();
+                    Program.Log($"confirmBravoProfile exit {res.ExitCode}");
+                    await Send(new
+                    {
+                        kind = "setupResult",
+                        ok = res.ExitCode == 0,
+                        message = said
+                    });
+                    await PushPreflightAsync(true);
+                    break;
+                }
+
             case "openSimBrief":
                 Runner.OpenUrl("https://dispatch.simbrief.com/options/new");
                 break;

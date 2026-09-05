@@ -1228,12 +1228,28 @@ byId("startBtn").addEventListener("click", function () {
     post({ action: "setupLevers", id: a.id });
   });
   bar.appendChild(s);
+
+  /* Recording that MSFS is on the empty Bravo profile. The program cannot read
+     that setting - MSFS keeps it in a cloud-synced binary container - so this
+     is a person saying they have looked, and it is stored with their name and
+     the date. Deliberately worded as a claim about what they can see on
+     screen, not as a switch that changes anything. */
+  var m = el("button", "pbtn", "MSFS is on the empty Bravo profile");
+  m.type = "button";
+  m.id = "bravoProfileBtn";
+  m.addEventListener("click", function () {
+    m.disabled = true;
+    post({ action: "confirmBravoProfile" });
+  });
+  bar.appendChild(m);
 })();
 
 /* Result of the setup, in plain words, where the aircraft bar can show it. */
 function showSetupResult(m) {
   var s = byId("setupBtn");
   if (s) { s.disabled = false; s.textContent = "Set up levers in FSUIPC"; }
+  var mb = byId("bravoProfileBtn");
+  if (mb) { mb.disabled = false; }
   var box = byId("setupMsg");
   if (!box) {
     box = el("div", "setupmsg", "");
