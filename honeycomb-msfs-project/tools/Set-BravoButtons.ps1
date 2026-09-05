@@ -128,7 +128,15 @@ foreach ($name in $order) {
     if ($null -eq $btn) { [void]$skipped.Add($name); continue }
 
     if ($m.PSObject.Properties['press'] -and $m.press) {
-        [void]$lines.Add(('{0}=P{1},{2},C{3},{4}' -f $n, $J, $btn, $m.press[0], $m.press[1]) + "`t; " + $name + ' -> ' + $m.press[2]); $n++
+        # 'repeat' writes the same press line N times. FSUIPC fires every line
+        # that names a button, so one pulse of the trim wheel becomes N trim
+        # clicks - the wheel sends one pulse per notch, and one MSFS trim click
+        # per notch is far too slow to be useful.
+        $rep = if ($m.PSObject.Properties['repeat'] -and [int]$m.repeat -gt 1) { [int]$m.repeat } else { 1 }
+        for ($r = 1; $r -le $rep; $r++) {
+            $why = if ($rep -gt 1) { (' ({0} of {1} per pulse)' -f $r, $rep) } else { '' }
+            [void]$lines.Add(('{0}=P{1},{2},C{3},{4}' -f $n, $J, $btn, $m.press[0], $m.press[1]) + "`t; " + $name + ' -> ' + $m.press[2] + $why); $n++
+        }
     }
     if ($m.PSObject.Properties['release'] -and $m.release) {
         [void]$lines.Add(('{0}=U{1},{2},C{3},{4}' -f $n, $J, $btn, $m.release[0], $m.release[1]) + "`t; " + $name + ' released -> ' + $m.release[2]); $n++
@@ -150,7 +158,11 @@ foreach ($line in $existing) {
     if ($inB -and $line -match '^\s*\[') { break }
     if ($inB -and $line -match '^\s*(PollInterval|ButtonRepeat)\s*=') { [void]$keep.Add($line.Trim()) }
 }
-if ($keep.Count -eq 0) { [void]$keep.Add('PollInterval=25'); [void]$keep.Add('ButtonRepeat=20,10') }
+# PollInterval is forced to 10 ms (FSUIPC default 25): the trim wheel spun
+# fast sends pulses closer together than 25 ms and a slower poll drops them.
+$keep = [System.Collections.ArrayList]@($keep | Where-Object { $_ -notmatch '^PollInterval' })
+[void]$keep.Insert(0, 'PollInterval=10')
+if (-not ($keep | Where-Object { $_ -match '^ButtonRepeat' })) { [void]$keep.Add('ButtonRepeat=20,10') }
 
 $section = @('[Buttons]') + @($keep) + @($lines)
 

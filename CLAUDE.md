@@ -270,6 +270,8 @@ but has not loaded them with FSUIPC running.
   explicit on/off).
 - **Never pass `-Confirm:$false` (or any `-Switch:value`) to a script the app runs.** The app starts scripts with `powershell -File`, and in that mode every argument is a plain string, so a switch cannot take a value: FSUIPC-writing tools refused with "Cannot convert System.String to SwitchParameter". The scripts have no High-impact ShouldProcess, so they need no Confirm argument at all.
 - **Measured 2026-09-04: the MSFS 2024 Cessna 172 title is `C172SP G1000 Passengers`.** No "Skyhawk", no "172 " with a space. Guessing "Skyhawk" from the 2020 title cost a flight. `Set-LeverAssignments` now prints a WARNING when no title in FSUIPC7.log contains the substring, listing the titles it has logged - the tell-tale before the flight, not after.
+- **Trim wheel (measured on the 172, 2026-09-05): forward must send `ELEV_TRIM_DN`**, the opposite of the first guess. One MSFS trim click per wheel notch is uselessly slow, so the map carries `repeat: 4` and the writer emits the press line four times (FSUIPC fires every line naming a button). `[Buttons] PollInterval` is forced to 10 ms so fast wheel pulses are not dropped. Tune `repeat` in `data/bravo-buttons.json` if 4 is wrong; nothing else changes.
+- The red mixture cap sits on **lever 2** in the fixed-pitch layout (letter X). Say "lever 2", never "lever 6", when talking about it.
 - **Capture rule for latching controls: the control must NOT already be in the
   asked-for position.** A diff against the baseline sees nothing, and the next
   thing moved is recorded under that name. It happened: lever 3 was already

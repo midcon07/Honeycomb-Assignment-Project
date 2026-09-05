@@ -1,4 +1,4 @@
-{
+﻿{
     "$comment":  "Bravo buttons: the trim wheel, autopilot panel, gear lever and the seven switches. Two halves. \u0027controls\u0027 is the PHYSICAL map - which button number each control is - and it is MEASURED by Probe-HoneycombDevices.ps1 -Capture, never typed in: \u0027prober\u0027 is the number the prober prints (Windows\u0027 1-based count), \u0027fsuipc\u0027 is FSUIPC\u0027s number for the same button (prober - 1, and above 31 FSUIPC reports from 132), and \u0027verified\u0027 is true only after the capture has seen it pressed. Set-BravoButtons.ps1 refuses to write any control that is not verified. \u0027map\u0027 is the CHOICE of what each control does in the sim - control numbers from the Controls List that ships with FSUIPC - and it is a decision to review, not a measurement. Switches send explicit ON on press and OFF on release rather than a toggle, so the switch position and the sim always agree. The INCR/DECR rotary depends on the mode selector: FSUIPC compound conditions, one line per mode.",
     "schemaVersion":  1,
     "device":  {
@@ -391,18 +391,22 @@
                                             ]
                               },
                 "TRIM_UP":  {
+                                "note":  "Measured backwards on the 172 (2026-09-05): forward must send ELEV_TRIM_DN. repeat = clicks per wheel notch; 1 was far too slow.",
                                 "press":  [
-                                              65615,
+                                              65607,
                                               0,
-                                              "ELEV_TRIM_UP"
-                                          ]
+                                              "ELEV_TRIM_DN"
+                                          ],
+                                "repeat":  4
                             },
                 "TRIM_DOWN":  {
+                                  "note":  "See TRIM_UP.",
                                   "press":  [
-                                                65607,
+                                                65615,
                                                 0,
-                                                "ELEV_TRIM_DN"
-                                            ]
+                                                "ELEV_TRIM_UP"
+                                            ],
+                                  "repeat":  4
                               },
                 "SWITCH_1":  {
                                  "press":  [

@@ -6,7 +6,7 @@ Write next to it what actually happened: **OK**, **backwards**, **nothing**,
 or a few words. Anything else on your mind goes in the notes at the bottom.
 
 Aircraft facts the map assumes: fixed-pitch prop (throttle + mixture only,
-levers 1 and 6), fixed gear, flaps 0/10/20/30, GFC 700 autopilot in the
+levers 1 and 2, the red cap), fixed gear, flaps 0/10/20/30, GFC 700 autopilot in the
 G1000 with HDG, NAV, APR, BC, ALT, VS, FLC and a TO/GA button.
 
 ---
@@ -16,7 +16,7 @@ G1000 with HDG, NAV, APR, BC, ALT, VS, FLC and a TO/GA button.
 - [ ] Flight plan refreshed and shows **C172**, KDPA → KSUE.
 - [ ] "MSFS is on the empty Bravo profile" confirmed.
 - [ ] "Write and restart FSUIPC". Report should end with `[Axes.Skyhawk]`,
-      two lines: throttle on lever 1, mixture on lever 6. No `<< ERROR`.
+      two lines: throttle on lever 1, mixture on lever 2. No `<< ERROR`.
 - [ ] Test rows that tick themselves: all green.
 
 The title substring for the 172 is **reasoned, not measured** (from the 2020
@@ -33,8 +33,8 @@ cockpit so you can watch the aircraft's own controls move.
 - [ ] Lever 1 forward: cockpit throttle follows the whole travel, idle at the
       detent, full at the stop, no dead band at either end.
 - [ ] Lever 1 pulled below the detent: **nothing** changes (no reverser on a piston).
-- [ ] Lever 6 (mixture): full forward = full rich, full back = idle cut-off.
-- [ ] Levers 2–5: nothing (no cap fitted, nothing assigned).
+- [ ] Lever 2, red cap (mixture): full forward = full rich, full back = idle cut-off.
+- [ ] Levers 3–6: nothing (no cap fitted, nothing assigned).
 
 **Switches** — flip one, watch the cockpit switch and its effect, flip back.
 - [ ] Battery: the aircraft's BAT half of the master moves, panel lights.
@@ -46,7 +46,7 @@ cockpit so you can watch the aircraft's own controls move.
       **matches your position** after flipping both ways twice.
 
 **Other**
-- [ ] Trim wheel: trim indicator moves; forward = nose down.
+- [ ] Trim wheel: trim indicator moves; forward = nose down. Four sim clicks per notch now (was one, and backwards): say if it is still too slow, too fast, or wrong way.
 - [ ] Flap handle: down three times = 10, 20, 30; up three times back to 0.
 - [ ] Gear lever: **nothing** (fixed gear).
 - [ ] TO/GA on lever 1: flight director bars appear in TO/GA pitch, or
@@ -92,7 +92,7 @@ Pattern altitude about 1700 ft. Field elevation 725.
 
 ## 5. After landing
 
-- [ ] Lever 6 full back: engine stops (mixture reached cut-off).
+- [ ] Lever 2 full back: engine stops (mixture reached cut-off).
 - [ ] Switches off in reverse order; every cockpit switch ends OFF matching yours.
 
 ---
@@ -103,7 +103,7 @@ Pattern altitude about 1700 ft. Field elevation 725.
   numbers swapped in the map. Say which control.
 - **Nothing** on a switch or button: the 172 ignores that standard event.
   Say which. The map is right; that aircraft needs a preset instead.
-- **Nothing** on lever 1 and 6 both: the title substring is wrong. I read the
+- **Nothing** on lever 1 and 2 both: the title substring is wrong. I read the
   real title from the FSUIPC log after the flight and fix the table.
 - **Knob works in some selector positions, not others**: condition number
   for that position. Say which positions worked.
