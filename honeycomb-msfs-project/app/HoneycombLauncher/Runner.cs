@@ -102,6 +102,96 @@ internal static class Runner
     }
 
     /// <summary>
+    /// Works out where FSUIPC7 is installed, the same way the preflight check
+    /// does: the running process first, then the uninstall registry, then a
+    /// folder named FSUIPC7 at the root of each drive. Returns "" if not found.
+    ///
+    /// Needed because fsuipcRoot was read from the configuration but never
+    /// written to it. On this machine it happened to be set; on a fresh one it
+    /// is empty, so the app would neither start FSUIPC nor be able to tell the
+    /// aircraft check where the ini lives - and nothing would say why.
+    /// </summary>
+    public static string FindFsuipcRoot()
+    {
+        try
+        {
+            var p = Process.GetProcessesByName("FSUIPC7").FirstOrDefault();
+            if (p?.MainModule?.FileName is string running) return Path.GetDirectoryName(running) ?? "";
+        }
+        catch { /* a running process we cannot inspect is not an error here */ }
+
+        foreach (var key in new[]
+        {
+            @"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall",
+            @"HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall",
+            @"HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall",
+        })
+        {
+            try
+            {
+                using var root = Microsoft.Win32.RegistryKey.OpenBaseKey(
+                        key.StartsWith("HKEY_CURRENT_USER") ? Microsoft.Win32.RegistryHive.CurrentUser
+                                                            : Microsoft.Win32.RegistryHive.LocalMachine,
+                        Microsoft.Win32.RegistryView.Default)
+                    .OpenSubKey(key.Substring(key.IndexOf('\\') + 1));
+                if (root is null) continue;
+                foreach (var name in root.GetSubKeyNames())
+                {
+                    using var sub = root.OpenSubKey(name);
+                    if (sub?.GetValue("DisplayName") is string dn && dn.Contains("FSUIPC7", StringComparison.OrdinalIgnoreCase)
+                        && sub.GetValue("InstallLocation") is string loc && !string.IsNullOrWhiteSpace(loc)
+                        && File.Exists(Path.Combine(loc, "FSUIPC7.exe")))
+                        return loc.TrimEnd('\\');
+                }
+            }
+            catch { /* try the next hive */ }
+        }
+
+        foreach (var d in DriveInfo.GetDrives())
+        {
+            try
+            {
+                var c = Path.Combine(d.RootDirectory.FullName, "FSUIPC7");
+                if (File.Exists(Path.Combine(c, "FSUIPC7.exe"))) return c;
+            }
+            catch { /* an unready drive is not an error */ }
+        }
+        return "";
+    }
+
+    /// <summary>
+    /// Closes FSUIPC7 so its ini can be written, and reports whether it went.
+    /// FSUIPC rewrites the whole file when it exits, so anything written while
+    /// it runs is silently undone - which is why the assignment tool refuses.
+    ///
+    /// Asks politely first. FSUIPC7 normally sits in the tray with no window to
+    /// close, so the fallback is expected rather than exceptional; at setup
+    /// time there are no in-session settings to lose.
+    /// </summary>
+    public static bool StopFsuipc(TimeSpan timeout)
+    {
+        var procs = Process.GetProcessesByName("FSUIPC7");
+        if (procs.Length == 0) return true;
+
+        foreach (var p in procs)
+        {
+            try { if (p.MainWindowHandle != IntPtr.Zero) p.CloseMainWindow(); } catch { }
+        }
+        var deadline = DateTime.UtcNow + timeout;
+        while (DateTime.UtcNow < deadline)
+        {
+            if (Process.GetProcessesByName("FSUIPC7").Length == 0) { Thread.Sleep(750); return true; }
+            Thread.Sleep(250);
+        }
+        foreach (var p in Process.GetProcessesByName("FSUIPC7"))
+        {
+            try { p.Kill(); } catch { }
+        }
+        Thread.Sleep(750);
+        return Process.GetProcessesByName("FSUIPC7").Length == 0;
+    }
+
+    /// <summary>
     /// Starts FSUIPC7 from its own folder, unless it is already running or is
     /// not where the configuration says. Returns a short word for the log:
     /// "started", "already running", "not configured" or "not found".

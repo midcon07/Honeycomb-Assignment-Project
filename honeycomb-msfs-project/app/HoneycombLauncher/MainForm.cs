@@ -119,9 +119,24 @@ internal sealed partial class MainForm : Form
         // does not depend on when the rest of startup loads it.
         try
         {
-            var cfg = AppConfig.Load(out _);
-            var outcome = Runner.LaunchFsuipc(cfg?.FsuipcRoot);
-            Program.Log("FSUIPC7 at startup: " + outcome);
+            var cfg = AppConfig.Load(out _) ?? new AppConfig();
+
+            // Learn where FSUIPC is on THIS machine, once, and write it down.
+            // Without this a fresh machine has an empty fsuipcRoot, so nothing
+            // starts FSUIPC and the planned-aircraft check cannot find the ini.
+            if (string.IsNullOrWhiteSpace(cfg.FsuipcRoot))
+            {
+                var found = Runner.FindFsuipcRoot();
+                if (!string.IsNullOrWhiteSpace(found))
+                {
+                    cfg.FsuipcRoot = found;
+                    cfg.Save();
+                    Program.Log("found FSUIPC7 at " + found + " and recorded it");
+                }
+                else Program.Log("FSUIPC7 not found on this computer");
+            }
+
+            Program.Log("FSUIPC7 at startup: " + Runner.LaunchFsuipc(cfg.FsuipcRoot));
         }
         catch (Exception ex)
         {
@@ -276,6 +291,18 @@ internal sealed partial class MainForm : Form
                     break;
                 }
 
+            case "setupLevers":
+                {
+                    var id = msg.TryGetProperty("id", out var v) ? v.GetString() : null;
+                    if (string.IsNullOrWhiteSpace(id))
+                    {
+                        await Send(new { kind = "setupResult", ok = false, message = "No aircraft chosen." });
+                        break;
+                    }
+                    await SetupLeversAsync(id);
+                    break;
+                }
+
             case "openSimBrief":
                 Runner.OpenUrl("https://dispatch.simbrief.com/options/new");
                 break;
@@ -369,6 +396,65 @@ internal sealed partial class MainForm : Form
             return;
         }
         await SendRaw("plan", json.Value);
+    }
+
+    /// <summary>
+    /// Writes this aircraft's lever settings into FSUIPC, on this machine.
+    ///
+    /// It has to happen here rather than being prepared in advance, because
+    /// the settings depend on facts only this computer knows: which letter
+    /// FSUIPC gave the quadrant (B on one machine, C on another), and where
+    /// FSUIPC is installed. Assignments authored elsewhere would point at
+    /// whatever device holds that letter here - silently.
+    ///
+    /// FSUIPC is stopped first and started again after. It rewrites its whole
+    /// ini when it exits, so a write underneath a running copy is undone with
+    /// no error; the tool refuses in that case, and this makes the refusal
+    /// unnecessary rather than something the user has to work around.
+    /// </summary>
+    private async Task SetupLeversAsync(string aircraftId)
+    {
+        Program.Log("setupLevers: " + aircraftId);
+        await Send(new { kind = "setupResult", ok = true, message = "Closing FSUIPC so its settings file can be written…" });
+
+        var wasRunning = System.Diagnostics.Process.GetProcessesByName("FSUIPC7").Length > 0;
+        if (!Runner.StopFsuipc(TimeSpan.FromSeconds(10)))
+        {
+            await Send(new
+            {
+                kind = "setupResult",
+                ok = false,
+                message = "FSUIPC7 would not close, so nothing was written.\n" +
+                          "Close it from its icon near the clock, then try again."
+            });
+            return;
+        }
+
+        var res = await Runner.PowerShellAsync(
+            Path.Combine(Runner.ToolsDir, "Set-LeverAssignments.ps1"),
+            "-Aircraft", aircraftId, "-Confirm:$false");
+
+        // The tool's own words are better than anything paraphrased here: it
+        // names the aircraft, the layout, the quadrant it resolved and every
+        // line it wrote, and its refusals already read as plain instructions.
+        var said = (res.StdOut + "\n" + res.StdErr).Trim();
+        var ok = res.ExitCode == 0;
+
+        var root = _cfg?.FsuipcRoot;
+        if (string.IsNullOrWhiteSpace(root)) root = Runner.FindFsuipcRoot();
+        if (wasRunning && !string.IsNullOrWhiteSpace(root))
+            Program.Log("FSUIPC7 restarted after setup: " + Runner.LaunchFsuipc(root));
+
+        Program.Log($"setupLevers finished, exit {res.ExitCode}");
+        await Send(new
+        {
+            kind = "setupResult",
+            ok,
+            message = (ok ? "Done.\n\n" : "Nothing was written.\n\n") + said
+        });
+
+        // The gate reports lever assignments and profiles, so it is now stale.
+        await PushPreflightAsync(true);
     }
 
     private async Task LaunchAsync()

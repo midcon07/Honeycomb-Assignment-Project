@@ -308,8 +308,12 @@ if ($Aircraft -and -not $Layout) {
     $entries = @()
     if ($table.PSObject.Properties['aircraft']) { $entries = @($table.aircraft) }
 
+    # Matched on icao as well as match/name, because the app knows an aircraft
+    # by its ICAO type (it stores lastAircraftId as "b350") and that is what it
+    # will pass. Case-insensitive on all three.
     $hit = @($entries | Where-Object {
-        $_.match -eq $Aircraft -or $_.name -eq $Aircraft
+        $_.match -eq $Aircraft -or $_.name -eq $Aircraft -or
+        ($_.PSObject.Properties['icao'] -and $_.icao -and ([string]$_.icao).ToUpper() -eq $Aircraft.ToUpper())
     })
 
     if ($hit.Count -eq 0) {

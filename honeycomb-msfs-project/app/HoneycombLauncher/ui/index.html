@@ -209,6 +209,16 @@
       inset 0 -1px 0 rgba(255,255,255,.07),
       0 1px 0 rgba(255,255,255,.15);
   }
+  /* Outcome of "Set up levers". Sits under the aircraft bar and stays put
+     until the next attempt, so a result cannot be missed. */
+  .setupmsg {
+    border-radius: 4px; padding: 10px 14px;
+    margin: -6px 0 clamp(10px, 1.6vw, 16px) 0;
+    font-size: 13px; line-height: 1.45; white-space: pre-wrap;
+    box-shadow: inset 0 1px 4px rgba(0,0,0,.6);
+  }
+  .setupmsg.ok  { background: rgba(60,140,70,.16);  color: #b7e3bd; border-left: 3px solid #3c8c46; }
+  .setupmsg.bad { background: rgba(170,60,50,.16);  color: #f0b9b3; border-left: 3px solid #aa3c32; }
   .acbar-label {
     font-weight: 700; letter-spacing: .2em; font-size: 12px;
     text-transform: uppercase; color: var(--placard);
@@ -714,6 +724,10 @@ window.APP = {
       case "planBusy":      S.planBusy = true; break;
       case "plan":          S.planBusy = false; S.plan = msg.data || msg; break;
       case "launched":      S.launched = true; break;
+      /* Shown directly rather than folded into the state and re-rendered:
+         it is the outcome of something the user just did, and it must not
+         be wiped by the next background preflight refresh. */
+      case "setupResult":   showSetupResult(msg); return;
     }
     render();
   }
@@ -1197,7 +1211,39 @@ byId("startBtn").addEventListener("click", function () {
     if (a) { post({ action: "confirmCaps", layout: a.layout }); }
   });
   bar.appendChild(b);
+
+  /* Writing the lever settings into FSUIPC. Separate from confirming the caps,
+     because they are different promises: that one says "the handles are on the
+     right levers", this one changes a file. It closes FSUIPC to write - FSUIPC
+     rewrites its whole ini on exit, so anything written under it is silently
+     undone - and starts it again afterwards. */
+  var s = el("button", "pbtn", "Set up levers in FSUIPC");
+  s.type = "button";
+  s.id = "setupBtn";
+  s.addEventListener("click", function () {
+    var a = craft(S.selectedId);
+    if (!a) { return; }
+    s.disabled = true;
+    s.textContent = "Setting up…";
+    post({ action: "setupLevers", id: a.id });
+  });
+  bar.appendChild(s);
 })();
+
+/* Result of the setup, in plain words, where the aircraft bar can show it. */
+function showSetupResult(m) {
+  var s = byId("setupBtn");
+  if (s) { s.disabled = false; s.textContent = "Set up levers in FSUIPC"; }
+  var box = byId("setupMsg");
+  if (!box) {
+    box = el("div", "setupmsg", "");
+    box.id = "setupMsg";
+    var bar = document.querySelector(".acbar");
+    if (bar && bar.parentNode) { bar.parentNode.insertBefore(box, bar.nextSibling); }
+  }
+  box.className = "setupmsg " + (m.ok ? "ok" : "bad");
+  box.textContent = m.message || "";
+}
 
 render();
 </script>
