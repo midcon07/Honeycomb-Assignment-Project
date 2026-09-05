@@ -410,6 +410,29 @@ if ($null -eq $AxisScale)  { $AxisScale  = if ($ControlFamily -eq 'Axis') { -1.0
 if ($null -eq $AxisOffset) { $AxisOffset = if ($ControlFamily -eq 'Axis') {    0 } else {  8192 } }
 
 $ini = [System.IO.Path]::Combine($FsuipcRoot, 'FSUIPC7.ini')
+
+# A title substring nobody has measured is the one thing this tool cannot
+# check against the sim - except by asking FSUIPC what it has seen. Its log
+# records every aircraft title loaded (Aircraft="..."). If it has seen titles
+# and none contains the substring, the profile will never attach and every
+# lever is dead: that is exactly how "Skyhawk" (real title "C172SP G1000
+# Passengers") and "King Air 350" (real title "Beechcraft King Air") failed.
+# Not a refusal, because an aircraft never yet loaded has no title to match.
+$titlesSeen = @()
+foreach ($lg in @('FSUIPC7.log', 'FSUIPC7_prev.log')) {
+    $lp = [System.IO.Path]::Combine($FsuipcRoot, $lg)
+    if (Test-Path -LiteralPath $lp) {
+        $titlesSeen += [regex]::Matches((Get-Content -Raw -LiteralPath $lp), 'Aircraft="([^"]+)"') | ForEach-Object { $_.Groups[1].Value }
+    }
+}
+$titlesSeen = @($titlesSeen | Sort-Object -Unique)
+if ($titlesSeen.Count -and -not ($titlesSeen | Where-Object { $_.IndexOf($Match, [StringComparison]::OrdinalIgnoreCase) -ge 0 })) {
+    Write-Host ''
+    Write-Host ('WARNING: FSUIPC has never seen an aircraft title containing "{0}". The levers will do NOTHING until the title matches.' -f $Match)
+    Write-Host ('         Titles it has logged: {0}' -f ($titlesSeen -join ' | '))
+    Write-Host '         If the aircraft is loaded in the sim right now, the substring in lever-layouts.json is wrong.'
+    Write-Host ''
+}
 if (-not (Test-Path -LiteralPath $ini)) { throw "No FSUIPC7.ini at $ini" }
 
 # FSUIPC holds its settings in memory and writes the whole ini out when it

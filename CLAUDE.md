@@ -269,6 +269,7 @@ but has not loaded them with FSUIPC running.
   (`TOGGLE_FEATHER_SWITCH_n`, toggle on press and on release — MSFS offers no
   explicit on/off).
 - **Never pass `-Confirm:$false` (or any `-Switch:value`) to a script the app runs.** The app starts scripts with `powershell -File`, and in that mode every argument is a plain string, so a switch cannot take a value: FSUIPC-writing tools refused with "Cannot convert System.String to SwitchParameter". The scripts have no High-impact ShouldProcess, so they need no Confirm argument at all.
+- **Measured 2026-09-04: the MSFS 2024 Cessna 172 title is `C172SP G1000 Passengers`.** No "Skyhawk", no "172 " with a space. Guessing "Skyhawk" from the 2020 title cost a flight. `Set-LeverAssignments` now prints a WARNING when no title in FSUIPC7.log contains the substring, listing the titles it has logged - the tell-tale before the flight, not after.
 - **Capture rule for latching controls: the control must NOT already be in the
   asked-for position.** A diff against the baseline sees nothing, and the next
   thing moved is recorded under that name. It happened: lever 3 was already

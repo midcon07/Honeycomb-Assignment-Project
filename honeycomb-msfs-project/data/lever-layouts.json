@@ -436,7 +436,7 @@
                          "name":  "Cessna 172 Skyhawk",
                          "icao":  "C172",
                          "match":  "Skyhawk",
-                         "titleMatch":  "Skyhawk",
+                         "titleMatch":  "C172SP",
                          "facts":  {
                                        "category":  "prop",
                                        "engines":  1,
@@ -444,7 +444,7 @@
                                        "mixtureControl":  true
                                    },
                          "layout":  "prop_1_fixed",
-                         "verified":  "type - fixed-pitch prop, mixture; titleMatch REASONED from the 2020 title (Cessna Skyhawk G1000 Asobo), not yet read from FSUIPC7.log; not yet flown"
+                         "verified":  "type - fixed-pitch prop, mixture; title measured 2026-09-04 from FSUIPC7.log: C172SP G1000 Passengers (guessing Skyhawk cost a flight); not yet flown"
                      },
                      {
                          "name":  "Beechcraft Bonanza G36",
