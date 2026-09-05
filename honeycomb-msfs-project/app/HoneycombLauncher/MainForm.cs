@@ -321,8 +321,7 @@ internal sealed partial class MainForm : Form
                     // binary container - so the tool stores who and when, and
                     // the check says plainly that it is not re-checked.
                     var res = await Runner.PowerShellAsync(
-                        Path.Combine(Runner.ToolsDir, "Confirm-SimBravoProfile.ps1"),
-                        "-Confirm:$false");
+                        Path.Combine(Runner.ToolsDir, "Confirm-SimBravoProfile.ps1"));
                     var said = (res.StdOut + "\n" + res.StdErr).Trim();
                     Program.Log($"confirmBravoProfile exit {res.ExitCode}");
                     await Send(new
@@ -506,7 +505,7 @@ internal sealed partial class MainForm : Form
 
         var res = await Runner.PowerShellAsync(
             Path.Combine(Runner.ToolsDir, "Set-LeverAssignments.ps1"),
-            "-Aircraft", aircraftId, "-Confirm:$false");
+            "-Aircraft", aircraftId);
 
         // The tool's own words are better than anything paraphrased here: it
         // names the aircraft, the layout, the quadrant it resolved and every
@@ -553,7 +552,7 @@ internal sealed partial class MainForm : Form
         }
 
         var res = await Runner.PowerShellAsync(
-            Path.Combine(Runner.ToolsDir, "Set-BravoButtons.ps1"), "-Confirm:$false");
+            Path.Combine(Runner.ToolsDir, "Set-BravoButtons.ps1"));
         var said = (res.StdOut + "\n" + res.StdErr).Trim();
         var ok = res.ExitCode == 0;
 

@@ -268,6 +268,7 @@ but has not loaded them with FSUIPC running.
   an aircraft's six detent lines sit on top. Turboprop prop levers → feather
   (`TOGGLE_FEATHER_SWITCH_n`, toggle on press and on release — MSFS offers no
   explicit on/off).
+- **Never pass `-Confirm:$false` (or any `-Switch:value`) to a script the app runs.** The app starts scripts with `powershell -File`, and in that mode every argument is a plain string, so a switch cannot take a value: FSUIPC-writing tools refused with "Cannot convert System.String to SwitchParameter". The scripts have no High-impact ShouldProcess, so they need no Confirm argument at all.
 - **Capture rule for latching controls: the control must NOT already be in the
   asked-for position.** A diff against the baseline sees nothing, and the next
   thing moved is recorded under that name. It happened: lever 3 was already
