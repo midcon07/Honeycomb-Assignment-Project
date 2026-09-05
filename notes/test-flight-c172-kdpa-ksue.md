@@ -19,10 +19,9 @@ G1000 with HDG, NAV, APR, BC, ALT, VS, FLC and a TO/GA button.
       two lines: throttle on lever 1, mixture on lever 2. No `<< ERROR`.
 - [ ] Test rows that tick themselves: all green.
 
-The title substring for the 172 is **reasoned, not measured** (from the 2020
-title "Cessna Skyhawk G1000 Asobo"). If the levers do nothing at the ramp,
-that is the first suspect, not the file. Nothing else in this flight depends
-on it except the two levers.
+The title substring for the 172 is now **measured** ("C172SP G1000 Passengers",
+read from the FSUIPC log after the first attempt, when "Skyhawk" left both
+levers dead). Levers were confirmed working on 2026-09-05.
 
 ## 1. Ramp, cold and dark
 
