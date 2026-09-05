@@ -355,6 +355,13 @@ internal sealed partial class MainForm : Form
                     // order, is the whole point of test mode.
                     var id = msg.TryGetProperty("id", out var v) ? v.GetString() : null;
                     await SetupButtonsAsync();
+                    // Each lever write only touches its own aircraft, so a stale
+                    // below-detent section on a piston (left by the first, wrong
+                    // write) survives a King Air write. The pistons_clean row
+                    // promises this button removes them, so rewrite them too.
+                    foreach (var piston in new[] { "da62", "be36" })
+                        if (!string.Equals(piston, id, StringComparison.OrdinalIgnoreCase))
+                            await SetupLeversAsync(piston);
                     if (!string.IsNullOrWhiteSpace(id)) await SetupLeversAsync(id);
                     await PushTestStatusAsync();
                     break;
