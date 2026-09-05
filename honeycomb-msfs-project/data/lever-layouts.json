@@ -514,6 +514,20 @@
                                    },
                          "layout":  "turboprop_2",
                          "verified":  "type - power, prop and condition levers, condition on AXIS_CONDITION_LEVER_1/2_SET as measured on the 350; sim title seen as \"King Air C90 GTX Passengers\" in FSUIPC\u0027s log; not yet flown"
+                     },
+                     {
+                         "name":  "Douglas DC-3",
+                         "icao":  "DC3",
+                         "match":  "DC-3",
+                         "titleMatch":  "Douglas DC-3",
+                         "facts":  {
+                                       "category":  "prop",
+                                       "engines":  2,
+                                       "propControl":  true,
+                                       "mixtureControl":  true
+                                   },
+                         "layout":  "prop_2_cs",
+                         "verified":  "type - two radials, prop and mixture levers; title measured 2026-09-05 from BigBoy FSUIPC7.log: Douglas DC-3 METAL LEFT (livery words dropped); not yet flown"
                      }
                  ]
 }

@@ -272,6 +272,8 @@ but has not loaded them with FSUIPC running.
 - **Measured 2026-09-04: the MSFS 2024 Cessna 172 title is `C172SP G1000 Passengers`.** No "Skyhawk", no "172 " with a space. Guessing "Skyhawk" from the 2020 title cost a flight. `Set-LeverAssignments` now prints a WARNING when no title in FSUIPC7.log contains the substring, listing the titles it has logged - the tell-tale before the flight, not after.
 - **Trim wheel (measured on the 172, 2026-09-05): forward must send `ELEV_TRIM_DN`**, the opposite of the first guess. One MSFS trim click per wheel notch is uselessly slow, so the map carries `repeat: 4` and the writer emits the press line four times (FSUIPC fires every line naming a button). `[Buttons] PollInterval` is forced to 10 ms so fast wheel pulses are not dropped. Tune `repeat` in `data/bravo-buttons.json` if 4 is wrong; nothing else changes.
 - The red mixture cap sits on **lever 2** in the fixed-pitch layout (letter X). Say "lever 2", never "lever 6", when talking about it.
+- **Measured 2026-09-05 on BigBoy: the DC-3 title is `Douglas DC-3 METAL LEFT`** - the livery is part of the title, so the substring is `Douglas DC-3`. Layout `prop_2_cs`, not yet flown.
+- **`myevents.txt` is installed by `Set-LeverAssignments` after every real write** (copied from `data/` into the FSUIPC folder when missing or different). BigBoy's log showed it had never been installed, which would have left the King Air condition levers dead there.
 - **Capture rule for latching controls: the control must NOT already be in the
   asked-for position.** A diff against the baseline sees nothing, and the next
   thing moved is recorded under that name. It happened: lever 3 was already

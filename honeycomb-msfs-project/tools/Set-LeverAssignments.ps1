@@ -836,6 +836,20 @@ if ($Aircraft) {
 [System.IO.File]::WriteAllText($ini, (($out -join "`r`n") + "`r`n"),
     (New-Object System.Text.UTF8Encoding($false)))
 Write-Host ("Wrote {0} assignments to {1}" -f $n, $ini) -ForegroundColor Green
+
+# Presets (the King Air condition levers) live in myevents.txt, which FSUIPC
+# reads from its own folder at startup. BigBoy's log said "Preset file
+# myevents.txt not found" - nothing had ever installed it there. This is the
+# right moment: the ini has just been written and FSUIPC is about to restart.
+$srcEv = [System.IO.Path]::Combine([System.IO.Path]::GetDirectoryName($DataFile), 'myevents.txt')
+$dstEv = [System.IO.Path]::Combine($FsuipcRoot, 'myevents.txt')
+if (Test-Path -LiteralPath $srcEv) {
+    $same = (Test-Path -LiteralPath $dstEv) -and ((Get-FileHash -LiteralPath $srcEv).Hash -eq (Get-FileHash -LiteralPath $dstEv).Hash)
+    if (-not $same) {
+        Copy-Item -LiteralPath $srcEv -Destination $dstEv -Force
+        Write-Host ("Installed presets: {0} (FSUIPC reads it at startup)" -f $dstEv) -ForegroundColor Green
+    }
+}
 Write-Host ''
 Write-Host 'Start FSUIPC7 again - it reads this file at startup.' -ForegroundColor Yellow
 Write-Host ''
