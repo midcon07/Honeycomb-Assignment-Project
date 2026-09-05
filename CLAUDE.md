@@ -236,6 +236,8 @@ but has not loaded them with FSUIPC running.
 
 ## Open
 
+- **VERIFY LATER (Mark, 2026-09-05): the IAS button reportedly does nothing on midcon07's machine.** Not yet tested by Mark; he will report. Candidates when it comes back: the 172/G1000 wants FLC via a different event than `AP_AIRSPEED_HOLD` (65898 family; check `events.txt` for the aircraft), or BigBoy's button map was written before the map was complete. Do not fix blind - wait for the report.
+
 - Lever 4 = `V` is by elimination from FSUIPC's six-axis list, not directly
   pushed. One throttle test closes it; not urgent.
 - **The page's `FLEET`/`LAYOUTS` are a hand copy of `data/lever-layouts.json`
