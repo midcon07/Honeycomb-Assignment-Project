@@ -643,7 +643,12 @@ if ($Aircraft -and -not $ClearGlobal) {
             $dp = $DetentPresets[$leverNo]
             if ($dp.press)   { [void]$btnLines.Add(('{0}=P{1},{2},CP{3},0' -f $bn, $JoystickLetter, $b, $dp.press)   + "`t; lever $leverNo below detent -> " + $dp.press);   $bn++ }
             if ($dp.release) { [void]$btnLines.Add(('{0}=U{1},{2},CP{3},0' -f $bn, $JoystickLetter, $b, $dp.release) + "`t; lever $leverNo back above detent -> " + $dp.release); $bn++ }
-        } elseif ($REV_ON.ContainsKey($role)) {
+        } elseif ($REV_ON.ContainsKey($role) -and ($Layout -like 'jet_*' -or $Layout -like 'turboprop_*')) {
+            # Only aircraft that HAVE reversers get reverse lines. A piston's
+            # throttle lever below the detent does nothing in the aircraft, and
+            # writing SET_REVERSE_THRUST for it would be a line that looks like
+            # a feature and is not. The first write did exactly that for the
+            # DA62 and Bonanza.
             [void]$btnLines.Add(('{0}=P{1},{2},C{3},0' -f $bn, $JoystickLetter, $b, $REV_ON[$role])  + "`t; lever $leverNo below detent -> SET_" + $REV_NAME[$role] + "_REVERSE_THRUST_ON");  $bn++
             [void]$btnLines.Add(('{0}=U{1},{2},C{3},0' -f $bn, $JoystickLetter, $b, $REV_OFF[$role]) + "`t; lever $leverNo back above detent -> SET_" + $REV_NAME[$role] + "_REVERSE_THRUST_OFF"); $bn++
         }
@@ -703,23 +708,29 @@ if (-not $replaced) {
 # --- the aircraft's own [Buttons.<name>] section: replace or append ---------
 # Same rule as the axes: only this aircraft's section is touched, other
 # aircraft's button sections and the global [Buttons] pass through.
-if ($btnLines.Count -gt 0) {
+if ($btnSectionName) {
+    # With lines: replace the section, or append it. With NO lines: remove
+    # any existing section, because a stale one would keep sending what the
+    # aircraft no longer calls for - the first write gave pistons reverse
+    # lines, and leaving those in place on a rewrite would be the same lie
+    # with a newer timestamp.
     $bHeaderRx = '^\s*\[' + [regex]::Escape($btnSectionName) + '\]\s*$'
     $out2 = New-Object System.Collections.ArrayList
     $inB = $false; $bReplaced = $false
     foreach ($line in $out) {
         if ($line -match $bHeaderRx) {
             $inB = $true; $bReplaced = $true
-            [void]$out2.AddRange([string[]]($btnSection -split "`r`n"))
+            if ($btnLines.Count -gt 0) { [void]$out2.AddRange([string[]]($btnSection -split "`r`n")) }
             continue
         }
         if ($inB -and $line -match '^\s*\[') { $inB = $false }
         if (-not $inB) { [void]$out2.Add($line) }
     }
-    if (-not $bReplaced) {
+    if (-not $bReplaced -and $btnLines.Count -gt 0) {
         [void]$out2.Add('')
         [void]$out2.AddRange([string[]]($btnSection -split "`r`n"))
     }
+    if ($bReplaced -and $btnLines.Count -eq 0) { Write-Host ('Removed a stale [{0}] section - this aircraft has no below-detent actions.' -f $btnSectionName) -ForegroundColor Yellow }
     $out = $out2
 }
 
