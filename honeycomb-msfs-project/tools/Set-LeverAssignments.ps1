@@ -625,6 +625,9 @@ if ($Aircraft -and -not $ClearGlobal) {
     $REV_ON  = @{ Throttle1 = 67400; Throttle2 = 67401; Throttle3 = 67402; Throttle4 = 67403; ThrottleAll = 67398 }
     $REV_OFF = @{ Throttle1 = 67404; Throttle2 = 67405; Throttle3 = 67406; Throttle4 = 67407; ThrottleAll = 67399 }
     $REV_NAME = @{ Throttle1 = 'THROTTLE1'; Throttle2 = 'THROTTLE2'; Throttle3 = 'THROTTLE3'; Throttle4 = 'THROTTLE4'; ThrottleAll = 'ALL' }
+    # Feather, from the Controls List: TOGGLE_FEATHER_SWITCH_n 66537-66540, all engines 66536.
+    $FEATHER      = @{ Prop1 = 66537; Prop2 = 66538; Prop3 = 66539; Prop4 = 66540; PropAll = 66536 }
+    $FEATHER_NAME = @{ Prop1 = 'TOGGLE_FEATHER_SWITCH_1'; Prop2 = 'TOGGLE_FEATHER_SWITCH_2'; Prop3 = 'TOGGLE_FEATHER_SWITCH_3'; Prop4 = 'TOGGLE_FEATHER_SWITCH_4'; PropAll = 'TOGGLE_FEATHER_SWITCHES' }
 
     $bn = 0
     for ($lever = 0; $lever -lt 6; $lever++) {
@@ -651,6 +654,34 @@ if ($Aircraft -and -not $ClearGlobal) {
             # DA62 and Bonanza.
             [void]$btnLines.Add(('{0}=P{1},{2},C{3},0' -f $bn, $JoystickLetter, $b, $REV_ON[$role])  + "`t; lever $leverNo below detent -> SET_" + $REV_NAME[$role] + "_REVERSE_THRUST_ON");  $bn++
             [void]$btnLines.Add(('{0}=U{1},{2},C{3},0' -f $bn, $JoystickLetter, $b, $REV_OFF[$role]) + "`t; lever $leverNo back above detent -> SET_" + $REV_NAME[$role] + "_REVERSE_THRUST_OFF"); $bn++
+        } elseif ($FEATHER.ContainsKey($role) -and $Layout -like 'turboprop_*') {
+            # A turboprop's prop lever below its detent is FEATHER. The first
+            # design gave props no below-detent action at all, and a tester
+            # pulling lever 3 down on the King Air got nothing, with no row in
+            # the checklist saying nothing was expected. MSFS offers only a
+            # toggle for feather - no explicit on/off - so it is sent on press
+            # and again on release; that follows the lever as long as the sim's
+            # feather state was in step to begin with, which is the honest
+            # limit of what a toggle can do. Pistons keep nothing: their prop
+            # levers do not feather.
+            [void]$btnLines.Add(('{0}=P{1},{2},C{3},0' -f $bn, $JoystickLetter, $b, $FEATHER[$role]) + "`t; lever $leverNo below detent -> " + $FEATHER_NAME[$role] + " (feather)");   $bn++
+            [void]$btnLines.Add(('{0}=U{1},{2},C{3},0' -f $bn, $JoystickLetter, $b, $FEATHER[$role]) + "`t; lever $leverNo back above detent -> " + $FEATHER_NAME[$role] + " (unfeather)"); $bn++
+        }
+    }
+}
+# Two levers resolving to one button means the physical map is wrong, and
+# writing it would make one lever fire another's action with no error from
+# FSUIPC. This happened: a capture with lever 3 already below its detent
+# shifted DETENT_3..5 by one lever and left 5 and 6 both on 132.
+if ($btnLines.Count -gt 0) {
+    $seen = @{}
+    foreach ($bl in $btnLines) {
+        if ($bl -match '^\d+=[PU][A-Z],(\d+),.*?; lever (\d+) ') {
+            $btn = $Matches[1]; $lv = $Matches[2]
+            if ($seen.ContainsKey($btn) -and $seen[$btn] -ne $lv) {
+                throw ("Refusing to write: levers {0} and {1} both resolve to FSUIPC button {2}. The button table is wrong - recapture the detents with EVERY lever above its detent first." -f $seen[$btn], $lv, $btn)
+            }
+            $seen[$btn] = $lv
         }
     }
 }

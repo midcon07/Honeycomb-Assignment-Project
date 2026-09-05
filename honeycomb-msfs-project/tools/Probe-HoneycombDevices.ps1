@@ -623,6 +623,13 @@ function Start-CaptureSession {
         $c = $table.controls.$name
         Write-Host ''
         Write-Host ('>> {0}: {1}' -f $name, $c.label) -ForegroundColor Yellow
+        # A latching control that is ALREADY in the asked-for position shows
+        # nothing new against the baseline, and the next thing moved gets
+        # recorded under this name. That shifted three detent numbers once.
+        # Saying what is held right now lets the person see it before acting.
+        if ($c.kind -eq 'latching' -and $baseline.Count) {
+            Write-Host ('   held right now: {0} - if this control is already in that position, move it OUT first, wait a second, then do it' -f ($baseline -join ', ')) -ForegroundColor DarkGray
+        }
 
         $hit = $null
         while ($null -eq $hit) {

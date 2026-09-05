@@ -207,12 +207,12 @@
                      "TOGA":  {
                                   "label":  "TO/GA button on top of lever 1",
                                   "kind":  "momentary",
-                                  "prober":  null,
-                                  "fsuipc":  null,
-                                  "verified":  false
+                                  "prober":  29,
+                                  "fsuipc":  28,
+                                  "verified":  true
                               },
                      "DETENT_1":  {
-                                      "label":  "lever 1 pulled below its detent",
+                                      "label":  "lever 1 pulled below its detent - with EVERY OTHER lever above its detent first",
                                       "kind":  "latching",
                                       "prober":  24,
                                       "fsuipc":  23,
@@ -220,7 +220,7 @@
                                       "source":  "measured 2026-09-03 with the prober; what it does is per aircraft, see Set-LeverAssignments"
                                   },
                      "DETENT_2":  {
-                                      "label":  "lever 2 pulled below its detent",
+                                      "label":  "lever 2 pulled below its detent - with EVERY OTHER lever above its detent first",
                                       "kind":  "latching",
                                       "prober":  25,
                                       "fsuipc":  24,
@@ -228,36 +228,36 @@
                                       "source":  "measured 2026-09-03 with the prober; what it does is per aircraft, see Set-LeverAssignments"
                                   },
                      "DETENT_3":  {
-                                      "label":  "lever 3 pulled below its detent",
+                                      "label":  "lever 3 pulled below its detent - with EVERY OTHER lever above its detent first",
                                       "kind":  "latching",
                                       "prober":  26,
                                       "fsuipc":  25,
                                       "verified":  true,
-                                      "source":  "measured 2026-09-03 with the prober; what it does is per aircraft, see Set-LeverAssignments"
+                                      "source":  "measured 2026-09-03 (prober sweep) and re-confirmed by live samples 2026-09-04; corrected after the file was found altered"
                                   },
                      "DETENT_4":  {
-                                      "label":  "lever 4 pulled below its detent",
+                                      "label":  "lever 4 pulled below its detent - with EVERY OTHER lever above its detent first",
                                       "kind":  "latching",
                                       "prober":  27,
                                       "fsuipc":  26,
                                       "verified":  true,
-                                      "source":  "measured 2026-09-03 with the prober; what it does is per aircraft, see Set-LeverAssignments"
+                                      "source":  "measured 2026-09-03 (prober sweep) and re-confirmed by live samples 2026-09-04; corrected after the file was found altered"
                                   },
                      "DETENT_5":  {
-                                      "label":  "lever 5 pulled below its detent",
+                                      "label":  "lever 5 pulled below its detent - with EVERY OTHER lever above its detent first",
                                       "kind":  "latching",
                                       "prober":  28,
                                       "fsuipc":  27,
                                       "verified":  true,
-                                      "source":  "measured 2026-09-03 with the prober; what it does is per aircraft, see Set-LeverAssignments"
+                                      "source":  "measured 2026-09-03 (prober sweep) and re-confirmed by live samples 2026-09-04; corrected after the file was found altered"
                                   },
                      "DETENT_6":  {
-                                      "label":  "lever 6 pulled below its detent",
+                                      "label":  "lever 6 pulled below its detent - with EVERY OTHER lever above its detent first",
                                       "kind":  "latching",
                                       "prober":  33,
                                       "fsuipc":  132,
                                       "verified":  true,
-                                      "source":  "measured 2026-09-03 with the prober; what it does is per aircraft, see Set-LeverAssignments"
+                                      "source":  "measured 2026-09-03 (prober sweep) and re-confirmed by live samples 2026-09-04; corrected after the file was found altered"
                                   }
                  },
     "$mapComment":  "Each entry: press = [control, parameter, name] sent when the button goes down; release = sent when it goes up; when = a table of condition-control -\u003e [control, parameter, name], written as FSUIPC compound lines CP(+joy,conditionButton). Names are for the ini comment only; the numbers are what FSUIPC reads.",

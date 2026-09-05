@@ -255,6 +255,27 @@ but has not loaded them with FSUIPC running.
   current set, never look for "a button". The **choice** of sim events lives
   in the same file's `map` and is reviewable; `Set-BravoButtons.ps1` writes
   the global `[Buttons]` and refuses unmeasured controls.
+- **Two layers, and only one knows about aircraft.** The physical map (which
+  button is which number, `data/bravo-buttons.json`) is measured once per Bravo
+  and is aircraft-free; 29 of its 35 controls also have aircraft-free *actions*
+  (global `[Buttons]`). The six detent buttons are the sole exception, forced by
+  the sim: the same button is feather on a prop lever, reverse on a throttle,
+  cut-off on a condition lever, nothing on a mixture — MSFS has no "lever N
+  went below its detent" event for the aircraft to interpret. **Documented
+  (User Guide, Buttons page): `[Buttons.<name>]` is *additive* — "anything
+  programmed without that checkbox selected will also be available, unless
+  overridden by an aircraft-specific assignment."** So the global 38 stay, and
+  an aircraft's six detent lines sit on top. Turboprop prop levers → feather
+  (`TOGGLE_FEATHER_SWITCH_n`, toggle on press and on release — MSFS offers no
+  explicit on/off).
+- **Capture rule for latching controls: the control must NOT already be in the
+  asked-for position.** A diff against the baseline sees nothing, and the next
+  thing moved is recorded under that name. It happened: lever 3 was already
+  below its detent during a capture, `DETENT_3..5` shifted by one and 5/6 both
+  read 132. Corrected from the 2026-09-03 measurement; the capture now prints
+  what is held before each latching prompt; `Set-LeverAssignments` refuses two
+  levers on one button. A recapture of the detents with every lever above its
+  detent would re-verify.
 - **Detent buttons are per-aircraft, in `[Buttons.<name>]`, written by
   `Set-LeverAssignments` from the layout:** throttle lever below detent →
   `SET_THROTTLEn_REVERSE_THRUST_ON` on press / `_OFF` on release (explicit

@@ -72,6 +72,11 @@
       "expect": "Pulling a throttle lever below its detent engages reverse on that engine; bringing it back above cancels it. The sim state follows the lever.",
       "ifNot": "Stuck in reverse after coming back up = the release line is not firing. Note which lever." },
 
+    { "id": "prop_detent",      "kind": "manual", "when": "turboprop",
+      "label": "Prop levers (3 and 4) below the detent = feather",
+      "expect": "Pulling a prop lever below its detent feathers that propeller; bringing it back above unfeathers it. MSFS only offers a feather TOGGLE, so this follows the lever as long as the sim started unfeathered.",
+      "ifNot": "Nothing at all = the line is missing (this row was added after lever 3 did nothing in the first test). Out of step = the sim's feather state was already on; cycle the lever once." },
+
     { "id": "condition_detent", "kind": "manual", "when": "turboprop",
       "label": "Condition levers (5 and 6) below the detent = cut-off",
       "expect": "Below the detent the aircraft's condition lever goes to CUT-OFF; back above it returns to LOW IDLE. This is the King Air's community preset path.",
