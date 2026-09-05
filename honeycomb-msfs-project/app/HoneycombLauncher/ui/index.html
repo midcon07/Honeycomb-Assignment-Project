@@ -643,6 +643,8 @@
       <label class="acbar-label" for="acSelect">Aircraft</label>
       <select id="acSelect"></select>
       <button class="pbtn" id="refreshBtn" type="button">Refresh Flight Plan</button>
+      <button class="pbtn" id="depWx"  type="button" disabled>Departure Wx</button>
+      <button class="pbtn" id="destWx" type="button" disabled>Destination Wx</button>
     </div>
 
     <div class="meter hidden" id="meter" role="status" aria-live="polite">
@@ -838,6 +840,7 @@ window.APP = {
          it is the outcome of something the user just did, and it must not
          be wiped by the next background preflight refresh. */
       case "setupProgress": showMeter(msg); return;
+      case "weather":       showWeather(msg.data || msg); return;
       case "setupResult":   showSetupResult(msg); return;
       case "testStatus":    S.test = msg; renderTestOverlay(); return;
     }
@@ -1086,6 +1089,11 @@ function renderButtons() {
   setState("buttonsBtn", c.buttonsWritten ? "done" : "todo");
   setState("bravoProfileBtn", c.bravoProfileConfirmed ? "done" : "todo");
   setState("testBtn", testComplete() ? "done" : "todo");
+  var hasPlan = !!(S.plan && S.plan.OriginIcao && S.plan.DestIcao);
+  ["depWx", "destWx"].forEach(function (id) {
+    var w = byId(id);
+    if (w && !w.busy) { w.disabled = !hasPlan; }
+  });
 }
 /* Every applicable step ticked, in a test that is running. */
 function testComplete() {
@@ -1353,6 +1361,8 @@ byId("winMax").addEventListener("click", function () { post({ action: "maximise"
 byId("winClose").addEventListener("click", function () { post({ action: "close" }); });
 
 byId("refreshBtn").addEventListener("click", function () { post({ action: "refresh" }); });
+byId("depWx").addEventListener("click",  function () { askWeather("dep"); });
+byId("destWx").addEventListener("click", function () { askWeather("dest"); });
 byId("pilotIdSave").addEventListener("click", function () {
   var id = byId("pilotIdInput").value.replace(/\D/g, "");
   byId("pilotIdInput").value = id;
@@ -1419,7 +1429,7 @@ byId("sbLink").addEventListener("click", function (e) {
   });
   bar.appendChild(bb);
 
-  var m = el("button", "pbtn", "MSFS is on the empty Bravo profile");
+  var m = el("button", "pbtn", "Empty Bravo profile set");
   m.type = "button";
   m.id = "bravoProfileBtn";
   m.addEventListener("click", function () {
@@ -1555,7 +1565,7 @@ function showMeter(m) {
 /* The pop-up. One window, one OK. A failure says where the log is and keeps
    the tool's words behind a "details" button, so the window itself stays
    short enough to read at a glance. */
-function showDialog(ok, title, body, path, details) {
+function showDialog(ok, title, body, path, details, open) {
   var old = byId("modalBack");
   if (old) { old.parentNode.removeChild(old); }
   var back = el("div", "modal-back", ""); back.id = "modalBack";
@@ -1569,8 +1579,9 @@ function showDialog(ok, title, body, path, details) {
   }
   var pre = null;
   if (details) { pre = el("pre", "", details); box.appendChild(pre); }
+  if (open && pre) { box.classList.add("open-details"); }
   var row = el("div", "row", "");
-  if (pre) {
+  if (pre && !open) {
     var d = el("button", "pbtn", "Details");
     d.type = "button";
     d.addEventListener("click", function () { box.classList.toggle("open-details"); });
@@ -1584,6 +1595,36 @@ function showDialog(ok, title, body, path, details) {
   back.appendChild(box);
   document.body.appendChild(back);
   okb.focus();
+}
+
+/* Departure / destination weather. The airport's position comes from the
+   plan's own fixes, so a field with no METAR can be matched to the nearest
+   station that has one - and the answer says which station that is. */
+function askWeather(which) {
+  if (!S.plan) { return; }
+  var icao = which === "dep" ? S.plan.OriginIcao : S.plan.DestIcao;
+  if (!icao) { return; }
+  var fix = null;
+  (S.plan.Fixes || []).forEach(function (p) { if (!fix && p.type === "apt" && p.id === icao) { fix = p; } });
+  var b = byId(which === "dep" ? "depWx" : "destWx");
+  b.busy = true; b.disabled = true; b.textContent = "Fetching…";
+  post({ action: "weather", icao: icao, label: which === "dep" ? "Departure" : "Destination",
+         lat: fix ? fix.lat : null, lon: fix ? fix.lon : null });
+}
+function showWeather(w) {
+  var dep = byId("depWx"), dst = byId("destWx");
+  dep.busy = false; dep.textContent = "Departure Wx";
+  dst.busy = false; dst.textContent = "Destination Wx";
+  renderButtons();
+  var label = (w.Label || "Weather") + " weather";
+  if (w.Status !== "OK") {
+    showDialog(false, label + " — " + (w.Requested || ""), w.Note || "No weather could be fetched.", null, null);
+    return;
+  }
+  var head = label + " — " + w.Station + (w.StationName ? "  " + w.StationName : "");
+  var body = w.Note ? w.Note : ("Observed " + (w.ObsTime || "") + " for " + w.Requested + ".");
+  var text = "METAR\n" + (w.Metar || "none") + "\n\nTAF\n" + (w.Taf || "none issued");
+  showDialog(true, head, body, null, text, true);
 }
 
 function showSetupResult(m) {

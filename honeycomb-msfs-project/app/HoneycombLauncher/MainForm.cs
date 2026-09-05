@@ -384,6 +384,33 @@ internal sealed partial class MainForm : Form
                     break;
                 }
 
+            case "weather":
+                {
+                    // Departure or destination weather. The tool asks
+                    // aviationweather.gov and handles the nearest-station
+                    // fallback; the page shows whatever it answers, including
+                    // "could not be reached", in a window.
+                    var icao  = msg.TryGetProperty("icao",  out var wi) ? wi.GetString() : null;
+                    var label = msg.TryGetProperty("label", out var wl) ? wl.GetString() : "Weather";
+                    var inv   = System.Globalization.CultureInfo.InvariantCulture;
+                    var lat   = msg.TryGetProperty("lat", out var wla) && wla.ValueKind == JsonValueKind.Number ? wla.GetDouble().ToString(inv) : null;
+                    var lon   = msg.TryGetProperty("lon", out var wlo) && wlo.ValueKind == JsonValueKind.Number ? wlo.GetDouble().ToString(inv) : null;
+                    if (string.IsNullOrWhiteSpace(icao)) break;
+                    var wargs = new List<string> { "-Icao", icao, "-Label", label ?? "Weather" };
+                    if (lat != null && lon != null) wargs.AddRange(new[] { "-Lat", lat, "-Lon", lon });
+                    var (wx, wraw) = await Runner.JsonToolAsync(
+                        Path.Combine(Runner.ToolsDir, "Get-AirportWeather.ps1"), wargs.ToArray());
+                    if (wx is null)
+                    {
+                        Program.Log("weather tool returned nothing: " + (wraw.StdErr + wraw.StdOut).Trim());
+                        await Send(new { kind = "weather", data = new { Status = "Unavailable", Label = label, Requested = icao,
+                            Note = "The weather tool returned nothing. See launcher.log." } });
+                        break;
+                    }
+                    await SendRaw("weather", wx.Value);
+                    break;
+                }
+
             case "openSimBrief":
                 Runner.OpenUrl("https://dispatch.simbrief.com/options/new");
                 break;
