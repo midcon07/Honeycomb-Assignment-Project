@@ -255,6 +255,16 @@ but has not loaded them with FSUIPC running.
   current set, never look for "a button". The **choice** of sim events lives
   in the same file's `map` and is reviewable; `Set-BravoButtons.ps1` writes
   the global `[Buttons]` and refuses unmeasured controls.
+- **Detent buttons are per-aircraft, in `[Buttons.<name>]`, written by
+  `Set-LeverAssignments` from the layout:** throttle lever below detent →
+  `SET_THROTTLEn_REVERSE_THRUST_ON` on press / `_OFF` on release (explicit
+  state, no toggle drift); a lever with `detentPresets` in the aircraft table →
+  those presets (King Air 350: `KA_Fuel_*_Condition_Lever_Cut_Off` / `Low_Idle`);
+  anything else → nothing. **TOGA** (top of lever 1) is global, `AUTO_THROTTLE_TO_GA`
+  65861. **Bug fixed 2026-09-04:** sections were named after the raw `-Aircraft`
+  argument, and the app passes ICAO ids — `[Axes.b350]` beside `[Profile.King
+  Air 350]` would have looked complete and done nothing. The profile name now
+  comes from the table entry.
 - **Bravo buttons — trim wheel, AP panel, gear, seven switches — were unassigned
   by design consequence:** "Claude Empty" is empty of *everything*, so choosing
   FSUIPC-owns-the-levers took MSFS's default button map away too. Cheapest

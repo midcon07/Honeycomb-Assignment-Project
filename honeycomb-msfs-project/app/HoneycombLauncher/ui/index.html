@@ -1269,6 +1269,19 @@ byId("startBtn").addEventListener("click", function () {
      is a person saying they have looked, and it is stored with their name and
      the date. Deliberately worded as a claim about what they can see on
      screen, not as a switch that changes anything. */
+  /* The button map - trim, autopilot panel, gear, switches, flaps, TOGA. Not
+     per aircraft, so it needs no aircraft chosen. Same close-write-restart
+     dance as the levers; the tool refuses anything not measured. */
+  var bb = el("button", "pbtn", "Set up Bravo buttons in FSUIPC");
+  bb.type = "button";
+  bb.id = "buttonsBtn";
+  bb.addEventListener("click", function () {
+    bb.disabled = true;
+    bb.textContent = "Setting up…";
+    post({ action: "setupButtons" });
+  });
+  bar.appendChild(bb);
+
   var m = el("button", "pbtn", "MSFS is on the empty Bravo profile");
   m.type = "button";
   m.id = "bravoProfileBtn";
@@ -1285,6 +1298,8 @@ function showSetupResult(m) {
   if (s) { s.disabled = false; s.textContent = "Set up levers in FSUIPC"; }
   var mb = byId("bravoProfileBtn");
   if (mb) { mb.disabled = false; }
+  var bb = byId("buttonsBtn");
+  if (bb) { bb.disabled = false; bb.textContent = "Set up Bravo buttons in FSUIPC"; }
   var box = byId("setupMsg");
   if (!box) {
     box = el("div", "setupmsg", "");

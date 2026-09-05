@@ -324,6 +324,10 @@ internal sealed partial class MainForm : Form
                     break;
                 }
 
+            case "setupButtons":
+                await SetupButtonsAsync();
+                break;
+
             case "openSimBrief":
                 Runner.OpenUrl("https://dispatch.simbrief.com/options/new");
                 break;
@@ -475,6 +479,42 @@ internal sealed partial class MainForm : Form
         });
 
         // The gate reports lever assignments and profiles, so it is now stale.
+        await PushPreflightAsync(true);
+    }
+
+    /// <summary>
+    /// Writes the Bravo's button map - trim wheel, autopilot panel, gear,
+    /// switches, flaps, TOGA - into FSUIPC's global [Buttons] section on this
+    /// machine. Same shape as SetupLeversAsync and for the same reasons: the
+    /// quadrant's letter is this machine's, and FSUIPC must be closed to write.
+    /// The tool refuses any control that has not been measured, so a machine
+    /// with an unmeasured map gets a plain refusal, not a guess.
+    /// </summary>
+    private async Task SetupButtonsAsync()
+    {
+        Program.Log("setupButtons");
+        await Send(new { kind = "setupResult", ok = true, message = "Closing FSUIPC so its settings file can be written…" });
+
+        var wasRunning = System.Diagnostics.Process.GetProcessesByName("FSUIPC7").Length > 0;
+        if (!Runner.StopFsuipc(TimeSpan.FromSeconds(10)))
+        {
+            await Send(new { kind = "setupResult", ok = false,
+                message = "FSUIPC7 would not close, so nothing was written.\nClose it from its icon near the clock, then try again." });
+            return;
+        }
+
+        var res = await Runner.PowerShellAsync(
+            Path.Combine(Runner.ToolsDir, "Set-BravoButtons.ps1"), "-Confirm:$false");
+        var said = (res.StdOut + "\n" + res.StdErr).Trim();
+        var ok = res.ExitCode == 0;
+
+        var root = _cfg?.FsuipcRoot;
+        if (string.IsNullOrWhiteSpace(root)) root = Runner.FindFsuipcRoot();
+        if (wasRunning && !string.IsNullOrWhiteSpace(root))
+            Program.Log("FSUIPC7 restarted after button setup: " + Runner.LaunchFsuipc(root));
+
+        Program.Log($"setupButtons finished, exit {res.ExitCode}");
+        await Send(new { kind = "setupResult", ok, message = (ok ? "Done.\n\n" : "Nothing was written.\n\n") + said });
         await PushPreflightAsync(true);
     }
 
