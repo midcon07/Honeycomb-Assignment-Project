@@ -639,6 +639,15 @@ function Start-CaptureSession {
             $now = Get-Pressed
             if ($null -eq $now) { continue }
             $new = @($now | Where-Object { $baseline -notcontains $_ })
+            if ($new.Count -eq 1 -and $c.kind -eq 'latching') {
+                # A rotary passes THROUGH positions on the way to the one asked
+                # for, and each is a button. Recording the first one seen gave
+                # IAS and CRS the same number. So for latching controls, wait
+                # for the selector or switch to come to rest, then read what is
+                # new against the baseline.
+                $settled = Wait-Settled
+                $new = @($settled | Where-Object { $baseline -notcontains $_ })
+            }
             if ($new.Count -eq 1) { $hit = [int]$new[0] }
             elseif ($new.Count -gt 1) {
                 Write-Host ('   more than one new button appeared ({0}) - release everything and do just that one' -f ($new -join ', ')) -ForegroundColor Red

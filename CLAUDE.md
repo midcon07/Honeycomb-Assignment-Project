@@ -242,7 +242,20 @@ but has not loaded them with FSUIPC running.
   and drifted** (King Air 350 wrong layout, C90 absent, turboprop layouts
   missing — fixed 2026-09-04, but the copy remains). The page should read the
   JSON; until it does, every table change must be made twice.
-- **Bravo buttons — trim wheel, AP panel, gear, seven switches — are unassigned
+- **Bravo button map — MEASURED 2026-09-04 by `Probe-HoneycombDevices.ps1
+  -Capture`, stored in `data/bravo-buttons.json`.** Prober numbers (FSUIPC =
+  n−1, and +100 above 31 — confirmed at scale, e.g. 34 → 133): AP panel
+  HDG…AUTOPILOT = `1–8`; knob INCR/DECR = `13/14`; mode selector HDG/VS/ALT =
+  `19/20/21` (IAS and CRS pending a settle-then-read recapture — the first
+  pass read a pass-through position); trim wheel = `22/23`; gear UP/DOWN =
+  `31/32`, **two buttons**; **each switch is two buttons, one per position**
+  (`34/35`, `36/37`, `38/39`, `40/41`, `42/43`, `44/45`, `46/47`); flap handle
+  pending. At rest the Bravo holds ~9 buttons (selector position, gear
+  position, seven switch positions) — any capture must diff against the
+  current set, never look for "a button". The **choice** of sim events lives
+  in the same file's `map` and is reviewable; `Set-BravoButtons.ps1` writes
+  the global `[Buttons]` and refuses unmeasured controls.
+- **Bravo buttons — trim wheel, AP panel, gear, seven switches — were unassigned
   by design consequence:** "Claude Empty" is empty of *everything*, so choosing
   FSUIPC-owns-the-levers took MSFS's default button map away too. Cheapest
   fix, doable in MSFS's UI on any machine in minutes: a profile copied from
