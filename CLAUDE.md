@@ -238,6 +238,19 @@ but has not loaded them with FSUIPC running.
 
 - Lever 4 = `V` is by elimination from FSUIPC's six-axis list, not directly
   pushed. One throttle test closes it; not urgent.
+- **The page's `FLEET`/`LAYOUTS` are a hand copy of `data/lever-layouts.json`
+  and drifted** (King Air 350 wrong layout, C90 absent, turboprop layouts
+  missing — fixed 2026-09-04, but the copy remains). The page should read the
+  JSON; until it does, every table change must be made twice.
+- **Bravo buttons — trim wheel, AP panel, gear, seven switches — are unassigned
+  by design consequence:** "Claude Empty" is empty of *everything*, so choosing
+  FSUIPC-owns-the-levers took MSFS's default button map away too. Cheapest
+  fix, doable in MSFS's UI on any machine in minutes: a profile copied from
+  MSFS's default Bravo map with **only the six lever axes (and any
+  spoiler/flap axes) removed** — buttons stay MSFS's, levers are FSUIPC's. The
+  real build (FSUIPC `[Buttons]` map from measured button numbers; PMDG via
+  `events.txt` presets) is the deep-configuration item. Button syntax is
+  documented; numbers follow the measured rule (prober − 1; > 31 → 132+).
 - **King Air 350 condition levers — unresolved, and Mark's live ini holds a
   diagnostic.** State on 2026-09-04 ~22:50: `[Axes.King Air 350]` has lever 5
   on the custom axis preset and lever 6 as a main entry plus two *range* lines
