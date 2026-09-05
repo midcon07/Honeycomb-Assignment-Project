@@ -216,6 +216,7 @@ not from assumption.
 | FSUIPC7 | `C:\FSUIPC7`, **7.5.0.6** (Mark: 7.5.0.7). Licence **present**. `myevents.txt` absent — ours to install |
 | **`[JoyNames]` — his Bravo is `C`** | **`A` = WINWING SKYWALKER Metal Rudder Pedals, `B` = Alpha Flight Controls, `C` = Bravo Throttle Quadrant.** On Mark's machine the Bravo is `B`. **Had the letter stayed hardcoded, every assignment would have gone to his Alpha yoke, silently.** Verified 2026-09-04 by running `Set-LeverAssignments` against a replica of his ini: it resolves `C` and emits `CY`/`CX`. His pedals also report a different product string than Mark's (SKYWALKER vs WINCTRL Orion) on the same `VID_4098`/`PID_BEF0` |
 | His known sim titles | **`DA62 Passengers`** (identical to Mark's, so the `DA62` substring carries) and **`777F`** (the PMDG 777F). No King Air or 737 title yet — he did not load them |
+| "Claude Empty" MSFS profile | **exists — Mark created it on his machine.** But the gate reads the confirmation from `config.json`, which BigBoy does not have, so check 35 shows amber until `tools/Confirm-SimBravoProfile.ps1` is run **there**. Existing and being *selected* for the Bravo are different things; only selected stops MSFS fighting FSUIPC |
 | MSFS auto-starts FSUIPC | yes — `FSUIPC7` is in his `EXE.xml`, alongside `Couatl` and `AFCBridge`. So launching MSFS once is enough to create the ini |
 | Flight controls | Bravo, Alpha and WINWING pedals **all connected** |
 | Launcher prerequisites | **met** — .NET 8 Desktop `8.0.30`, WebView2 `151.0.4129.107`, SimBrief reachable |
