@@ -286,6 +286,11 @@ $CTRL = $CTRL_BY_FAMILY[$ControlFamily]
 # Filled from the aircraft table's leverPresets. Empty means every lever is a
 # plain control.
 $LeverPresets = @{}
+# Lever number -> @{ press = preset; release = preset } for what pulling that
+# lever BELOW its detent does on this aircraft, when it is not the standard
+# reverse-thrust event. The King Air's condition levers use its community
+# cut-off / low-idle presets. Filled from the aircraft table's detentPresets.
+$DetentPresets = @{}
 $Aircraft = $Aircraft.Trim()
 $Match    = $Match.Trim()
 if ($Aircraft -and -not $Match) { $Match = $Aircraft }
@@ -336,6 +341,16 @@ if ($Aircraft -and -not $Layout) {
 
     $Layout = [string]$hit[0].layout
 
+    # The table entry's "match" is the PROFILE NAME - what [Profile.X],
+    # [Axes.X] and [Buttons.X] are all called. The argument may have been an
+    # ICAO type or the long name (the app passes "b350"), and naming sections
+    # after that would produce [Axes.b350] with a [Profile.King Air 350] that
+    # never refers to it. So once the entry is known, the profile name comes
+    # from it, and so does the default title substring (overridden by
+    # titleMatch below, or by an explicit -Match).
+    $Aircraft = [string]$hit[0].match
+    if (-not $PSBoundParameters.ContainsKey('Match')) { $Match = $Aircraft }
+
     # Per-lever presets, for levers this aircraft does not drive from an axis
     # event. The Asobo King Air 350i's condition levers are the case in point:
     # neither AXIS_MIXTURE nor AXIS_CONDITION_LEVER moved them, because the
@@ -348,6 +363,20 @@ if ($Aircraft -and -not $Layout) {
                 $LeverPresets[$leverNo] = [string]$p.Value
             } else {
                 throw ("Aircraft table: leverPresets for ""{0}"" has a bad entry ""{1}"" - keys must be lever numbers 1-6." -f $Aircraft, $p.Name)
+            }
+        }
+    }
+
+    if ($hit[0].PSObject.Properties['detentPresets'] -and $hit[0].detentPresets) {
+        foreach ($p in $hit[0].detentPresets.PSObject.Properties) {
+            $leverNo = 0
+            if ([int]::TryParse($p.Name, [ref]$leverNo) -and $leverNo -ge 1 -and $leverNo -le 6 -and $p.Value) {
+                $DetentPresets[$leverNo] = @{
+                    press   = [string]$p.Value.press
+                    release = [string]$p.Value.release
+                }
+            } else {
+                throw ("Aircraft table: detentPresets for ""{0}"" has a bad entry ""{1}"" - keys must be lever numbers 1-6." -f $Aircraft, $p.Name)
             }
         }
     }
@@ -568,6 +597,60 @@ for ($lever = 0; $lever -lt 6; $lever++) {
 
 $section = $lines -join "`r`n"
 
+# --- what pulling a lever BELOW its detent does, per aircraft -----------------
+# The Bravo's axis saturates at the detent, so the detent BUTTON is the only
+# signal that a lever has gone below it - measured, and the reason reverse
+# thrust is a button here and not part of the axis. What that button should do
+# follows from the lever's role in this layout:
+#
+#   Throttle n     reverse thrust for engine n - SET_THROTTLEn_REVERSE_THRUST_ON
+#                  on press, _OFF on release, so the sim's reverser state always
+#                  matches where the lever physically is (a toggle would drift)
+#   ThrottleAll    the same, for all engines
+#   any lever with a detentPresets entry in the aircraft table (the King Air's
+#                  condition levers: cut off below the detent, low idle back
+#                  above it) - community presets, press and release
+#   anything else  nothing
+#
+# The button numbers come from data/bravo-buttons.json, the one measured
+# physical map, and an unmeasured one is skipped rather than guessed.
+$btnLines = New-Object System.Collections.ArrayList
+$btnSectionName = ''
+if ($Aircraft -and -not $ClearGlobal) {
+    $btnSectionName = 'Buttons.' + $Aircraft
+    $btnFile = [System.IO.Path]::Combine($PSScriptRoot, '..', 'data', 'bravo-buttons.json')
+    $btnTable = $null
+    if (Test-Path -LiteralPath $btnFile) { $btnTable = Get-Content -LiteralPath $btnFile -Raw | ConvertFrom-Json }
+
+    $REV_ON  = @{ Throttle1 = 67400; Throttle2 = 67401; Throttle3 = 67402; Throttle4 = 67403; ThrottleAll = 67398 }
+    $REV_OFF = @{ Throttle1 = 67404; Throttle2 = 67405; Throttle3 = 67406; Throttle4 = 67407; ThrottleAll = 67399 }
+    $REV_NAME = @{ Throttle1 = 'THROTTLE1'; Throttle2 = 'THROTTLE2'; Throttle3 = 'THROTTLE3'; Throttle4 = 'THROTTLE4'; ThrottleAll = 'ALL' }
+
+    $bn = 0
+    for ($lever = 0; $lever -lt 6; $lever++) {
+        $role = $controls[$lever]
+        if ($null -eq $role) { continue }
+        $leverNo = $lever + 1
+        $det = $null
+        if ($btnTable -and $btnTable.controls.PSObject.Properties['DETENT_' + $leverNo]) { $det = $btnTable.controls.('DETENT_' + $leverNo) }
+        if ($null -eq $det -or -not [bool]$det.verified -or $null -eq $det.fsuipc) {
+            Write-Host ('Lever {0}: detent button not measured - no below-detent action written for it.' -f $leverNo) -ForegroundColor Yellow
+            continue
+        }
+        $b = [int]$det.fsuipc
+
+        if ($DetentPresets.ContainsKey($leverNo)) {
+            $dp = $DetentPresets[$leverNo]
+            if ($dp.press)   { [void]$btnLines.Add(('{0}=P{1},{2},CP{3},0' -f $bn, $JoystickLetter, $b, $dp.press)   + "`t; lever $leverNo below detent -> " + $dp.press);   $bn++ }
+            if ($dp.release) { [void]$btnLines.Add(('{0}=U{1},{2},CP{3},0' -f $bn, $JoystickLetter, $b, $dp.release) + "`t; lever $leverNo back above detent -> " + $dp.release); $bn++ }
+        } elseif ($REV_ON.ContainsKey($role)) {
+            [void]$btnLines.Add(('{0}=P{1},{2},C{3},0' -f $bn, $JoystickLetter, $b, $REV_ON[$role])  + "`t; lever $leverNo below detent -> SET_" + $REV_NAME[$role] + "_REVERSE_THRUST_ON");  $bn++
+            [void]$btnLines.Add(('{0}=U{1},{2},C{3},0' -f $bn, $JoystickLetter, $b, $REV_OFF[$role]) + "`t; lever $leverNo back above detent -> SET_" + $REV_NAME[$role] + "_REVERSE_THRUST_OFF"); $bn++
+        }
+    }
+}
+$btnSection = if ($btnLines.Count) { (@('[' + $btnSectionName + ']') + @($btnLines)) -join "`r`n" } else { '' }
+
 Write-Host ''
 Write-Host ('Section: [{0}]   Layout: {1}' -f $sectionName, $(if ($ClearGlobal) { '(cleared)' } else { $Layout }))
 if ($Aircraft) { Write-Host ('Profile: [Profile.{0}] matches aircraft titles containing "{1}"' -f $Aircraft, $Match) }
@@ -577,6 +660,7 @@ Write-Host ('Quadrant: joystick {0} = "{1}" per [JoyNames]; lever letters {2}' -
     $JoystickLetter, $deviceName, ($AxisLetters -join ' '))
 Write-Host ''
 Write-Host $section
+if ($btnSection) { Write-Host ''; Write-Host $btnSection }
 Write-Host ''
 
 if ($WhatIfPreference) {
@@ -614,6 +698,29 @@ foreach ($line in $existing) {
 if (-not $replaced) {
     [void]$out.Add('')
     [void]$out.AddRange([string[]]($section -split "`r`n"))
+}
+
+# --- the aircraft's own [Buttons.<name>] section: replace or append ---------
+# Same rule as the axes: only this aircraft's section is touched, other
+# aircraft's button sections and the global [Buttons] pass through.
+if ($btnLines.Count -gt 0) {
+    $bHeaderRx = '^\s*\[' + [regex]::Escape($btnSectionName) + '\]\s*$'
+    $out2 = New-Object System.Collections.ArrayList
+    $inB = $false; $bReplaced = $false
+    foreach ($line in $out) {
+        if ($line -match $bHeaderRx) {
+            $inB = $true; $bReplaced = $true
+            [void]$out2.AddRange([string[]]($btnSection -split "`r`n"))
+            continue
+        }
+        if ($inB -and $line -match '^\s*\[') { $inB = $false }
+        if (-not $inB) { [void]$out2.Add($line) }
+    }
+    if (-not $bReplaced) {
+        [void]$out2.Add('')
+        [void]$out2.AddRange([string[]]($btnSection -split "`r`n"))
+    }
+    $out = $out2
 }
 
 # --- make sure the profile exists and lists the aircraft ---------------------
