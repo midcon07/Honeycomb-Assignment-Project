@@ -59,6 +59,12 @@
 
   body {
     margin: 0;
+    /* Text size. The panel was drawn at readout-instrument sizes (8-16px)
+       and the person it is for is 84. zoom scales everything - text, caps
+       diagram, spacing - in proportion, so the layout keeps its shape.
+       Default is a third larger; A- / A+ in the title bar adjust it and the
+       choice is remembered on this computer. */
+    zoom: 1.33;
     background: #0A0C0D;
     color: var(--placard);
     font-family: var(--f-placard);
@@ -273,6 +279,10 @@
   .alert.hidden { display: none; }
   .alert.warn { background: rgba(240,168,30,.10); border-color: var(--amber-dim); }
   .alert.ok   { background: rgba(79,217,100,.08); border-color: var(--green-dim); }
+  /* Neutral: a state that is fine and needs nothing - flying without a plan
+     is a choice, not a fault, and amber every launch teaches people to
+     ignore amber. */
+  .alert.info { background: rgba(120,140,160,.08); border-color: #4A555F; }
   .alert-mark {
     flex: none; width: 26px; height: 26px; border-radius: 50%;
     display: grid; place-items: center;
@@ -281,6 +291,7 @@
   }
   .alert.warn .alert-mark { color: var(--amber); }
   .alert.ok   .alert-mark { color: var(--green); }
+  .alert.info .alert-mark { color: var(--placard-dim); }
   .alert-body { min-width: 0; flex: 1 1 auto; }
   .alert-head {
     font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
@@ -288,6 +299,7 @@
   }
   .alert.warn .alert-head { color: var(--amber-bright); }
   .alert.ok   .alert-head { color: #8CF39B; }
+  .alert.info .alert-head { color: var(--placard); }
   .alert-text {
     margin: 0; font-family: var(--f-readout); font-size: 11.5px;
     line-height: 1.6; color: var(--placard-dim);
@@ -539,6 +551,8 @@
   <div class="titlebar" id="titlebar">
     <span class="name">Honeycomb Preflight</span>
     <span class="spacer"></span>
+    <button class="winbtn" id="textSmaller" type="button" title="Smaller text" aria-label="Smaller text">A&#8722;</button>
+    <button class="winbtn" id="textLarger"  type="button" title="Larger text"  aria-label="Larger text">A+</button>
     <button class="winbtn" id="winMin" type="button" title="Minimise" aria-label="Minimise">&#8211;</button>
     <button class="winbtn" id="winMax" type="button" title="Maximise" aria-label="Maximise">&#9633;</button>
     <button class="winbtn close" id="winClose" type="button" title="Close" aria-label="Close">&#10005;</button>
@@ -631,6 +645,13 @@ var LAYOUTS = {
     lv: [B,B,R,R,X,X], fns: ["Throttle 1","Throttle 2","Mixture 1","Mixture 2",null,null] },
   prop_2_cs: { name: "Twin engine, constant-speed prop", caps: "2 x BLACK, 2 x BLUE, 2 x RED - all six",
     lv: [B,B,U,U,R,R], fns: ["Throttle 1","Throttle 2","Prop 1","Prop 2","Mixture 1","Mixture 2"] },
+  /* Turboprops: same handles as constant-speed, but the red levers are
+     CONDITION levers, and the sim drives them differently. Measured on the
+     King Air 350 - see data/lever-layouts.json. */
+  turboprop_1: { name: "Single turboprop", caps: "BLACK, BLUE, RED on levers 1 to 3",
+    lv: [B,U,R,X,X,X], fns: ["Power","Prop","Condition",null,null,null] },
+  turboprop_2: { name: "Twin turboprop", caps: "2 x BLACK, 2 x BLUE, 2 x RED - all six",
+    lv: [B,B,U,U,R,R], fns: ["Power 1","Power 2","Prop 1","Prop 2","Condition 1","Condition 2"] },
   fadec_1: { name: "Single engine, FADEC", caps: "BLACK on lever 1, the rest empty",
     lv: [B,X,X,X,X,X], fns: ["Throttle",null,null,null,null,null] },
   fadec_2: { name: "Twin engine, FADEC", caps: "2 x BLACK on levers 1 and 2, the rest empty",
@@ -658,7 +679,8 @@ var FLEET = [
   { id: "tbm9", name: "Daher TBM 930",            type: "TBM9", layout: "fadec_1" },
   { id: "da62", name: "Diamond DA62",             type: "DA62", layout: "fadec_2" },
   { id: "be58", name: "Beechcraft Baron G58",     type: "BE58", layout: "prop_2_cs" },
-  { id: "b350", name: "Beechcraft King Air 350i", type: "B350", layout: "prop_2_cs" },
+  { id: "b350", name: "Beechcraft King Air 350i", type: "B350", layout: "turboprop_2" },
+  { id: "be9l", name: "Beechcraft King Air C90 GTx", type: "BE9L", layout: "turboprop_2" },
   { id: "c25c", name: "Cessna Citation CJ4",      type: "C25C", layout: "jet_2" },
   { id: "a20n", name: "Airbus A320neo",           type: "A20N", layout: "jet_2" },
   { id: "b738", name: "PMDG 737-800",             type: "B738", layout: "jet_2" },
@@ -837,15 +859,15 @@ function renderAlert() {
   // Config always arrives before the plan, so this state happens on every
   // start. Without it the code fell through to the success branch and read a
   // null plan, which threw and stopped every renderer after it.
-  if (st === "none")   { show("warn", "·", "Flight plan not loaded yet", "Press refresh if this stays.", false); return; }
+  if (st === "none")   { show("info", "·", "No flight plan loaded", "You can fly without one. Press refresh to look for a SimBrief plan.", false); return; }
   if (st === "nopilot") {
-    show("warn", "?", "SimBrief is not set up yet",
-         "Enter your SimBrief Pilot ID below and your flight plan will be checked automatically.", true);
+    show("info", "·", "Flying without a flight plan",
+         "That is fine. If you want your SimBrief plan checked against the aircraft, enter your SimBrief Pilot ID below.", true);
     return;
   }
   if (st === "noplan") {
-    show("warn", "!", "No flight plan on file",
-         "Make one on SimBrief for the " + a.name + ", then press refresh. You can fly without a plan.", true);
+    show("info", "·", "No flight plan on file - flying free",
+         "That is fine. If you want a route checked, make one on SimBrief for the " + a.name + " and press refresh.", true);
     return;
   }
   if (st === "mismatch") {
@@ -1187,6 +1209,19 @@ byId("titlebar").addEventListener("dblclick", function (e) {
 byId("grip").addEventListener("mousedown", function () { post({ action: "resize" }); });
 byId("winMin").addEventListener("click", function () { post({ action: "minimise" }); });
 byId("winMax").addEventListener("click", function () { post({ action: "maximise" }); });
+
+/* Text size. Stored on this computer only; if storage is unavailable the
+   default from the stylesheet stands and the buttons still work for the
+   session. Steps of a tenth, between normal and double. */
+(function textSize() {
+  var KEY = "hc.zoom", MIN = 1.0, MAX = 2.0, DEF = 1.33;
+  function read()  { try { var v = parseFloat(localStorage.getItem(KEY)); return isFinite(v) ? v : DEF; } catch (e) { return DEF; } }
+  function write(v){ try { localStorage.setItem(KEY, String(v)); } catch (e) { /* not remembered, still applied */ } }
+  function apply(v){ v = Math.round(Math.min(MAX, Math.max(MIN, v)) * 10) / 10; document.body.style.zoom = v; write(v); return v; }
+  var cur = apply(read());
+  byId("textSmaller").addEventListener("click", function () { cur = apply(cur - 0.1); });
+  byId("textLarger").addEventListener("click",  function () { cur = apply(cur + 0.1); });
+})();
 byId("winClose").addEventListener("click", function () { post({ action: "close" }); });
 
 byId("refreshBtn").addEventListener("click", function () { post({ action: "refresh" }); });
