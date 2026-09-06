@@ -723,6 +723,10 @@ if ($Aircraft -and -not $ClearGlobal) {
     # them with at startup (-{THROTTLE1_DECR}-), not from memory or a list.
     $DECR      = @{ Throttle1 = 65966; Throttle2 = 65971; Throttle3 = 65976; Throttle4 = 65981; ThrottleAll = 65602 }
     $DECR_NAME = @{ Throttle1 = 'THROTTLE1_DECR'; Throttle2 = 'THROTTLE2_DECR'; Throttle3 = 'THROTTLE3_DECR'; Throttle4 = 'THROTTLE4_DECR'; ThrottleAll = 'THROTTLE_DECR' }
+    # Throttle cut (idle, and on add-ons with modelled reversers, stow).
+    # Same probe, same day.
+    $CUT       = @{ Throttle1 = 65967; Throttle2 = 65972; Throttle3 = 65977; Throttle4 = 65982; ThrottleAll = 65604 }
+    $CUT_NAME  = @{ Throttle1 = 'THROTTLE1_CUT'; Throttle2 = 'THROTTLE2_CUT'; Throttle3 = 'THROTTLE3_CUT'; Throttle4 = 'THROTTLE4_CUT'; ThrottleAll = 'THROTTLE_CUT' }
     $FEATHER      = @{ Prop1 = 66537; Prop2 = 66538; Prop3 = 66539; Prop4 = 66540; PropAll = 66536 }
     $FEATHER_NAME = @{ Prop1 = 'TOGGLE_FEATHER_SWITCH_1'; Prop2 = 'TOGGLE_FEATHER_SWITCH_2'; Prop3 = 'TOGGLE_FEATHER_SWITCH_3'; Prop4 = 'TOGGLE_FEATHER_SWITCH_4'; PropAll = 'TOGGLE_FEATHER_SWITCHES' }
 
@@ -757,12 +761,18 @@ if ($Aircraft -and -not $ClearGlobal) {
                 # lifted reverser lever IS a held button. A plain control, not
                 # a preset: measured 2026-09-05, FSUIPC does not repeat a
                 # preset (the levers unlocked and stopped), it repeats only
-                # its own controls. Rate: ButtonRepeat in [Buttons]. Pushing
-                # the lever down sends idle.
+                # its own controls. The repeat marker is "R" IN PLACE OF "P"
+                # (n=R<joy>,<btn>,...) - measured the same day: FSUIPC keeps
+                # an "RP" line without a word and without flagging it, and
+                # never fires it. Rate: ButtonRepeat in [Buttons]. Pushing
+                # the lever down sends idle twice over: the throttle's own
+                # idle value, and THROTTLEn_CUT, which on add-ons with
+                # modelled reversers also stows them.
                 $ts = $CTRL_BY_FAMILY['Legacy'][$role]
                 [void]$btnLines.Add(('{0}=P{1},{2},C{3},{4}' -f $bn, $JoystickLetter, $rb, $ts, $ReverseAmount) + "`t; lever $leverNo reverser lifted -> " + $REV_NAME[$role].Replace('ALL', 'THROTTLE') + "_SET $ReverseAmount (unlock reverse)"); $bn++
-                [void]$btnLines.Add(('{0}=RP{1},{2},C{3},0'  -f $bn, $JoystickLetter, $rb, $DECR[$role])        + "`t; lever $leverNo reverser held up -> " + $DECR_NAME[$role] + " repeating (reverse levers travel back)"); $bn++
+                [void]$btnLines.Add(('{0}=R{1},{2},C{3},0'   -f $bn, $JoystickLetter, $rb, $DECR[$role])        + "`t; lever $leverNo reverser held up -> " + $DECR_NAME[$role] + " repeating (reverse levers travel back)"); $bn++
                 [void]$btnLines.Add(('{0}=U{1},{2},C{3},0'   -f $bn, $JoystickLetter, $rb, $ts)                 + "`t; lever $leverNo reverser down -> "   + $REV_NAME[$role].Replace('ALL', 'THROTTLE') + "_SET 0 (idle)"); $bn++
+                [void]$btnLines.Add(('{0}=U{1},{2},C{3},0'   -f $bn, $JoystickLetter, $rb, $CUT[$role])         + "`t; lever $leverNo reverser down -> "   + $CUT_NAME[$role] + " (stow)"); $bn++
             } else {
                 [void]$btnLines.Add(('{0}=P{1},{2},C{3},0' -f $bn, $JoystickLetter, $rb, $REV_ON[$role])  + "`t; lever $leverNo reverser lifted -> SET_" + $REV_NAME[$role] + "_REVERSE_THRUST_ON");  $bn++
                 [void]$btnLines.Add(('{0}=U{1},{2},C{3},0' -f $bn, $JoystickLetter, $rb, $REV_OFF[$role]) + "`t; lever $leverNo reverser down -> SET_"   + $REV_NAME[$role] + "_REVERSE_THRUST_OFF"); $bn++
