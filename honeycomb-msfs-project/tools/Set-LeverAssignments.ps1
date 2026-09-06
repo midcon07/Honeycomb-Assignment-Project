@@ -718,6 +718,11 @@ if ($Aircraft -and -not $ClearGlobal) {
     $REV_OFF = @{ Throttle1 = 67404; Throttle2 = 67405; Throttle3 = 67406; Throttle4 = 67407; ThrottleAll = 67399 }
     $REV_NAME = @{ Throttle1 = 'THROTTLE1'; Throttle2 = 'THROTTLE2'; Throttle3 = 'THROTTLE3'; Throttle4 = 'THROTTLE4'; ThrottleAll = 'ALL' }
     # Feather, from the Controls List: TOGGLE_FEATHER_SWITCH_n 66537-66540, all engines 66536.
+    # Throttle decrease, one step per send. Measured 2026-09-05 by writing
+    # candidate numbers into the ini and reading the names FSUIPC annotated
+    # them with at startup (-{THROTTLE1_DECR}-), not from memory or a list.
+    $DECR      = @{ Throttle1 = 65966; Throttle2 = 65971; Throttle3 = 65976; Throttle4 = 65981; ThrottleAll = 65602 }
+    $DECR_NAME = @{ Throttle1 = 'THROTTLE1_DECR'; Throttle2 = 'THROTTLE2_DECR'; Throttle3 = 'THROTTLE3_DECR'; Throttle4 = 'THROTTLE4_DECR'; ThrottleAll = 'THROTTLE_DECR' }
     $FEATHER      = @{ Prop1 = 66537; Prop2 = 66538; Prop3 = 66539; Prop4 = 66540; PropAll = 66536 }
     $FEATHER_NAME = @{ Prop1 = 'TOGGLE_FEATHER_SWITCH_1'; Prop2 = 'TOGGLE_FEATHER_SWITCH_2'; Prop3 = 'TOGGLE_FEATHER_SWITCH_3'; Prop4 = 'TOGGLE_FEATHER_SWITCH_4'; PropAll = 'TOGGLE_FEATHER_SWITCHES' }
 
@@ -749,14 +754,14 @@ if ($Aircraft -and -not $ClearGlobal) {
                 # repeated "throttle decrease" commands, as holding F2 gives,
                 # to bring the reverse levers back. An R-prefixed line repeats
                 # its control for as long as the button is held, and the
-                # lifted reverser lever IS a held button. The preset is ours
-                # (data/myevents.txt, installed with every write) and names the
-                # event, so no control number is guessed. Rate: ButtonRepeat
-                # in [Buttons]. Pushing the lever down sends idle.
+                # lifted reverser lever IS a held button. A plain control, not
+                # a preset: measured 2026-09-05, FSUIPC does not repeat a
+                # preset (the levers unlocked and stopped), it repeats only
+                # its own controls. Rate: ButtonRepeat in [Buttons]. Pushing
+                # the lever down sends idle.
                 $ts = $CTRL_BY_FAMILY['Legacy'][$role]
-                $decr = 'HC_' + $role + '_Decr'
                 [void]$btnLines.Add(('{0}=P{1},{2},C{3},{4}' -f $bn, $JoystickLetter, $rb, $ts, $ReverseAmount) + "`t; lever $leverNo reverser lifted -> " + $REV_NAME[$role].Replace('ALL', 'THROTTLE') + "_SET $ReverseAmount (unlock reverse)"); $bn++
-                [void]$btnLines.Add(('{0}=RP{1},{2},CP{3},0' -f $bn, $JoystickLetter, $rb, $decr)               + "`t; lever $leverNo reverser held up -> $decr, repeating (reverse levers travel back)"); $bn++
+                [void]$btnLines.Add(('{0}=RP{1},{2},C{3},0'  -f $bn, $JoystickLetter, $rb, $DECR[$role])        + "`t; lever $leverNo reverser held up -> " + $DECR_NAME[$role] + " repeating (reverse levers travel back)"); $bn++
                 [void]$btnLines.Add(('{0}=U{1},{2},C{3},0'   -f $bn, $JoystickLetter, $rb, $ts)                 + "`t; lever $leverNo reverser down -> "   + $REV_NAME[$role].Replace('ALL', 'THROTTLE') + "_SET 0 (idle)"); $bn++
             } else {
                 [void]$btnLines.Add(('{0}=P{1},{2},C{3},0' -f $bn, $JoystickLetter, $rb, $REV_ON[$role])  + "`t; lever $leverNo reverser lifted -> SET_" + $REV_NAME[$role] + "_REVERSE_THRUST_ON");  $bn++
