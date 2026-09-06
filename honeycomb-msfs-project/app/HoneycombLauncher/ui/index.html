@@ -825,7 +825,7 @@ window.APP = {
         if (document.activeElement !== byId("pilotIdInput")) { byId("pilotIdInput").value = msg.pilotId || ""; }
         if (!S.selectedId && msg.lastAircraftId) { S.selectedId = msg.lastAircraftId; }
         break;
-      case "preflightBusy": S.preflightBusy = true; break;
+      case "preflightBusy": S.preflightBusy = true; return;   // silent: no redraw for a background re-check
       case "preflight":     S.preflightBusy = false; S.preflight = msg.data || msg; break;
       case "planBusy":      S.planBusy = true; break;
       case "plan":
@@ -852,7 +852,11 @@ window.APP = {
 /* --------------------------------------------------------------- render -- */
 
 function verdict() {
-  if (S.preflightBusy || !S.preflight) { return "CHECKING"; }
+  // A re-check in the background keeps the last answer on screen. Only the
+  // very first check, with nothing known yet, shows as checking - flipping
+  // every button to "checking" every thirty seconds taught the reader that
+  // the panel is never settled (Mark, 2026-09-05).
+  if (!S.preflight) { return "CHECKING"; }
   return S.preflight.verdict || "CANNOT RUN";
 }
 
@@ -1063,8 +1067,7 @@ function renderChecklist() {
                  : v === "SETUP NEEDED" ? "— Setup Needed —"
                  : "— Hold —";
   var outstanding = rows.filter(function (r) { return r.lamp === "r" || r.lamp === "a"; }).length;
-  setText("clStamp", (S.preflightBusy ? "rechecking · " : "") +
-                     outstanding + " of " + rows.length + " items outstanding");
+  setText("clStamp", outstanding + " of " + rows.length + " items outstanding");
 }
 
 function canLaunch() {

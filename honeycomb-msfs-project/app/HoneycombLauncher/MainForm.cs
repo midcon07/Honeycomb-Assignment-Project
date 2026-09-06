@@ -28,6 +28,45 @@ internal sealed partial class MainForm : Form
     // changes, so no registration is needed to hear about a USB plug or unplug.
     private const int WM_DEVICECHANGE = 0x0219;
     private const int DBT_DEVNODES_CHANGED = 0x0007;
+    private const int WM_NCCALCSIZE = 0x0083;
+    private const int WS_THICKFRAME = 0x00040000;
+    private const int WS_MAXIMIZEBOX = 0x00010000;
+    private const int WS_MINIMIZEBOX = 0x00020000;
+
+    // Two "drag" presses within the double-click time are a double-click on
+    // the title bar. The page cannot see it: the first press hands the mouse
+    // to Windows for the native drag, so the page's own dblclick never fires.
+    private DateTime _lastDragPress = DateTime.MinValue;
+
+    /// <summary>
+    /// A borderless window that Windows still treats as a real one: the
+    /// maximise and thick-frame styles are what make drag-to-the-top-edge
+    /// snap it to full screen and let it be maximised at all. The frame
+    /// those styles would draw is removed in WndProc (WM_NCCALCSIZE), so
+    /// nothing changes on screen.
+    /// </summary>
+    protected override CreateParams CreateParams
+    {
+        get
+        {
+            var cp = base.CreateParams;
+            cp.Style |= WS_THICKFRAME | WS_MAXIMIZEBOX | WS_MINIMIZEBOX;
+            return cp;
+        }
+    }
+
+    /// <summary>
+    /// With a thick frame, a maximised window is sized by Windows to the
+    /// screen plus the (now invisible) frame, so its edges would hang off
+    /// the monitor. Pinning the maximised bounds to the work area of
+    /// whichever monitor the window is on keeps it exact and clear of the
+    /// taskbar.
+    /// </summary>
+    protected override void OnMove(EventArgs e)
+    {
+        base.OnMove(e);
+        try { MaximizedBounds = Screen.FromControl(this).WorkingArea; } catch { }
+    }
 
     // Not readonly: when the browser process behind the page dies, the page
     // is gone for good and the only recovery is a new control (see
@@ -251,6 +290,12 @@ internal sealed partial class MainForm : Form
 
     protected override void WndProc(ref Message m)
     {
+        // No non-client area at all: the page draws its own title bar.
+        if (m.Msg == WM_NCCALCSIZE && m.WParam != IntPtr.Zero)
+        {
+            m.Result = IntPtr.Zero;
+            return;
+        }
         if (m.Msg == WM_DEVICECHANGE && (int)m.WParam == DBT_DEVNODES_CHANGED)
         {
             // Restart the timer on every message so the burst collapses into
@@ -295,8 +340,19 @@ internal sealed partial class MainForm : Form
         {
             // --- window chrome, since there is no title bar ---
             case "drag":
-                ReleaseCapture();
-                SendMessage(Handle, WM_NCLBUTTONDOWN, (IntPtr)HTCAPTION, IntPtr.Zero);
+                {
+                    var now = DateTime.UtcNow;
+                    var dbl = (now - _lastDragPress).TotalMilliseconds <= SystemInformation.DoubleClickTime;
+                    _lastDragPress = dbl ? DateTime.MinValue : now;
+                    if (dbl)
+                    {
+                        WindowState = WindowState == FormWindowState.Maximized
+                            ? FormWindowState.Normal : FormWindowState.Maximized;
+                        break;
+                    }
+                    ReleaseCapture();
+                    SendMessage(Handle, WM_NCLBUTTONDOWN, (IntPtr)HTCAPTION, IntPtr.Zero);
+                }
                 break;
             case "resize":
                 ReleaseCapture();
