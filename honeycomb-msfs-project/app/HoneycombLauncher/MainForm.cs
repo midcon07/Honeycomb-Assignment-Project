@@ -29,7 +29,12 @@ internal sealed partial class MainForm : Form
     private const int WM_DEVICECHANGE = 0x0219;
     private const int DBT_DEVNODES_CHANGED = 0x0007;
 
-    private readonly WebView2 _web = new() { Dock = DockStyle.Fill };
+    // Not readonly: when the browser process behind the page dies, the page
+    // is gone for good and the only recovery is a new control (see
+    // RecreateWebAsync). Measured 2026-09-05: a launcher went black with the
+    // process alive and no page process left under it.
+    private WebView2 _web = new() { Dock = DockStyle.Fill };
+    private bool _recreating;
     private AppConfig _cfg;
     private string _cfgProblem;
 
@@ -156,12 +161,29 @@ internal sealed partial class MainForm : Form
             Program.LogError("LaunchFsuipc at startup", ex);
         }
 
+        await InitWebAsync();
+    }
+
+    /// <summary>
+    /// Creates the browser behind the page and loads the page. Called once
+    /// at start and again by RecreateWebAsync after the browser process dies.
+    /// </summary>
+    private async Task InitWebAsync()
+    {
         var userData = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "HoneycombAssignment", "webview");
         Directory.CreateDirectory(userData);
 
-        var env = await CoreWebView2Environment.CreateAsync(null, userData);
+        // GPU compositing off. Embedded Chromium windows are known to go
+        // black - and stay black - under remote-desktop sessions and after
+        // display changes when the GPU process is lost; this page is a
+        // panel of text and a small drawing, and needs none of it.
+        var opts = new CoreWebView2EnvironmentOptions
+        {
+            AdditionalBrowserArguments = "--disable-gpu-compositing"
+        };
+        var env = await CoreWebView2Environment.CreateAsync(null, userData, opts);
         await _web.EnsureCoreWebView2Async(env);
 
         var s = _web.CoreWebView2.Settings;
@@ -177,9 +199,21 @@ internal sealed partial class MainForm : Form
         // null and every push afterwards fails with a NullReferenceException
         // that names no cause. This is the event that carries the cause; log
         // it so the failure reads as what it is.
-        _web.CoreWebView2.ProcessFailed += (_, ev) =>
+        _web.CoreWebView2.ProcessFailed += async (_, ev) =>
+        {
             Program.Log($"WebView2 process failed: {ev.ProcessFailedKind}, reason {ev.Reason}, exit code {ev.ExitCode}" +
                         (string.IsNullOrEmpty(ev.ProcessDescription) ? "" : $", {ev.ProcessDescription}"));
+            // A dead browser or renderer means a black window until the
+            // program is restarted. Rebuild the page instead; the state it
+            // shows is re-read from disk and the tools, so nothing is lost.
+            if (ev.ProcessFailedKind is CoreWebView2ProcessFailedKind.BrowserProcessExited
+                                    or CoreWebView2ProcessFailedKind.RenderProcessExited
+                                    or CoreWebView2ProcessFailedKind.RenderProcessUnresponsive)
+            {
+                try { await RecreateWebAsync(); }
+                catch (Exception ex) { Program.LogError("RecreateWeb", ex); }
+            }
+        };
         _web.CoreWebView2.NavigationCompleted += async (_, _) =>
         {
             try { await RefreshAllAsync(); }
@@ -189,6 +223,30 @@ internal sealed partial class MainForm : Form
 
         var ui = Path.Combine(AppContext.BaseDirectory, "ui", "index.html");
         _web.CoreWebView2.Navigate(new Uri(ui).AbsoluteUri);
+    }
+
+    /// <summary>
+    /// Throws the dead browser control away and builds a new one. Serialised:
+    /// a browser death raises several failure events in a row.
+    /// </summary>
+    private async Task RecreateWebAsync()
+    {
+        if (_recreating) return;
+        _recreating = true;
+        try
+        {
+            Program.Log("page process lost - rebuilding the page");
+            _slowPoll.Stop();
+            var old = _web;
+            _web = new WebView2 { Dock = DockStyle.Fill };
+            Controls.Add(_web);
+            _web.BringToFront();
+            try { Controls.Remove(old); old.Dispose(); } catch (Exception ex) { Program.LogError("dispose old page", ex); }
+            _webGoneLogged = false;
+            await InitWebAsync();
+            Program.Log("page rebuilt");
+        }
+        finally { _recreating = false; }
     }
 
     protected override void WndProc(ref Message m)
