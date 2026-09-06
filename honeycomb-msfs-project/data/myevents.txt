@@ -41,3 +41,18 @@
 // inferred from behaviour. Costs nothing; leave it in.
 KA350_Condition1_Axis#@ (>L:HC_Cond1_Raw) @ -10922 < if{ 0 } els{ @ -5461 < if{ 1 } els{ 2 } } s0 (>L:Condition_Lever_CutOff_1) l0 0 > (>K:SET_FUEL_VALVE_ENG1) l0 (>A:TURB ENG CONDITION LEVER POSITION:1,enum)
 KA350_Condition2_Axis#@ (>L:HC_Cond2_Raw) @ -10922 < if{ 0 } els{ @ -5461 < if{ 1 } els{ 2 } } s0 (>L:Condition_Lever_CutOff_2) l0 0 > (>K:SET_FUEL_VALVE_ENG2) l0 (>A:TURB ENG CONDITION LEVER POSITION:2,enum)
+
+// ---------------------------------------------------------------------------
+// Reverse thrust on add-ons that model the reverser lever (PMDG 737, measured
+// 2026-09-05): THROTTLEn_SET to a negative value only unlocks REVERSE IDLE -
+// the levers came up about 5% and stopped. The aircraft then wants repeated
+// "throttle decrease" commands, the way holding F2 works, to bring the
+// reverse levers back. FSUIPC repeats a button's control while the button is
+// held (an R-prefixed line), and the Bravo's lifted reverser lever IS a held
+// button, so these presets are assigned as repeating presses. Written as
+// calculator code on the event NAME so no control number has to be guessed.
+HC_Throttle1_Decr#(>K:THROTTLE1_DECR)
+HC_Throttle2_Decr#(>K:THROTTLE2_DECR)
+HC_Throttle3_Decr#(>K:THROTTLE3_DECR)
+HC_Throttle4_Decr#(>K:THROTTLE4_DECR)
+HC_ThrottleAll_Decr#(>K:THROTTLE_DECR)
