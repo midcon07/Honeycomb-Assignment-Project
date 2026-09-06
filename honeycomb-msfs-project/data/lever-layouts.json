@@ -552,6 +552,75 @@
                                                       }
                                      },
                          "reverse":  "throttleSet"
+                     },
+                     {
+                         "name":  "Boeing 737-700 (PMDG)",
+                         "icao":  "B737",
+                         "match":  "737-700",
+                         "titleMatch":  "737-700",
+                         "facts":  {
+                                       "category":  "jet",
+                                       "engines":  2
+                                   },
+                         "layout":  "jet_2",
+                         "verified":  "type - copied from the 737-600, which was flown 2026-09-05 (same Bravo setup, same reverse recipe, same HGS switch); titleMatch REASONED from the measured 600 title (737-600 PAX SC), not yet read from FSUIPC7.log; not yet flown",
+                         "buttons":  {
+                                         "FLAPS_DOWN":  {
+                                                            "preset":  "PMDG_B737-7_HGS_HUD_UP_DOWN_SWITCH",
+                                                            "why":  "HGS combiner - the flap axis is lever 6 on a jet, so the flap switch is free. PMDG offers one toggle, so both directions toggle."
+                                                        },
+                                         "FLAPS_UP":  {
+                                                          "preset":  "PMDG_B737-7_HGS_HUD_UP_DOWN_SWITCH",
+                                                          "why":  "HGS combiner (same toggle)"
+                                                      }
+                                     },
+                         "reverse":  "throttleSet"
+                     },
+                     {
+                         "name":  "Boeing 737-800 (PMDG)",
+                         "icao":  "B738",
+                         "match":  "737-800",
+                         "titleMatch":  "737-800",
+                         "facts":  {
+                                       "category":  "jet",
+                                       "engines":  2
+                                   },
+                         "layout":  "jet_2",
+                         "verified":  "type - copied from the 737-600, which was flown 2026-09-05 (same Bravo setup, same reverse recipe, same HGS switch); titleMatch REASONED from the measured 600 title (737-600 PAX SC), not yet read from FSUIPC7.log; not yet flown",
+                         "buttons":  {
+                                         "FLAPS_DOWN":  {
+                                                            "preset":  "PMDG_B737-7_HGS_HUD_UP_DOWN_SWITCH",
+                                                            "why":  "HGS combiner - the flap axis is lever 6 on a jet, so the flap switch is free. PMDG offers one toggle, so both directions toggle."
+                                                        },
+                                         "FLAPS_UP":  {
+                                                          "preset":  "PMDG_B737-7_HGS_HUD_UP_DOWN_SWITCH",
+                                                          "why":  "HGS combiner (same toggle)"
+                                                      }
+                                     },
+                         "reverse":  "throttleSet"
+                     },
+                     {
+                         "name":  "Boeing 737-900 (PMDG)",
+                         "icao":  "B739",
+                         "match":  "737-900",
+                         "titleMatch":  "737-900",
+                         "facts":  {
+                                       "category":  "jet",
+                                       "engines":  2
+                                   },
+                         "layout":  "jet_2",
+                         "verified":  "type - copied from the 737-600, which was flown 2026-09-05 (same Bravo setup, same reverse recipe, same HGS switch); titleMatch REASONED from the measured 600 title (737-600 PAX SC), not yet read from FSUIPC7.log; not yet flown",
+                         "buttons":  {
+                                         "FLAPS_DOWN":  {
+                                                            "preset":  "PMDG_B737-7_HGS_HUD_UP_DOWN_SWITCH",
+                                                            "why":  "HGS combiner - the flap axis is lever 6 on a jet, so the flap switch is free. PMDG offers one toggle, so both directions toggle."
+                                                        },
+                                         "FLAPS_UP":  {
+                                                          "preset":  "PMDG_B737-7_HGS_HUD_UP_DOWN_SWITCH",
+                                                          "why":  "HGS combiner (same toggle)"
+                                                      }
+                                     },
+                         "reverse":  "throttleSet"
                      }
                  ]
 }
