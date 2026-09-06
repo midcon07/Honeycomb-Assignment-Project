@@ -834,7 +834,12 @@ window.APP = {
       case "preflightBusy": S.preflightBusy = true; break;
       case "preflight":     S.preflightBusy = false; S.preflight = msg.data || msg; break;
       case "planBusy":      S.planBusy = true; break;
-      case "plan":          S.planBusy = false; S.plan = msg.data || msg; break;
+      case "plan":
+        S.planBusy = false; S.plan = msg.data || msg;
+        // Only after the person pressed refresh - not on the background
+        // re-reads - so the window appears when they are looking for it.
+        if (S.refreshAsked) { S.refreshAsked = false; warnUnknownPlanAircraft(); }
+        break;
       case "launched":      S.launched = true; break;
       /* Shown directly rather than folded into the state and re-rendered:
          it is the outcome of something the user just did, and it must not
@@ -1360,7 +1365,7 @@ byId("winMax").addEventListener("click", function () { post({ action: "maximise"
 })();
 byId("winClose").addEventListener("click", function () { post({ action: "close" }); });
 
-byId("refreshBtn").addEventListener("click", function () { post({ action: "refresh" }); });
+byId("refreshBtn").addEventListener("click", function () { S.refreshAsked = true; post({ action: "refresh" }); });
 byId("depWx").addEventListener("click",  function () { askWeather("dep"); });
 byId("destWx").addEventListener("click", function () { askWeather("dest"); });
 byId("pilotIdSave").addEventListener("click", function () {
@@ -1595,6 +1600,29 @@ function showDialog(ok, title, body, path, details, open) {
   back.appendChild(box);
   document.body.appendChild(back);
   okb.focus();
+}
+
+/* The plan names an aircraft the launcher has no lever template for. Its
+   levers would be dead, and the fix needs one fact only the sim can give:
+   the aircraft's title as FSUIPC logs it. So the window says how to produce
+   that fact - load the aircraft once, quit - and who to tell. */
+function warnUnknownPlanAircraft() {
+  if (!S.plan || !S.plan.AircraftIcao) { return; }
+  var icao = S.plan.AircraftIcao;
+  var known = FLEET.some(function (a) { return a.type === icao; });
+  if (known) { return; }
+  var name = S.plan.AircraftName || icao;
+  showDialog(false, "No template for the " + name + " (" + icao + ")",
+    "Your flight plan is for the " + name + ", and the launcher has no lever settings for it yet. " +
+    "The Bravo's levers would do nothing in it. Adding it needs the aircraft's exact name as the " +
+    "simulator reports it, which only the simulator can produce. Do this once:",
+    null,
+    "1. Open the simulator.\n" +
+    "2. Start any flight with the " + name + " selected, and let it load to the ramp.\n" +
+    "3. Exit the simulator.\n" +
+    "4. Tell Mark the aircraft. He reads its name from FSUIPC's log, answers two questions about its levers, and adds it.\n\n" +
+    "Until then, choose an aircraft from the list, or fly this one with the levers unassigned.",
+    true);
 }
 
 /* Departure / destination weather. The airport's position comes from the

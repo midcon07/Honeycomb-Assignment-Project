@@ -14,7 +14,7 @@ G1000 with HDG, NAV, APR, BC, ALT, VS, FLC and a TO/GA button.
 ## 0. In the launcher, before the sim
 
 - [ ] Flight plan refreshed and shows **C172**, KDPA → KSUE.
-- [ ] "MSFS is on the empty Bravo profile" confirmed.
+- [ ] "Empty Bravo profile set" pressed.
 - [ ] "Write and restart FSUIPC". Report should end with `[Axes.Skyhawk]`,
       two lines: throttle on lever 1, mixture on lever 2. No `<< ERROR`.
 - [ ] Test rows that tick themselves: all green.
@@ -45,7 +45,7 @@ cockpit so you can watch the aircraft's own controls move.
       **matches your position** after flipping both ways twice.
 
 **Other**
-- [ ] Trim wheel: trim indicator moves; forward = nose down. Four sim clicks per notch now (was one, and backwards): say if it is still too slow, too fast, or wrong way.
+- [ ] Trim wheel: trim indicator moves; forward = nose down. Three sim clicks per notch now (was one, and backwards; four was too fast): say if it is still too slow, too fast, or wrong way.
 - [ ] Flap handle: down three times = 10, 20, 30; up three times back to 0.
 - [ ] Gear lever: **nothing** (fixed gear).
 - [ ] TO/GA on lever 1: flight director bars appear in TO/GA pitch, or
