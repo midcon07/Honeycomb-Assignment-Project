@@ -390,6 +390,23 @@ if ($Aircraft -and -not $Layout) {
         }
     }
 
+    # Per-aircraft button actions: a Bravo control name from bravo-buttons.json
+    # (FLAPS_UP, FLAPS_DOWN, ...) to a preset. Written into [Buttons.<name>],
+    # which FSUIPC applies OVER the global line for the same button, so a
+    # control the aircraft has no use for can do something else there. First
+    # use: on a jet the flap axis is lever 6, so the Bravo's flap switch is
+    # free - the PMDG 737 uses it for the HGS combiner (Mark, 2026-09-05).
+    $AircraftButtons = @{}
+    if ($hit[0].PSObject.Properties['buttons'] -and $hit[0].buttons) {
+        foreach ($p in $hit[0].buttons.PSObject.Properties) {
+            $v = $p.Value
+            if (-not ($v.PSObject.Properties['preset'] -and $v.preset)) {
+                throw ("Aircraft table: buttons for ""{0}"": entry ""{1}"" needs a preset name." -f $Aircraft, $p.Name)
+            }
+            $AircraftButtons[$p.Name] = $v
+        }
+    }
+
     if ($hit[0].PSObject.Properties['detentPresets'] -and $hit[0].detentPresets) {
         foreach ($p in $hit[0].detentPresets.PSObject.Properties) {
             $leverNo = 0
@@ -615,9 +632,16 @@ for ($lever = 0; $lever -lt 6; $lever++) {
     # which would be read as two parameters rather than one number.
     $axis = '{0}{1}' -f $JoystickLetter, $AxisLetters[$lever]
 
+    # Direction. The family scale (-1 for the AXIS_ controls) is right for a
+    # lever whose FORWARD position is "most": throttle, prop, mixture, power,
+    # condition. The speed brake and flap levers are the other way round -
+    # forward is retracted, back is deployed - so they take the opposite sign.
+    # Measured on the PMDG 737-600, 2026-09-05: with the throttle's sign both
+    # ran backwards. Not a PMDG quirk; it is what the axis means.
+    $leverScale = if ($role -eq 'Spoiler' -or $role -eq 'Flaps') { -$AxisScale } else { $AxisScale }
     $adj = ''
-    if ($AxisScale -ne 1) {
-        $adj += ',*' + $AxisScale.ToString([cultureinfo]::InvariantCulture)
+    if ($leverScale -ne 1) {
+        $adj += ',*' + $leverScale.ToString([cultureinfo]::InvariantCulture)
     }
     if ($AxisOffset -ne 0) {
         $sign = if ($AxisOffset -gt 0) { '+' } else { '-' }
@@ -712,6 +736,22 @@ if ($Aircraft -and -not $ClearGlobal) {
             # levers do not feather.
             [void]$btnLines.Add(('{0}=P{1},{2},C{3},0' -f $bn, $JoystickLetter, $b, $FEATHER[$role]) + "`t; lever $leverNo below detent -> " + $FEATHER_NAME[$role] + " (feather)");   $bn++
             [void]$btnLines.Add(('{0}=U{1},{2},C{3},0' -f $bn, $JoystickLetter, $b, $FEATHER[$role]) + "`t; lever $leverNo back above detent -> " + $FEATHER_NAME[$role] + " (unfeather)"); $bn++
+        }
+    }
+
+    # The aircraft's own button actions (see $AircraftButtons above). Each
+    # names a measured Bravo control; an unmeasured one is skipped and said.
+    if ($AircraftButtons -and $AircraftButtons.Count) {
+        foreach ($name in @($AircraftButtons.Keys | Sort-Object)) {
+            $ab = $AircraftButtons[$name]
+            $ctl = $null
+            if ($btnTable -and $btnTable.controls.PSObject.Properties[$name]) { $ctl = $btnTable.controls.$name }
+            if ($null -eq $ctl -or -not [bool]$ctl.verified -or $null -eq $ctl.fsuipc) {
+                Write-Host ('{0}: not a measured Bravo control - its action for this aircraft is not written.' -f $name) -ForegroundColor Yellow
+                continue
+            }
+            $why = if ($ab.PSObject.Properties['why'] -and $ab.why) { ' (' + $ab.why + ')' } else { '' }
+            [void]$btnLines.Add(('{0}=P{1},{2},CP{3},0' -f $bn, $JoystickLetter, [int]$ctl.fsuipc, $ab.preset) + "`t; $name -> " + $ab.preset + $why); $bn++
         }
     }
 }

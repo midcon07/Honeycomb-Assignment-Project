@@ -539,7 +539,17 @@
                                        "engines":  2
                                    },
                          "layout":  "jet_2",
-                         "verified":  "type - twin jet, same shape as the PMDG 777F; title measured 2026-09-05 from Mark FSUIPC7.log: 737-600 PAX SC; not yet flown"
+                         "verified":  "type - twin jet, same shape as the PMDG 777F; title measured 2026-09-05 from Mark FSUIPC7.log: 737-600 PAX SC; not yet flown",
+                         "buttons":  {
+                                         "FLAPS_DOWN":  {
+                                                            "preset":  "PMDG_B737-7_HGS_HUD_UP_DOWN_SWITCH",
+                                                            "why":  "HGS combiner - the flap axis is lever 6 on a jet, so the flap switch is free. PMDG offers one toggle, so both directions toggle."
+                                                        },
+                                         "FLAPS_UP":  {
+                                                          "preset":  "PMDG_B737-7_HGS_HUD_UP_DOWN_SWITCH",
+                                                          "why":  "HGS combiner (same toggle)"
+                                                      }
+                                     }
                      }
                  ]
 }
