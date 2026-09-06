@@ -1656,19 +1656,20 @@ function openAddAircraft(icao, name, why) {
     var sel = el("select", "pid-input", ""); sel.id = id;
     opts.forEach(function (o) { var op = document.createElement("option"); op.value = o[0]; op.textContent = o[1]; sel.appendChild(op); });
     sel.value = value; row.appendChild(sel); box.appendChild(row);
+    sel.row = row;   // kept on the element: the window is not in the page yet, so byId cannot find its rows
     return sel;
   }
   field("Name to show", "addName", name || "", "");
   field("Type code", "addIcao", icao || "", "SimBrief's code, like C172 or B736. Leave blank if you do not know it.");
   var kind = choice("Engines", "addKind", [["piston", "Piston"], ["turboprop", "Turboprop"], ["jet", "Jet"], ["glider", "Glider"]], "piston");
-  choice("How many", "addEngines", [["1", "1"], ["2", "2"], ["3", "3"], ["4", "4"]], "1");
-  choice("Propeller lever (blue)", "addProp", [["no", "No"], ["yes", "Yes"]], "no");
-  choice("Mixture lever (red)", "addMix", [["no", "No"], ["yes", "Yes"]], "yes");
+  var eng = choice("How many", "addEngines", [["1", "1"], ["2", "2"], ["3", "3"], ["4", "4"]], "1");
+  var prop = choice("Propeller lever (blue)", "addProp", [["no", "No"], ["yes", "Yes"]], "no");
+  var mix = choice("Mixture lever (red)", "addMix", [["no", "No"], ["yes", "Yes"]], "yes");
   function pistonOnly() {
     var p = kind.value === "piston";
-    byId("addPropRow").classList.toggle("hidden", !p);
-    byId("addMixRow").classList.toggle("hidden", !p);
-    byId("addEnginesRow").classList.toggle("hidden", kind.value === "glider");
+    prop.row.classList.toggle("hidden", !p);
+    mix.row.classList.toggle("hidden", !p);
+    eng.row.classList.toggle("hidden", kind.value === "glider");
   }
   kind.addEventListener("change", pistonOnly);
   pistonOnly();
