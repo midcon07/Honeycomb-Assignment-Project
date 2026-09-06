@@ -726,6 +726,33 @@ if ($Aircraft -and -not $ClearGlobal) {
         $role = $controls[$lever]
         if ($null -eq $role) { continue }
         $leverNo = $lever + 1
+
+        # Jets: reverse thrust comes from the reverser lever on the throttle
+        # handle, not from the detent (Mark, 2026-09-05: "the separate,
+        # bespoke reverser levers"). Its button is measured per lever
+        # position - REVERSER_LEVER_n in bravo-buttons.json - because the
+        # handle sits on a different lever in each jet layout. Lifting it is
+        # reverse, pushing it down is idle. An unmeasured one is skipped and
+        # said, never guessed. Turboprops keep the detent below.
+        if ($Layout -like 'jet_*' -and $REV_ON.ContainsKey($role)) {
+            $rv = $null
+            if ($btnTable -and $btnTable.controls.PSObject.Properties['REVERSER_LEVER_' + $leverNo]) { $rv = $btnTable.controls.('REVERSER_LEVER_' + $leverNo) }
+            if ($null -eq $rv -or -not [bool]$rv.verified -or $null -eq $rv.fsuipc) {
+                Write-Host ('Lever {0}: reverser lever not measured - no reverse thrust written for it. Run Probe-HoneycombDevices.ps1 -Capture with the jet handles fitted.' -f $leverNo) -ForegroundColor Yellow
+                continue
+            }
+            $rb = [int]$rv.fsuipc
+            if ($ReverseMode -eq 'throttleSet') {
+                $ts = $CTRL_BY_FAMILY['Legacy'][$role]
+                [void]$btnLines.Add(('{0}=P{1},{2},C{3},{4}' -f $bn, $JoystickLetter, $rb, $ts, $ReverseAmount) + "`t; lever $leverNo reverser lifted -> " + $REV_NAME[$role].Replace('ALL', 'THROTTLE') + "_SET $ReverseAmount (reverse)"); $bn++
+                [void]$btnLines.Add(('{0}=U{1},{2},C{3},0'   -f $bn, $JoystickLetter, $rb, $ts)                 + "`t; lever $leverNo reverser down -> "   + $REV_NAME[$role].Replace('ALL', 'THROTTLE') + "_SET 0 (idle)"); $bn++
+            } else {
+                [void]$btnLines.Add(('{0}=P{1},{2},C{3},0' -f $bn, $JoystickLetter, $rb, $REV_ON[$role])  + "`t; lever $leverNo reverser lifted -> SET_" + $REV_NAME[$role] + "_REVERSE_THRUST_ON");  $bn++
+                [void]$btnLines.Add(('{0}=U{1},{2},C{3},0' -f $bn, $JoystickLetter, $rb, $REV_OFF[$role]) + "`t; lever $leverNo reverser down -> SET_"   + $REV_NAME[$role] + "_REVERSE_THRUST_OFF"); $bn++
+            }
+            continue
+        }
+
         $det = $null
         if ($btnTable -and $btnTable.controls.PSObject.Properties['DETENT_' + $leverNo]) { $det = $btnTable.controls.('DETENT_' + $leverNo) }
         if ($null -eq $det -or -not [bool]$det.verified -or $null -eq $det.fsuipc) {

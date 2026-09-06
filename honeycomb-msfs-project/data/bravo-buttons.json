@@ -258,7 +258,21 @@
                                       "fsuipc":  132,
                                       "verified":  true,
                                       "source":  "measured 2026-09-03 (prober sweep) and re-confirmed by live samples 2026-09-04; corrected after the file was found altered"
-                                  }
+                                  },
+                     "REVERSER_LEVER_3":  {
+                                              "label":  "reverser lever LIFTED on the jet throttle handle at lever 3 (both reverser levers down first, every lever above its detent)",
+                                              "kind":  "latching",
+                                              "prober":  null,
+                                              "fsuipc":  null,
+                                              "verified":  false
+                                          },
+                     "REVERSER_LEVER_4":  {
+                                              "label":  "reverser lever LIFTED on the jet throttle handle at lever 4 (both reverser levers down first, every lever above its detent)",
+                                              "kind":  "latching",
+                                              "prober":  null,
+                                              "fsuipc":  null,
+                                              "verified":  false
+                                          }
                  },
     "$mapComment":  "Each entry: press = [control, parameter, name] sent when the button goes down; release = sent when it goes up; when = a table of condition-control -\u003e [control, parameter, name], written as FSUIPC compound lines CP(+joy,conditionButton). Names are for the ini comment only; the numbers are what FSUIPC reads.",
     "map":  {

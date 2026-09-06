@@ -67,8 +67,13 @@
       "expect": "Arms take-off/go-around on aircraft that have it; on others, nothing visible.",
       "ifNot": "Only a failure on an aircraft that shows TO/GA counts. Note the aircraft." },
 
-    { "id": "reversers",        "kind": "manual", "when": "turboprop_or_jet",
-      "label": "Throttle levers below the detent = reverse thrust",
+    { "id": "reverser_levers",   "kind": "manual", "when": "jet",
+      "label": "Reverser levers on the throttle handles = reverse thrust",
+      "expect": "Lifting the reverser lever on a throttle handle puts that engine into reverse; pushing it back down returns it to idle. On a jet the detent does nothing for reverse - the reverser levers are the control.",
+      "ifNot": "Nothing at all = that reverser lever has not been measured (the app says so when it writes) or the aircraft ignores the throttle-set control. Stuck in reverse = the release line is not firing. Note which handle." },
+
+    { "id": "reversers",        "kind": "manual", "when": "turboprop",
+      "label": "Power levers below the detent = reverse thrust",
       "expect": "Pulling a throttle lever below its detent engages reverse on that engine; bringing it back above cancels it. The sim state follows the lever.",
       "ifNot": "Stuck in reverse after coming back up = the release line is not firing. Note which lever." },
 

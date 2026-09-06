@@ -498,7 +498,8 @@
                                        "engines":  2
                                    },
                          "layout":  "jet_2",
-                         "verified":  "type - twin jet. Title \"777F\" MEASURED from midcon07\u0027s FSUIPC log 2026-09-04; it cannot be read from disk at all because PMDG encrypt aircraft.cfg. Whether PMDG\u0027s own systems accept the standard AXIS_THROTTLE controls is NOT known - FSUIPC has dedicated PMDG offset support for a reason. Treat the lever behaviour as unproven until flown."
+                         "verified":  "type - twin jet. Title \"777F\" MEASURED from midcon07\u0027s FSUIPC log 2026-09-04; it cannot be read from disk at all because PMDG encrypt aircraft.cfg. Whether PMDG\u0027s own systems accept the standard AXIS_THROTTLE controls is NOT known - FSUIPC has dedicated PMDG offset support for a reason. Treat the lever behaviour as unproven until flown.; reverse=throttleSet REASONED from the 737 (same PMDG SDK), not measured",
+                         "reverse":  "throttleSet"
                      },
                      {
                          "name":  "Beechcraft King Air C90 GTx",
@@ -539,7 +540,7 @@
                                        "engines":  2
                                    },
                          "layout":  "jet_2",
-                         "verified":  "type - twin jet, same shape as the PMDG 777F; title measured 2026-09-05 from Mark FSUIPC7.log: 737-600 PAX SC; not yet flown",
+                         "verified":  "type - twin jet, same shape as the PMDG 777F; title measured 2026-09-05 from Mark FSUIPC7.log: 737-600 PAX SC; not yet flown; reverse=throttleSet because SET_REVERSE_THRUST events did nothing (measured 2026-09-05)",
                          "buttons":  {
                                          "FLAPS_DOWN":  {
                                                             "preset":  "PMDG_B737-7_HGS_HUD_UP_DOWN_SWITCH",
@@ -549,7 +550,8 @@
                                                           "preset":  "PMDG_B737-7_HGS_HUD_UP_DOWN_SWITCH",
                                                           "why":  "HGS combiner (same toggle)"
                                                       }
-                                     }
+                                     },
+                         "reverse":  "throttleSet"
                      }
                  ]
 }
