@@ -553,6 +553,9 @@ internal sealed partial class MainForm : Form
             if (!File.Exists(ini)) return (Array.Empty<string>(), false, known.ToArray());
 
             var filled = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            // Title fragments each [Profile.<name>] lists - FSUIPC applies a
+            // profile only to titles containing one of them.
+            var profileFrags = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
             var cur = ""; var globalButtons = 0;
             foreach (var raw in File.ReadAllLines(ini))
             {
@@ -561,10 +564,27 @@ internal sealed partial class MainForm : Form
                 if (l.Length == 0 || !char.IsDigit(l[0]) || !l.Contains('=')) continue;
                 filled.Add(cur);
                 if (cur.Equals("Buttons", StringComparison.OrdinalIgnoreCase)) globalButtons++;
+                if (cur.StartsWith("Profile.", StringComparison.OrdinalIgnoreCase))
+                {
+                    var frag = l[(l.IndexOf('=') + 1)..].Trim();
+                    if (!profileFrags.TryGetValue(cur, out var list)) profileFrags[cur] = list = new List<string>();
+                    list.Add(frag);
+                }
             }
 
-            var written = table.Where(e => !string.IsNullOrWhiteSpace(e.Match) && filled.Contains("Axes." + e.Match))
-                               .Select(e => e.Id).ToArray();
+            // "Written" for an aircraft means BOTH: its profile's [Axes] section
+            // has lines, AND the profile lists this aircraft's own title
+            // fragment. A family (the four 737s) shares one profile, so the
+            // 800's levers are only set up once "737-800" is in that list -
+            // an [Axes] section alone would have shown green with FSUIPC
+            // matching nothing for it.
+            var written = table.Where(e =>
+            {
+                if (string.IsNullOrWhiteSpace(e.Match) || !filled.Contains("Axes." + e.Match)) return false;
+                var frag = string.IsNullOrWhiteSpace(e.TitleMatch) ? e.Match : e.TitleMatch;
+                return profileFrags.TryGetValue("Profile." + e.Match, out var frags) &&
+                       frags.Any(x => string.Equals(x, frag.Trim(), StringComparison.OrdinalIgnoreCase));
+            }).Select(e => e.Id).ToArray();
             return (written, globalButtons >= 30, known.ToArray());
         }
         catch (Exception ex)

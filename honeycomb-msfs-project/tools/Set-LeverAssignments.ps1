@@ -456,6 +456,20 @@ if ($Aircraft -and -not $Layout) {
         $Match = ([string]$hit[0].titleMatch).Trim()
     }
 
+    # A family shares one FSUIPC profile: every table entry with the same
+    # "match" (profile name) is a variant with its own title fragment, and
+    # FSUIPC only applies the profile to titles listed in [Profile.<name>].
+    # So a write for ANY member lists EVERY member's fragment - otherwise the
+    # 737-800 would show as set up (the [Axes] section exists) while FSUIPC
+    # matched nothing for it. Mark, 2026-09-05: "all four 737s should share
+    # the same configuration".
+    $MatchList = @($Match)
+    foreach ($sib in $entries) {
+        if (-not ($sib.PSObject.Properties['match'] -and $sib.match -eq $Aircraft)) { continue }
+        $frag = if ($sib.PSObject.Properties['titleMatch'] -and $sib.titleMatch) { ([string]$sib.titleMatch).Trim() } else { ([string]$sib.match).Trim() }
+        if ($frag -and ($MatchList -notcontains $frag)) { $MatchList += $frag }
+    }
+
     if (-not $LAYOUTS.ContainsKey($Layout)) {
         throw ("Aircraft table gives ""{0}"" layout ""{1}"", which this tool does not know." -f $Aircraft, $Layout)
     }
@@ -860,7 +874,10 @@ $btnSection = if ($btnLines.Count) { (@('[' + $btnSectionName + ']') + @($btnLin
 
 Write-Host ''
 Write-Host ('Section: [{0}]   Layout: {1}' -f $sectionName, $(if ($ClearGlobal) { '(cleared)' } else { $Layout }))
-if ($Aircraft) { Write-Host ('Profile: [Profile.{0}] matches aircraft titles containing "{1}"' -f $Aircraft, $Match) }
+if ($Aircraft) {
+    $ml = if (Get-Variable MatchList -ErrorAction SilentlyContinue) { $MatchList } else { @($Match) }
+    Write-Host ('Profile: [Profile.{0}] matches aircraft titles containing: {1}' -f $Aircraft, (($ml | ForEach-Object { '"' + $_ + '"' }) -join ', '))
+}
 Write-Host ('Controls: {0} family, scale {1}, offset {2}, delta {3}' -f `
     $ControlFamily, $AxisScale.ToString([cultureinfo]::InvariantCulture), $AxisOffset, $Delta)
 Write-Host ('Quadrant: joystick {0} = "{1}" per [JoyNames]; lever letters {2}' -f `
@@ -951,28 +968,34 @@ if ($Aircraft) {
         } elseif ($out[$i] -match '^\s*\[') { $profEnd = $i; break }
     }
 
+    if (-not (Get-Variable MatchList -ErrorAction SilentlyContinue)) { $MatchList = @($Match) }
     if ($profStart -lt 0) {
         [void]$out.Add('')
         [void]$out.Add('[Profile.' + $Aircraft + ']')
-        [void]$out.Add('1=' + $Match)
-        Write-Host ('Created [Profile.{0}] with 1={1}' -f $Aircraft, $Match)
+        $k = 1
+        foreach ($frag in $MatchList) { [void]$out.Add(('{0}={1}' -f $k, $frag)); $k++ }
+        Write-Host ('Created [Profile.{0}] listing: {1}' -f $Aircraft, ($MatchList -join ' | '))
     } else {
-        $listed = $false
-        $maxN   = 0
-        for ($i = $profStart + 1; $i -lt $profEnd; $i++) {
-            if ($out[$i] -match '^\s*(\d+)\s*=\s*(.*?)\s*$') {
-                if ([int]$Matches[1] -gt $maxN) { $maxN = [int]$Matches[1] }
-                if ($Matches[2] -eq $Match) { $listed = $true }
-            }
-        }
-        if (-not $listed) {
-            # Insert after the last numbered line, keeping FSUIPC's numbering.
-            $insertAt = $profStart + 1
+        foreach ($frag in $MatchList) {
+            $listed = $false
+            $maxN   = 0
+            $profEnd = $out.Count
+            for ($i = $profStart + 1; $i -lt $out.Count; $i++) { if ($out[$i] -match '^\s*\[') { $profEnd = $i; break } }
             for ($i = $profStart + 1; $i -lt $profEnd; $i++) {
-                if ($out[$i] -match '^\s*\d+\s*=') { $insertAt = $i + 1 }
+                if ($out[$i] -match '^\s*(\d+)\s*=\s*(.*?)\s*$') {
+                    if ([int]$Matches[1] -gt $maxN) { $maxN = [int]$Matches[1] }
+                    if ($Matches[2] -eq $frag) { $listed = $true }
+                }
             }
-            $out.Insert($insertAt, ('{0}={1}' -f ($maxN + 1), $Match))
-            Write-Host ('Added {0}={1} to existing [Profile.{2}]' -f ($maxN + 1), $Match, $Aircraft)
+            if (-not $listed) {
+                # Insert after the last numbered line, keeping FSUIPC's numbering.
+                $insertAt = $profStart + 1
+                for ($i = $profStart + 1; $i -lt $profEnd; $i++) {
+                    if ($out[$i] -match '^\s*\d+\s*=') { $insertAt = $i + 1 }
+                }
+                $out.Insert($insertAt, ('{0}={1}' -f ($maxN + 1), $frag))
+                Write-Host ('Added {0}={1} to existing [Profile.{2}]' -f ($maxN + 1), $frag, $Aircraft)
+            }
         }
     }
 }

@@ -533,7 +533,7 @@
                      {
                          "name":  "Boeing 737-600 (PMDG)",
                          "icao":  "B736",
-                         "match":  "737-600",
+                         "match":  "PMDG 737",
                          "titleMatch":  "737-600",
                          "facts":  {
                                        "category":  "jet",
@@ -556,7 +556,7 @@
                      {
                          "name":  "Boeing 737-700 (PMDG)",
                          "icao":  "B737",
-                         "match":  "737-700",
+                         "match":  "PMDG 737",
                          "titleMatch":  "737-700",
                          "facts":  {
                                        "category":  "jet",
@@ -579,7 +579,7 @@
                      {
                          "name":  "Boeing 737-800 (PMDG)",
                          "icao":  "B738",
-                         "match":  "737-800",
+                         "match":  "PMDG 737",
                          "titleMatch":  "737-800",
                          "facts":  {
                                        "category":  "jet",
@@ -602,7 +602,7 @@
                      {
                          "name":  "Boeing 737-900 (PMDG)",
                          "icao":  "B739",
-                         "match":  "737-900",
+                         "match":  "PMDG 737",
                          "titleMatch":  "737-900",
                          "facts":  {
                                        "category":  "jet",
