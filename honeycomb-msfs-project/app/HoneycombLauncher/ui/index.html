@@ -771,6 +771,7 @@ var FLEET = [
   { id: "be9l", name: "Beechcraft King Air C90 GTx", type: "BE9L", layout: "turboprop_2" },
   { id: "c25c", name: "Cessna Citation CJ4",      type: "C25C", layout: "jet_2" },
   { id: "a20n", name: "Airbus A320neo",           type: "A20N", layout: "jet_2" },
+  { id: "b736", name: "Boeing 737-600 (PMDG)",   type: "B736", layout: "jet_2" },
   { id: "b738", name: "PMDG 737-800",             type: "B738", layout: "jet_2" },
   { id: "b77l", name: "PMDG 777F",                type: "B77L", layout: "jet_2" },
   { id: "b78x", name: "Boeing 787-10",            type: "B78X", layout: "jet_2" },
@@ -1609,7 +1610,10 @@ function showDialog(ok, title, body, path, details, open) {
 function warnUnknownPlanAircraft() {
   if (!S.plan || !S.plan.AircraftIcao) { return; }
   var icao = S.plan.AircraftIcao;
-  var known = FLEET.some(function (a) { return a.type === icao; });
+  // Answered from the lever table the host reads, not the page's fleet list,
+  // which is a hand copy and has drifted.
+  var list = (S.config && S.config.templateIcao) || FLEET.map(function (a) { return a.type; });
+  var known = list.indexOf(icao) >= 0;
   if (known) { return; }
   var name = S.plan.AircraftName || icao;
   showDialog(false, "No template for the " + name + " (" + icao + ")",

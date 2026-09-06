@@ -528,6 +528,18 @@
                                    },
                          "layout":  "prop_2_cs",
                          "verified":  "type - two radials, prop and mixture levers; title measured 2026-09-05 from BigBoy FSUIPC7.log: Douglas DC-3 METAL LEFT (livery words dropped); not yet flown"
+                     },
+                     {
+                         "name":  "Boeing 737-600 (PMDG)",
+                         "icao":  "B736",
+                         "match":  "737-600",
+                         "titleMatch":  "737-600",
+                         "facts":  {
+                                       "category":  "jet",
+                                       "engines":  2
+                                   },
+                         "layout":  "jet_2",
+                         "verified":  "type - twin jet, same shape as the PMDG 777F; title measured 2026-09-05 from Mark FSUIPC7.log: 737-600 PAX SC; not yet flown"
                      }
                  ]
 }

@@ -438,7 +438,7 @@ internal sealed partial class MainForm : Form
         // The page colours its buttons from these: amber until the thing is
         // done, green after. "Done" is read from FSUIPC's own file, not from
         // a note the app made, so a hand-edit or a reinstall shows truthfully.
-        var (levers, buttons) = ReadFsuipcState();
+        var (levers, buttons, templates) = ReadFsuipcState();
         return Send(new
         {
             kind = "config",
@@ -450,7 +450,11 @@ internal sealed partial class MainForm : Form
             aircraftUse = _cfg?.AircraftUse ?? new Dictionary<string, int>(),
             bravoProfileConfirmed = !string.IsNullOrWhiteSpace(_cfg?.MsfsBravoProfileConfirmedUtc),
             leversWrittenIcao = levers,
-            buttonsWritten = buttons
+            buttonsWritten = buttons,
+            // Every aircraft the lever table knows. The page's own fleet list
+            // is a hand copy and has drifted (it listed a 737-800 the table
+            // did not have), so "is there a template" is answered from here.
+            templateIcao = templates
         });
     }
 
@@ -460,15 +464,33 @@ internal sealed partial class MainForm : Form
     /// [Buttons] section carries the Bravo map (30+ numbered lines; the
     /// writer produces 45, a hand-made section a handful).
     /// </summary>
-    private (string[] levers, bool buttons) ReadFsuipcState()
+    private (string[] levers, bool buttons, string[] templates) ReadFsuipcState()
     {
+        var known = new List<string>();
         try
         {
+            // The table first: it exists whether or not FSUIPC does.
+            var table = Path.Combine(Runner.ToolsDir, "..", "data", "lever-layouts.json");
+            var matches = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            if (File.Exists(table))
+            {
+                using var doc = JsonDocument.Parse(File.ReadAllText(table));
+                if (doc.RootElement.TryGetProperty("aircraft", out var arr))
+                    foreach (var a in arr.EnumerateArray())
+                    {
+                        var icao  = a.TryGetProperty("icao",  out var i) ? i.GetString() : null;
+                        var match = a.TryGetProperty("match", out var m) ? m.GetString() : null;
+                        if (icao == null) continue;
+                        known.Add(icao);
+                        if (match != null) matches[icao] = match;
+                    }
+            }
+
             var root = _cfg?.FsuipcRoot;
             if (string.IsNullOrWhiteSpace(root)) root = Runner.FindFsuipcRoot();
-            if (string.IsNullOrWhiteSpace(root)) return (Array.Empty<string>(), false);
+            if (string.IsNullOrWhiteSpace(root)) return (Array.Empty<string>(), false, known.ToArray());
             var ini = Path.Combine(root, "FSUIPC7.ini");
-            if (!File.Exists(ini)) return (Array.Empty<string>(), false);
+            if (!File.Exists(ini)) return (Array.Empty<string>(), false, known.ToArray());
 
             var filled = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var cur = ""; var globalButtons = 0;
@@ -481,25 +503,15 @@ internal sealed partial class MainForm : Form
                 if (cur.Equals("Buttons", StringComparison.OrdinalIgnoreCase)) globalButtons++;
             }
 
-            var icaos = new List<string>();
-            var table = Path.Combine(Runner.ToolsDir, "..", "data", "lever-layouts.json");
-            if (File.Exists(table))
-            {
-                using var doc = JsonDocument.Parse(File.ReadAllText(table));
-                if (doc.RootElement.TryGetProperty("aircraft", out var arr))
-                    foreach (var a in arr.EnumerateArray())
-                    {
-                        var icao  = a.TryGetProperty("icao",  out var i) ? i.GetString() : null;
-                        var match = a.TryGetProperty("match", out var m) ? m.GetString() : null;
-                        if (icao != null && match != null && filled.Contains("Axes." + match)) icaos.Add(icao);
-                    }
-            }
-            return (icaos.ToArray(), globalButtons >= 30);
+            var written = new List<string>();
+            foreach (var kv in matches)
+                if (filled.Contains("Axes." + kv.Value)) written.Add(kv.Key);
+            return (written.ToArray(), globalButtons >= 30, known.ToArray());
         }
         catch (Exception ex)
         {
             Program.LogError("read FSUIPC state", ex);
-            return (Array.Empty<string>(), false);
+            return (Array.Empty<string>(), false, known.ToArray());
         }
     }
 
