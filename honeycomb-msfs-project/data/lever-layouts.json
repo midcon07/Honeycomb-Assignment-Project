@@ -540,7 +540,7 @@
                                        "engines":  2
                                    },
                          "layout":  "jet_2",
-                         "verified":  "type - twin jet, same shape as the PMDG 777F; title measured 2026-09-05 from Mark FSUIPC7.log: 737-600 PAX SC; not yet flown; reverse=throttleSet because SET_REVERSE_THRUST events did nothing (measured 2026-09-05)",
+                         "verified":  "flown 2026-09-05 (Mark): levers, speed brake, flaps, HGS switch, reverser levers all confirmed; title measured from FSUIPC7.log: 737-600 PAX SC; reverse=throttleSet with repeating DECR",
                          "buttons":  {
                                          "FLAPS_DOWN":  {
                                                             "preset":  "PMDG_B737-7_HGS_HUD_UP_DOWN_SWITCH",
