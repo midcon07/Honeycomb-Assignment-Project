@@ -384,6 +384,14 @@ internal sealed partial class MainForm : Form
                     break;
                 }
 
+            case "aircraftTitles":
+                await PushAircraftTitlesAsync();
+                break;
+
+            case "addAircraft":
+                await AddAircraftAsync(msg);
+                break;
+
             case "weather":
                 {
                     // Departure or destination weather. The tool asks
@@ -439,6 +447,12 @@ internal sealed partial class MainForm : Form
         // done, green after. "Done" is read from FSUIPC's own file, not from
         // a note the app made, so a hand-edit or a reinstall shows truthfully.
         var (levers, buttons, templates) = ReadFsuipcState();
+        // The page's aircraft list. It used to be typed into the page by
+        // hand and drifted from the table; now there is one source, and an
+        // aircraft added on this machine appears without a new build.
+        var fleet = AircraftTable.LoadMerged()
+            .Select(e => new { id = e.Id, name = e.Name, type = e.Icao ?? "", layout = e.Layout, local = e.Local })
+            .ToArray();
         return Send(new
         {
             kind = "config",
@@ -449,8 +463,9 @@ internal sealed partial class MainForm : Form
             capsSetForLayout = _cfg?.CapsSetForLayout ?? "",
             aircraftUse = _cfg?.AircraftUse ?? new Dictionary<string, int>(),
             bravoProfileConfirmed = !string.IsNullOrWhiteSpace(_cfg?.MsfsBravoProfileConfirmedUtc),
-            leversWrittenIcao = levers,
+            leversWrittenIds = levers,
             buttonsWritten = buttons,
+            fleet,
             // Every aircraft the lever table knows. The page's own fleet list
             // is a hand copy and has drifted (it listed a 737-800 the table
             // did not have), so "is there a template" is answered from here.
@@ -466,26 +481,13 @@ internal sealed partial class MainForm : Form
     /// </summary>
     private (string[] levers, bool buttons, string[] templates) ReadFsuipcState()
     {
-        var known = new List<string>();
+        // The table first: it exists whether or not FSUIPC does. "templates"
+        // are ICAO types, for matching a plan's aircraft; "levers" are ids.
+        var table = AircraftTable.LoadMerged();
+        var known = table.Where(e => !string.IsNullOrWhiteSpace(e.Icao))
+                         .Select(e => e.Icao.Trim().ToUpperInvariant()).Distinct().ToList();
         try
         {
-            // The table first: it exists whether or not FSUIPC does.
-            var table = Path.Combine(Runner.ToolsDir, "..", "data", "lever-layouts.json");
-            var matches = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            if (File.Exists(table))
-            {
-                using var doc = JsonDocument.Parse(File.ReadAllText(table));
-                if (doc.RootElement.TryGetProperty("aircraft", out var arr))
-                    foreach (var a in arr.EnumerateArray())
-                    {
-                        var icao  = a.TryGetProperty("icao",  out var i) ? i.GetString() : null;
-                        var match = a.TryGetProperty("match", out var m) ? m.GetString() : null;
-                        if (icao == null) continue;
-                        known.Add(icao);
-                        if (match != null) matches[icao] = match;
-                    }
-            }
-
             var root = _cfg?.FsuipcRoot;
             if (string.IsNullOrWhiteSpace(root)) root = Runner.FindFsuipcRoot();
             if (string.IsNullOrWhiteSpace(root)) return (Array.Empty<string>(), false, known.ToArray());
@@ -503,16 +505,105 @@ internal sealed partial class MainForm : Form
                 if (cur.Equals("Buttons", StringComparison.OrdinalIgnoreCase)) globalButtons++;
             }
 
-            var written = new List<string>();
-            foreach (var kv in matches)
-                if (filled.Contains("Axes." + kv.Value)) written.Add(kv.Key);
-            return (written.ToArray(), globalButtons >= 30, known.ToArray());
+            var written = table.Where(e => !string.IsNullOrWhiteSpace(e.Match) && filled.Contains("Axes." + e.Match))
+                               .Select(e => e.Id).ToArray();
+            return (written, globalButtons >= 30, known.ToArray());
         }
         catch (Exception ex)
         {
             Program.LogError("read FSUIPC state", ex);
             return (Array.Empty<string>(), false, known.ToArray());
         }
+    }
+
+    // ---- adding an aircraft on this machine ---------------------------------
+
+    /// <summary>
+    /// The aircraft titles the simulator has loaded that no template covers
+    /// yet - the candidates for "which aircraft is it?". Read from FSUIPC's
+    /// log, which is the only place the sim's own name for an aircraft is
+    /// written down on disk.
+    /// </summary>
+    private async Task PushAircraftTitlesAsync()
+    {
+        var root = _cfg?.FsuipcRoot;
+        if (string.IsNullOrWhiteSpace(root)) root = Runner.FindFsuipcRoot();
+        var logFound = !string.IsNullOrWhiteSpace(root) && File.Exists(Path.Combine(root, "FSUIPC7.log"));
+        var all = string.IsNullOrWhiteSpace(root) ? new List<string>() : AircraftTable.LoggedTitles(root);
+        var table = AircraftTable.LoadMerged();
+        var open = all.Where(t => !table.Any(e =>
+        {
+            var m = string.IsNullOrWhiteSpace(e.TitleMatch) ? e.Match : e.TitleMatch;
+            return !string.IsNullOrWhiteSpace(m) && t.Contains(m, StringComparison.OrdinalIgnoreCase);
+        })).ToArray();
+        await Send(new { kind = "aircraftTitles", logFound, titles = open, covered = all.Count - open.Length });
+    }
+
+    /// <summary>
+    /// Writes one aircraft into this machine's own table from the window's
+    /// answers, then makes it the chosen aircraft. Nothing is guessed: the
+    /// title came from FSUIPC's log, the layout from the answers, and the
+    /// entry records both so a later reader knows where it came from.
+    /// </summary>
+    private async Task AddAircraftAsync(JsonElement msg)
+    {
+        string Str(string k) => msg.TryGetProperty(k, out var v) && v.ValueKind == JsonValueKind.String ? (v.GetString() ?? "").Trim() : "";
+        bool Yes(string k) => msg.TryGetProperty(k, out var v) && v.ValueKind == JsonValueKind.True;
+        async Task Refuse(string why) => await Send(new { kind = "aircraftAdded", ok = false, message = why });
+
+        var title = Str("title");
+        var name = Str("name");
+        var icao = Str("icao").ToUpperInvariant();
+        var category = Str("category");
+        var engines = msg.TryGetProperty("engines", out var en) && en.ValueKind == JsonValueKind.Number && en.TryGetInt32(out var n) ? n : 1;
+        var prop = Yes("propLever");
+        var mix = Yes("mixtureLever");
+
+        if (string.IsNullOrWhiteSpace(title)) { await Refuse("Pick the aircraft from the list first."); return; }
+        if (icao != "" && !AircraftTable.ValidIcao(icao)) { await Refuse("The type code should be letters and digits, like C172 or B736 - or left blank."); return; }
+
+        var titleMatch = AircraftTable.TitleMatchFor(title);
+        var match = AircraftTable.ProfileNameFor(titleMatch);
+        if (string.IsNullOrWhiteSpace(match)) { await Refuse("That name has nothing in it a profile could be named after."); return; }
+        if (string.IsNullOrWhiteSpace(name)) name = titleMatch;
+        var layout = AircraftTable.LayoutFor(category, engines, prop, mix);
+
+        var e = new AircraftEntry
+        {
+            Name = name, Icao = icao, Match = match, TitleMatch = titleMatch, Layout = layout,
+            Verified = $"added in the launcher on {Environment.MachineName} {DateTime.Now:yyyy-MM-dd}; " +
+                       $"title measured from FSUIPC7.log: {title}; not yet flown"
+        };
+        var cat = category == "" || category == "piston" ? "prop" : category;
+        e.Facts["category"] = JsonSerializer.SerializeToElement(cat);
+        e.Facts["engines"] = JsonSerializer.SerializeToElement(Math.Clamp(engines, 1, 4));
+        if (cat == "prop")
+        {
+            e.Facts["propControl"] = JsonSerializer.SerializeToElement(prop);
+            e.Facts["mixtureControl"] = JsonSerializer.SerializeToElement(mix);
+        }
+        if (cat == "turboprop") e.Facts["conditionLever"] = JsonSerializer.SerializeToElement(true);
+
+        try { AircraftTable.AddLocal(e); }
+        catch (Exception ex)
+        {
+            Program.LogError("write local aircraft table", ex);
+            await Refuse("The aircraft file could not be written: " + ex.Message);
+            return;
+        }
+        Program.Log($"aircraft added: {e.Id} \"{name}\" title \"{title}\" -> match \"{titleMatch}\" layout {layout}");
+
+        _cfg ??= new AppConfig();
+        _cfg.LastAircraftId = e.Id;
+        _cfg.Save();
+        await PushConfigAsync();
+        await Send(new
+        {
+            kind = "aircraftAdded", ok = true, id = e.Id,
+            message = $"{name} is added. It matches any aircraft whose name contains \"{titleMatch}\", so other paint schemes work too. " +
+                      $"Next: press \"Set up levers in FSUIPC\"."
+        });
+        await PushPreflightAsync(true);
     }
 
     // ---- setup progress and outcome -------------------------------------

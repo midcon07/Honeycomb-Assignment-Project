@@ -249,6 +249,14 @@
   }
   .modal.open-details pre { display: block; }
   .modal .row { display: flex; gap: 8px; justify-content: flex-end; }
+  .modal .form-row { display: flex; align-items: center; gap: 10px; margin: 8px 0; flex-wrap: wrap; }
+  .modal .form-row label { font-family: var(--f-placard); font-weight: 700; letter-spacing: .1em; text-transform: uppercase; font-size: 11px; color: var(--placard); min-width: 12em; }
+  .modal .pid-input.wide { width: 18em; }
+  .modal select.pid-input { width: auto; min-width: 8em; }
+  .modal .hint { font-size: 12px; color: #9AA3A8; line-height: 1.4; margin: 4px 0; }
+  .modal .err { color: #F09A90; font-size: 13px; min-height: 1.2em; margin: 6px 0; }
+  .title-list { max-height: 30vh; overflow: auto; background: #0E1113; border-radius: 3px; padding: 6px 10px; margin: 6px 0; }
+  .title-opt { display: flex; gap: 8px; align-items: center; padding: 5px 0; font-family: var(--f-readout); font-size: 14px; color: var(--amber-bright); cursor: pointer; }
 
   /* Button states: amber until the step is done and confirmed, green after.
      Grey is for buttons that carry no state (refresh) or cannot be pressed. */
@@ -645,6 +653,7 @@
       <button class="pbtn" id="refreshBtn" type="button">Refresh Flight Plan</button>
       <button class="pbtn" id="depWx"  type="button" disabled>Departure Wx</button>
       <button class="pbtn" id="destWx" type="button" disabled>Destination Wx</button>
+      <button class="pbtn" id="addAcBtn" type="button">Add aircraft</button>
     </div>
 
     <div class="meter hidden" id="meter" role="status" aria-live="polite">
@@ -757,27 +766,10 @@ var LAYOUTS = {
 var CAP_LABEL = { black:"Black", blue:"Blue", red:"Red",
                   jet:"White", sb:"SPEED BRAKE", flap:"FLAP", none:"No cap" };
 
-var FLEET = [
-  { id: "c152", name: "Cessna 152",               type: "C152", layout: "prop_1_fixed" },
-  { id: "c172", name: "Cessna 172 Skyhawk",       type: "C172", layout: "prop_1_fixed" },
-  { id: "da40", name: "Diamond DA40 NG",          type: "DA40", layout: "fadec_1" },
-  { id: "be36", name: "Beechcraft Bonanza G36",   type: "BE36", layout: "prop_1_cs" },
-  { id: "c208", name: "Cessna 208B Caravan",      type: "C208", layout: "prop_1_cs" },
-  { id: "tbm9", name: "Daher TBM 930",            type: "TBM9", layout: "fadec_1" },
-  { id: "da62", name: "Diamond DA62",             type: "DA62", layout: "fadec_2" },
-  { id: "be58", name: "Beechcraft Baron G58",     type: "BE58", layout: "prop_2_cs" },
-  { id: "dc3",  name: "Douglas DC-3",            type: "DC3",  layout: "prop_2_cs" },
-  { id: "b350", name: "Beechcraft King Air 350i", type: "B350", layout: "turboprop_2" },
-  { id: "be9l", name: "Beechcraft King Air C90 GTx", type: "BE9L", layout: "turboprop_2" },
-  { id: "c25c", name: "Cessna Citation CJ4",      type: "C25C", layout: "jet_2" },
-  { id: "a20n", name: "Airbus A320neo",           type: "A20N", layout: "jet_2" },
-  { id: "b736", name: "Boeing 737-600 (PMDG)",   type: "B736", layout: "jet_2" },
-  { id: "b738", name: "PMDG 737-800",             type: "B738", layout: "jet_2" },
-  { id: "b77l", name: "PMDG 777F",                type: "B77L", layout: "jet_2" },
-  { id: "b78x", name: "Boeing 787-10",            type: "B78X", layout: "jet_2" },
-  { id: "b748", name: "Boeing 747-8i",            type: "B748", layout: "jet_4" },
-  { id: "disc", name: "Discus-2c Glider",         type: "DISC", layout: "glider" }
-];
+/* The aircraft list. Filled by the host from the shipped table plus this
+   machine's own additions - it used to be typed here by hand and drifted
+   from the table (a 737-800 was listed that no template existed for). */
+var FLEET = [];
 
 var S = {
   config: null,
@@ -828,6 +820,7 @@ window.APP = {
     switch (msg.kind) {
       case "config":
         S.config = msg;
+        if (msg.fleet) { FLEET = msg.fleet; }
         // Prefill the Pilot ID box, but never overwrite what someone is typing.
         if (document.activeElement !== byId("pilotIdInput")) { byId("pilotIdInput").value = msg.pilotId || ""; }
         if (!S.selectedId && msg.lastAircraftId) { S.selectedId = msg.lastAircraftId; }
@@ -847,6 +840,8 @@ window.APP = {
          be wiped by the next background preflight refresh. */
       case "setupProgress": showMeter(msg); return;
       case "weather":       showWeather(msg.data || msg); return;
+      case "aircraftTitles": showAircraftTitles(msg); return;
+      case "aircraftAdded":  showAircraftAdded(msg); return;
       case "setupResult":   showSetupResult(msg); return;
       case "testStatus":    S.test = msg; renderTestOverlay(); return;
     }
@@ -931,7 +926,7 @@ function planState() {
   if (ps === "NoPilotId") { return "nopilot"; }
   if (ps === "Unavailable" || ps === "NoSuchUser" ||
       ps === "NoPlan") { return "noplan"; }
-  if (a && S.plan.AircraftIcao && S.plan.AircraftIcao !== a.type) { return "mismatch"; }
+  if (a && a.type && S.plan.AircraftIcao && S.plan.AircraftIcao !== a.type) { return "mismatch"; }
   if (ps === "Stale") { return "stale"; }
   return "ok";
 }
@@ -1091,7 +1086,7 @@ function renderButtons() {
   setState("capsBtn", capsConfirmed() ? "done" : "todo");
   var lv = byId("setupBtn");
   if (lv) { lv.disabled = !a; }
-  setState("setupBtn", a && (c.leversWrittenIcao || []).indexOf(a.type) >= 0 ? "done" : "todo");
+  setState("setupBtn", a && (c.leversWrittenIds || []).indexOf(a.id) >= 0 ? "done" : "todo");
   setState("buttonsBtn", c.buttonsWritten ? "done" : "todo");
   setState("bravoProfileBtn", c.bravoProfileConfirmed ? "done" : "todo");
   setState("testBtn", testComplete() ? "done" : "todo");
@@ -1367,6 +1362,7 @@ byId("winMax").addEventListener("click", function () { post({ action: "maximise"
 byId("winClose").addEventListener("click", function () { post({ action: "close" }); });
 
 byId("refreshBtn").addEventListener("click", function () { S.refreshAsked = true; post({ action: "refresh" }); });
+byId("addAcBtn").addEventListener("click", function () { openAddAircraft("", "", null); });
 byId("depWx").addEventListener("click",  function () { askWeather("dep"); });
 byId("destWx").addEventListener("click", function () { askWeather("dest"); });
 byId("pilotIdSave").addEventListener("click", function () {
@@ -1616,17 +1612,124 @@ function warnUnknownPlanAircraft() {
   var known = list.indexOf(icao) >= 0;
   if (known) { return; }
   var name = S.plan.AircraftName || icao;
-  showDialog(false, "No template for the " + name + " (" + icao + ")",
-    "Your flight plan is for the " + name + ", and the launcher has no lever settings for it yet. " +
-    "The Bravo's levers would do nothing in it. Adding it needs the aircraft's exact name as the " +
-    "simulator reports it, which only the simulator can produce. Do this once:",
-    null,
-    "1. Open the simulator.\n" +
-    "2. Start any flight with the " + name + " selected, and let it load to the ramp.\n" +
-    "3. Exit the simulator.\n" +
-    "4. Tell Mark the aircraft. He reads its name from FSUIPC's log, answers two questions about its levers, and adds it.\n\n" +
-    "Until then, choose an aircraft from the list, or fly this one with the levers unassigned.",
-    true);
+  openAddAircraft(icao, name,
+    "Your flight plan is for the " + name + " (" + icao + "), and the launcher has no lever settings " +
+    "for it yet - the Bravo's levers would do nothing in it. Add it here. If it is not in the list " +
+    "below, the simulator has not loaded it yet: open the simulator, start a flight in it, let it " +
+    "reach the ramp, exit the simulator, and press Look again.");
+}
+
+/* ---------------------------------------------------------- add aircraft -- */
+/* Adding an aircraft on this machine, with no new build. The one fact only
+   the simulator can give - the aircraft's name as FSUIPC logs it - is read
+   from FSUIPC's log, so the aircraft must have been loaded once. The rest
+   are the questions the lever layout is decided by. */
+function openAddAircraft(icao, name, why) {
+  var old = byId("modalBack");
+  if (old) { old.parentNode.removeChild(old); }
+  var back = el("div", "modal-back", ""); back.id = "modalBack";
+  var box = el("div", "modal", ""); box.id = "addBox";
+  box.appendChild(el("h2", "", "Add an aircraft"));
+  if (why) { box.appendChild(el("p", "", why)); }
+  box.appendChild(el("p", "", "Which aircraft is it? These are the ones your simulator has loaded that the launcher does not know yet:"));
+  var list = el("div", "title-list", ""); list.id = "addTitles";
+  list.appendChild(el("p", "hint", "Looking in FSUIPC's log…"));
+  box.appendChild(list);
+  var rf = el("button", "pbtn", "Look again"); rf.type = "button";
+  rf.addEventListener("click", function () { post({ action: "aircraftTitles" }); });
+  var rfRow = el("div", "form-row", ""); rfRow.appendChild(rf); box.appendChild(rfRow);
+
+  function field(label, id, value, hint) {
+    var row = el("div", "form-row", "");
+    var l = el("label", "", label); l.htmlFor = id; row.appendChild(l);
+    var i = el("input", "pid-input wide", ""); i.id = id; i.type = "text"; i.value = value || ""; i.autocomplete = "off";
+    row.appendChild(i);
+    if (hint) { row.appendChild(el("span", "hint", hint)); }
+    box.appendChild(row);
+  }
+  function choice(label, id, opts, value) {
+    var row = el("div", "form-row", ""); row.id = id + "Row";
+    var l = el("label", "", label); l.htmlFor = id; row.appendChild(l);
+    var sel = el("select", "pid-input", ""); sel.id = id;
+    opts.forEach(function (o) { var op = document.createElement("option"); op.value = o[0]; op.textContent = o[1]; sel.appendChild(op); });
+    sel.value = value; row.appendChild(sel); box.appendChild(row);
+    return sel;
+  }
+  field("Name to show", "addName", name || "", "");
+  field("Type code", "addIcao", icao || "", "SimBrief's code, like C172 or B736. Leave blank if you do not know it.");
+  var kind = choice("Engines", "addKind", [["piston", "Piston"], ["turboprop", "Turboprop"], ["jet", "Jet"], ["glider", "Glider"]], "piston");
+  choice("How many", "addEngines", [["1", "1"], ["2", "2"], ["3", "3"], ["4", "4"]], "1");
+  choice("Propeller lever (blue)", "addProp", [["no", "No"], ["yes", "Yes"]], "no");
+  choice("Mixture lever (red)", "addMix", [["no", "No"], ["yes", "Yes"]], "yes");
+  function pistonOnly() {
+    var p = kind.value === "piston";
+    byId("addPropRow").classList.toggle("hidden", !p);
+    byId("addMixRow").classList.toggle("hidden", !p);
+    byId("addEnginesRow").classList.toggle("hidden", kind.value === "glider");
+  }
+  kind.addEventListener("change", pistonOnly);
+  pistonOnly();
+
+  var err = el("p", "err", ""); err.id = "addErr"; box.appendChild(err);
+  var row = el("div", "row", "");
+  var cancel = el("button", "pbtn", "Cancel"); cancel.type = "button";
+  cancel.addEventListener("click", function () { back.parentNode.removeChild(back); });
+  var add = el("button", "pbtn go", "Add aircraft"); add.type = "button"; add.id = "addGo";
+  add.addEventListener("click", function () {
+    var chosen = document.querySelector('input[name="addTitle"]:checked');
+    if (!chosen) {
+      err.textContent = "Pick the aircraft from the list first. If it is not there, it has not been loaded in the simulator yet.";
+      return;
+    }
+    err.textContent = ""; add.disabled = true; add.textContent = "Adding…";
+    post({ action: "addAircraft", title: chosen.value,
+           name: byId("addName").value.trim(), icao: byId("addIcao").value.trim(),
+           category: kind.value, engines: parseInt(byId("addEngines").value, 10),
+           propLever: byId("addProp").value === "yes", mixtureLever: byId("addMix").value === "yes" });
+  });
+  row.appendChild(cancel); row.appendChild(add); box.appendChild(row);
+  back.appendChild(box);
+  document.body.appendChild(back);
+  post({ action: "aircraftTitles" });
+}
+
+function showAircraftTitles(m) {
+  var list = byId("addTitles");
+  if (!list) { return; }
+  list.textContent = "";
+  var titles = m.titles || [];
+  if (!m.logFound) {
+    list.appendChild(el("p", "hint", "FSUIPC's log was not found, so the simulator's aircraft names cannot be read. Is FSUIPC installed?"));
+    return;
+  }
+  if (!titles.length) {
+    list.appendChild(el("p", "hint", "None yet. Open the simulator, start a flight in the aircraft, let it load to the ramp, then exit the simulator and press Look again."));
+    return;
+  }
+  titles.forEach(function (t, i) {
+    var lab = el("label", "title-opt", "");
+    var r = document.createElement("input"); r.type = "radio"; r.name = "addTitle"; r.value = t;
+    if (i === 0) { r.checked = true; }
+    lab.appendChild(r); lab.appendChild(el("span", "", t));
+    list.appendChild(lab);
+  });
+  list.appendChild(el("p", "hint", "Newest first. Other paint schemes of the same aircraft are matched too."));
+}
+
+function showAircraftAdded(m) {
+  if (!m.ok) {
+    // Keep the window open with the answers in it; say what was missing.
+    var go = byId("addGo"), err = byId("addErr");
+    if (go) { go.disabled = false; go.textContent = "Add aircraft"; }
+    if (err) { err.textContent = m.message || "Something was missing."; }
+    else { showDialog(false, "Not added", m.message || "Something was missing.", null, null); }
+    return;
+  }
+  var back = byId("modalBack");
+  if (back) { back.parentNode.removeChild(back); }
+  if (m.id) { S.selectedId = m.id; }
+  render();
+  showDialog(true, "Aircraft added", m.message || "Added.", null, null);
 }
 
 /* Departure / destination weather. The airport's position comes from the

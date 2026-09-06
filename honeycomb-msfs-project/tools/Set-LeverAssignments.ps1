@@ -313,6 +313,29 @@ if ($Aircraft -and -not $Layout) {
     $entries = @()
     if ($table.PSObject.Properties['aircraft']) { $entries = @($table.aircraft) }
 
+    # Aircraft added in the launcher live in a second file on this machine, so a
+    # new aircraft never needs a new build. Same entry shape as the shipped table;
+    # a local entry with the same ICAO (or profile name) replaces the shipped one.
+    $localFile = [System.IO.Path]::Combine($env:LOCALAPPDATA, 'HoneycombAssignment', 'aircraft.json')
+    if (Test-Path -LiteralPath $localFile) {
+        try {
+            $local = Get-Content -LiteralPath $localFile -Raw | ConvertFrom-Json
+            $added = @(); if ($local.PSObject.Properties['aircraft']) { $added = @($local.aircraft) }
+            foreach ($e in $added) {
+                $k = if ($e.PSObject.Properties['icao'] -and $e.icao) { ([string]$e.icao).ToUpper() }
+                     elseif ($e.PSObject.Properties['match'] -and $e.match) { ([string]$e.match).ToUpper() } else { '' }
+                if ($k) {
+                    $entries = @($entries | Where-Object {
+                        $mine = if ($_.PSObject.Properties['icao'] -and $_.icao) { ([string]$_.icao).ToUpper() }
+                                elseif ($_.PSObject.Properties['match'] -and $_.match) { ([string]$_.match).ToUpper() } else { '' }
+                        $mine -ne $k
+                    })
+                }
+                $entries += $e
+            }
+        } catch { Write-Warning ('The local aircraft file could not be read, so only the shipped table is used: ' + $_.Exception.Message) }
+    }
+
     # Matched on icao as well as match/name, because the app knows an aircraft
     # by its ICAO type (it stores lastAircraftId as "b350") and that is what it
     # will pass. Case-insensitive on all three.

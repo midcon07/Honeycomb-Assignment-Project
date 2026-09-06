@@ -96,6 +96,28 @@
         try {
             $table = Get-Content -LiteralPath $dataFile -Raw -ErrorAction Stop | ConvertFrom-Json
             if ($table.PSObject.Properties['aircraft']) { $entries = @($table.aircraft) }
+            # Aircraft added in the launcher live in a second file on this machine, so a
+            # new aircraft never needs a new build. Same entry shape as the shipped table;
+            # a local entry with the same ICAO (or profile name) replaces the shipped one.
+            $localFile = [System.IO.Path]::Combine($env:LOCALAPPDATA, 'HoneycombAssignment', 'aircraft.json')
+            if (Test-Path -LiteralPath $localFile) {
+                try {
+                    $local = Get-Content -LiteralPath $localFile -Raw | ConvertFrom-Json
+                    $added = @(); if ($local.PSObject.Properties['aircraft']) { $added = @($local.aircraft) }
+                    foreach ($e in $added) {
+                        $k = if ($e.PSObject.Properties['icao'] -and $e.icao) { ([string]$e.icao).ToUpper() }
+                             elseif ($e.PSObject.Properties['match'] -and $e.match) { ([string]$e.match).ToUpper() } else { '' }
+                        if ($k) {
+                            $entries = @($entries | Where-Object {
+                                $mine = if ($_.PSObject.Properties['icao'] -and $_.icao) { ([string]$_.icao).ToUpper() }
+                                        elseif ($_.PSObject.Properties['match'] -and $_.match) { ([string]$_.match).ToUpper() } else { '' }
+                                $mine -ne $k
+                            })
+                        }
+                        $entries += $e
+                    }
+                } catch { Write-Warning ('The local aircraft file could not be read, so only the shipped table is used: ' + $_.Exception.Message) }
+            }
         } catch {
             Add-Result 'Planned aircraft' 'FAIL' -Blocking `
                 ('The aircraft table cannot be read: ' + $_.Exception.Message) `
@@ -104,16 +126,19 @@
         }
 
         $entry = @($entries | Where-Object {
-            $_.PSObject.Properties['icao'] -and ([string]$_.icao).ToUpper() -eq $icaoU
+            ($_.PSObject.Properties['icao'] -and $_.icao -and ([string]$_.icao).ToUpper() -eq $icaoU) -or
+            # An aircraft added without a type code is known by its profile
+            # name, which is what the app stores as lastAircraftId for it.
+            ($_.PSObject.Properties['match'] -and $_.match -and ([string]$_.match).ToUpper() -eq $icaoU)
         })
 
         $shown = if ($planName) { '{0} ({1})' -f $planName, $icaoU } else { $icaoU }
 
         if ($entry.Count -eq 0) {
-            $known = @($entries | ForEach-Object { if ($_.PSObject.Properties['icao']) { $_.icao } }) -join ', '
+            $known = @($entries | ForEach-Object { if ($_.PSObject.Properties['icao'] -and $_.icao) { $_.icao } elseif ($_.PSObject.Properties['match']) { $_.match } }) -join ', '
             Add-Result 'Planned aircraft' 'FAIL' -Blocking `
                 ('{0} is not set up on this computer. It came from {1}.' -f $shown, $source) `
-                ('The throttle levers will not work in it until it is set up. Setting it up needs two answers: does it have a propeller lever, and does it have a mixture or condition lever. Aircraft already set up: {0}.' -f $(if ($known) { $known } else { 'none' }))
+                ('The throttle levers will not work in it until it is set up. Press "Add aircraft" in the launcher: it needs the aircraft loaded once in the simulator and a few answers about its levers. Aircraft already set up: {0}.' -f $(if ($known) { $known } else { 'none' }))
             return
         }
         if ($entry.Count -gt 1) {
