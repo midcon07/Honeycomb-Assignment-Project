@@ -396,6 +396,28 @@ if ($Aircraft -and -not $Layout) {
     # control the aircraft has no use for can do something else there. First
     # use: on a jet the flap axis is lever 6, so the Bravo's flap switch is
     # free - the PMDG 737 uses it for the HGS combiner (Mark, 2026-09-05).
+    # How reverse thrust is driven below the detent. "event" (default) sends
+    # SET_THROTTLEn_REVERSE_THRUST_ON/OFF, which the stock aircraft honour.
+    # "throttleSet" sends THROTTLEn_SET with a negative value on press and 0
+    # on release - the same reverse range an axis would reach, for add-ons
+    # that ignore the ON/OFF events but read the throttle's own negative
+    # range (the usual case for PMDG). reverseAmount is the value sent,
+    # -16383 = full reverse; default -12288.
+    $ReverseMode   = 'event'
+    $ReverseAmount = -12288
+    if ($hit[0].PSObject.Properties['reverse'] -and $hit[0].reverse) {
+        $ReverseMode = ([string]$hit[0].reverse).Trim()
+        if ($ReverseMode -notin @('event', 'throttleSet')) {
+            throw ("Aircraft table: reverse for ""{0}"" is ""{1}""; it must be event or throttleSet." -f $Aircraft, $ReverseMode)
+        }
+    }
+    if ($hit[0].PSObject.Properties['reverseAmount'] -and $null -ne $hit[0].reverseAmount) {
+        $ReverseAmount = [int]$hit[0].reverseAmount
+        if ($ReverseAmount -gt -1 -or $ReverseAmount -lt -16383) {
+            throw ("Aircraft table: reverseAmount for ""{0}"" must be between -1 and -16383." -f $Aircraft)
+        }
+    }
+
     $AircraftButtons = @{}
     if ($hit[0].PSObject.Properties['buttons'] -and $hit[0].buttons) {
         foreach ($p in $hit[0].buttons.PSObject.Properties) {
@@ -722,8 +744,17 @@ if ($Aircraft -and -not $ClearGlobal) {
             # writing SET_REVERSE_THRUST for it would be a line that looks like
             # a feature and is not. The first write did exactly that for the
             # DA62 and Bonanza.
+            if ($ReverseMode -eq 'throttleSet' -and $CTRL_BY_FAMILY['Legacy'].ContainsKey($role)) {
+                # THROTTLEn_SET (65820..) takes -16383..16383; negative is the
+                # reverse range. Press sends the reverse amount, release sends
+                # 0 (idle); above the detent the axis line takes over again.
+                $ts = $CTRL_BY_FAMILY['Legacy'][$role]
+                [void]$btnLines.Add(('{0}=P{1},{2},C{3},{4}' -f $bn, $JoystickLetter, $b, $ts, $ReverseAmount) + "`t; lever $leverNo below detent -> " + $REV_NAME[$role].Replace('ALL', 'THROTTLE') + "_SET $ReverseAmount (reverse)"); $bn++
+                [void]$btnLines.Add(('{0}=U{1},{2},C{3},0'   -f $bn, $JoystickLetter, $b, $ts)                 + "`t; lever $leverNo back above detent -> " + $REV_NAME[$role].Replace('ALL', 'THROTTLE') + "_SET 0 (idle)"); $bn++
+            } else {
             [void]$btnLines.Add(('{0}=P{1},{2},C{3},0' -f $bn, $JoystickLetter, $b, $REV_ON[$role])  + "`t; lever $leverNo below detent -> SET_" + $REV_NAME[$role] + "_REVERSE_THRUST_ON");  $bn++
             [void]$btnLines.Add(('{0}=U{1},{2},C{3},0' -f $bn, $JoystickLetter, $b, $REV_OFF[$role]) + "`t; lever $leverNo back above detent -> SET_" + $REV_NAME[$role] + "_REVERSE_THRUST_OFF"); $bn++
+            }
         } elseif ($FEATHER.ContainsKey($role) -and $Layout -like 'turboprop_*') {
             # A turboprop's prop lever below its detent is FEATHER. The first
             # design gave props no below-detent action at all, and a tester
