@@ -159,7 +159,7 @@ internal static class AircraftTable
         {
             var t = toks[^1];
             // Punctuation-only tokens (the " - " before a livery) go with it.
-            var livery = Regex.IsMatch(t, @"^[W_]+$") || Regex.IsMatch(t, "^[A-Z]{2,}$") ||
+            var livery = Regex.IsMatch(t, @"^[\W_]+$") || Regex.IsMatch(t, "^[A-Z]{2,}$") ||
                          Regex.IsMatch(t, "^(Passengers?|Cargo|Freighter|Pax)$", RegexOptions.IgnoreCase);
             if (!livery) break;
             toks.RemoveAt(toks.Count - 1);
