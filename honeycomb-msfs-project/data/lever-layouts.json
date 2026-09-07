@@ -586,7 +586,7 @@
                                        "engines":  2
                                    },
                          "layout":  "jet_2",
-                         "verified":  "type - copied from the 737-600, which was flown 2026-09-05 (same Bravo setup, same reverse recipe, same HGS switch); titleMatch REASONED from the measured 600 title (737-600 PAX SC), not yet read from FSUIPC7.log; not yet flown",
+                         "verified":  "flown 2026-09-06 on BigBoy (midcon07, joystick C): levers confirmed; title fragment 737-800 therefore matched; copied from the flown 737-600 (same reverse recipe, same HGS switch)",
                          "buttons":  {
                                          "FLAPS_DOWN":  {
                                                             "preset":  "PMDG_B737-7_HGS_HUD_UP_DOWN_SWITCH",
