@@ -53,7 +53,7 @@
       "ifNot": "Backwards = swap two numbers. Note it." },
 
     { "id": "switches",         "kind": "manual", "when": "any",
-      "label": "Seven switches: battery, alternator, avionics, nav, beacon, strobe, taxi",
+      "label": "Seven switches: battery, alternator, avionics, nav, beacon, PARKING BRAKE, taxi",
       "expect": "ON at the position you called ON, OFF the other way, and the aircraft's switch follows yours exactly - the map sends the position, not a toggle.",
       "ifNot": "One working backwards = its press and release are swapped. Note which switch." },
 

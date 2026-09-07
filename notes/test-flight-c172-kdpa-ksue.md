@@ -39,7 +39,7 @@ cockpit so you can watch the aircraft's own controls move.
 - [ ] Battery: the aircraft's BAT half of the master moves, panel lights.
 - [ ] Alternator: ALT half of the master.
 - [ ] Avionics: G1000 screens come up (may take a moment).
-- [ ] Nav, beacon, strobe, taxi: the matching cockpit switch. Use an outside
+- [ ] Nav, beacon, taxi: the matching cockpit switch. Switch 6 is the PARKING BRAKE: on sets it, off releases it. Use an outside
       view for the lights themselves.
 - [ ] Every switch: ON where you called it ON, and the cockpit switch
       **matches your position** after flipping both ways twice.

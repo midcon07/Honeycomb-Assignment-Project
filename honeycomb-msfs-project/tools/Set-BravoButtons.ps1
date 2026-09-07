@@ -118,6 +118,16 @@ function Get-Btn {
     return [int]$c.fsuipc
 }
 
+# The control field of a line: a number is an FSUIPC control (C<n>), anything
+# else is a preset name (CP<name>) from events.txt or our own myevents.txt.
+# First use: the parking brake on switch 6, which has no plain ON/OFF control
+# in FSUIPC's list and is driven by calculator code on PARKING_BRAKE_SET.
+function Ctl([object] $x) {
+    $t = [string]$x
+    if ($t -match '^\d+$') { return 'C' + $t }
+    return 'CP' + $t
+}
+
 $lines   = New-Object System.Collections.ArrayList
 $skipped = New-Object System.Collections.ArrayList
 $n = 0
@@ -135,18 +145,18 @@ foreach ($name in $order) {
         $rep = if ($m.PSObject.Properties['repeat'] -and [int]$m.repeat -gt 1) { [int]$m.repeat } else { 1 }
         for ($r = 1; $r -le $rep; $r++) {
             $why = if ($rep -gt 1) { (' ({0} of {1} per pulse)' -f $r, $rep) } else { '' }
-            [void]$lines.Add(('{0}=P{1},{2},C{3},{4}' -f $n, $J, $btn, $m.press[0], $m.press[1]) + "`t; " + $name + ' -> ' + $m.press[2] + $why); $n++
+            [void]$lines.Add(('{0}=P{1},{2},{3},{4}' -f $n, $J, $btn, (Ctl $m.press[0]), $m.press[1]) + "`t; " + $name + ' -> ' + $m.press[2] + $why); $n++
         }
     }
     if ($m.PSObject.Properties['release'] -and $m.release) {
-        [void]$lines.Add(('{0}=U{1},{2},C{3},{4}' -f $n, $J, $btn, $m.release[0], $m.release[1]) + "`t; " + $name + ' released -> ' + $m.release[2]); $n++
+        [void]$lines.Add(('{0}=U{1},{2},{3},{4}' -f $n, $J, $btn, (Ctl $m.release[0]), $m.release[1]) + "`t; " + $name + ' released -> ' + $m.release[2]); $n++
     }
     if ($m.PSObject.Properties['when'] -and $m.when) {
         foreach ($cond in @($m.when.PSObject.Properties | ForEach-Object { $_.Name })) {
             $cb = Get-Btn $cond
             if ($null -eq $cb) { [void]$skipped.Add($name + ' while ' + $cond); continue }
             $act = $m.when.$cond
-            [void]$lines.Add(('{0}=CP(+{1},{2}){1},{3},C{4},{5}' -f $n, $J, $cb, $btn, $act[0], $act[1]) + "`t; " + $name + ' while ' + $cond + ' -> ' + $act[2]); $n++
+            [void]$lines.Add(('{0}=CP(+{1},{2}){1},{3},{4},{5}' -f $n, $J, $cb, $btn, (Ctl $act[0]), $act[1]) + "`t; " + $name + ' while ' + $cond + ' -> ' + $act[2]); $n++
         }
     }
 }
@@ -193,3 +203,16 @@ if (-not $replaced) { [void]$out.Add(''); [void]$out.AddRange([string[]]$section
 
 [System.IO.File]::WriteAllText($ini, (($out -join "`r`n") + "`r`n"), (New-Object System.Text.UTF8Encoding($false)))
 Write-Host ('Wrote {0} button line(s) to {1}. Start FSUIPC7 again - it reads this file at startup.' -f $lines.Count, $ini) -ForegroundColor Green
+
+# The map now uses presets (parking brake), which live in data/myevents.txt
+# and are read by FSUIPC from its own folder at startup. Installed here as
+# well as by the lever writer, so whichever runs first puts it in place.
+$srcEv = [System.IO.Path]::Combine($PSScriptRoot, '..', 'data', 'myevents.txt')
+$dstEv = [System.IO.Path]::Combine($FsuipcRoot, 'myevents.txt')
+if (Test-Path -LiteralPath $srcEv) {
+    $same = (Test-Path -LiteralPath $dstEv) -and ((Get-FileHash -LiteralPath $srcEv).Hash -eq (Get-FileHash -LiteralPath $dstEv).Hash)
+    if (-not $same) {
+        Copy-Item -LiteralPath $srcEv -Destination $dstEv -Force
+        Write-Host ("Installed presets: {0} (FSUIPC reads it at startup)" -f $dstEv) -ForegroundColor Green
+    }
+}

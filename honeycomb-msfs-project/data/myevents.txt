@@ -42,3 +42,12 @@
 KA350_Condition1_Axis#@ (>L:HC_Cond1_Raw) @ -10922 < if{ 0 } els{ @ -5461 < if{ 1 } els{ 2 } } s0 (>L:Condition_Lever_CutOff_1) l0 0 > (>K:SET_FUEL_VALVE_ENG1) l0 (>A:TURB ENG CONDITION LEVER POSITION:1,enum)
 KA350_Condition2_Axis#@ (>L:HC_Cond2_Raw) @ -10922 < if{ 0 } els{ @ -5461 < if{ 1 } els{ 2 } } s0 (>L:Condition_Lever_CutOff_2) l0 0 > (>K:SET_FUEL_VALVE_ENG2) l0 (>A:TURB ENG CONDITION LEVER POSITION:2,enum)
 
+
+// ---------------------------------------------------------------------------
+// Parking brake on Bravo switch 6 (Mark, 2026-09-06): the switch position IS
+// the brake position - on sets it, off releases it - never a toggle, which
+// would drift out of step with the handle. FSUIPC's own list has only the
+// toggle (PARKING_BRAKES), so these write the position with calculator code
+// on the sim's PARKING_BRAKE_SET event.
+HC_ParkingBrake_On#1 (>K:PARKING_BRAKE_SET)
+HC_ParkingBrake_Off#0 (>K:PARKING_BRAKE_SET)
