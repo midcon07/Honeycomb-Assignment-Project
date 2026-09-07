@@ -1,46 +1,221 @@
 {
-  "$comment": "The Honeycomb Alpha yoke, same shape as bravo-buttons.json: 'controls' is the PHYSICAL map (which button number each control is - measured by tools/Probe-HoneycombDevices.ps1 -Capture data/alpha-buttons.json, never typed in), 'map' is what each control does in the sim. 'device' tells the capture which unit to read. Names are Mark's (2026-09-06): LEFT horn has the push-to-talk trigger on the back, the 8-direction hat, a WHITE button, and the black two-way ELEVATOR TRIM switch (left, right); RIGHT horn has the RED button, a WHITE button and the black two-way AILERON TRIM switch (top, bottom). Base: MASTER ALT/BAT, AVIONICS BUS1/BUS2, BCN LAND TAXI NAV STROBE, ignition key OFF/R/L/BOTH/START. Every control starts unverified; the capture asks for each in turn, S skips. Numbering is FSUIPC's: prober minus 1, and above 31 plus 100. Latching = stays put; momentary = springs back.",
-  "schemaVersion": 1,
-  "device": "alpha",
-  "joystickMatch": "alpha",
-  "controls": {
-    "PTT":               { "label": "LEFT horn: the push-to-talk trigger on the BACK of the horn", "kind": "momentary", "prober": null, "fsuipc": null, "verified": false },
-    "LEFT_WHITE_BUTTON": { "label": "LEFT horn: the WHITE button", "kind": "momentary", "prober": null, "fsuipc": null, "verified": false },
-
-    "HAT_UP":            { "label": "LEFT horn: the hat pushed straight UP", "kind": "held", "prober": null, "fsuipc": null, "verified": false },
-    "HAT_UP_RIGHT":      { "label": "LEFT horn: the hat pushed UP-RIGHT (diagonal)", "kind": "held", "prober": null, "fsuipc": null, "verified": false },
-    "HAT_RIGHT":         { "label": "LEFT horn: the hat pushed RIGHT", "kind": "held", "prober": null, "fsuipc": null, "verified": false },
-    "HAT_DOWN_RIGHT":    { "label": "LEFT horn: the hat pushed DOWN-RIGHT (diagonal)", "kind": "held", "prober": null, "fsuipc": null, "verified": false },
-    "HAT_DOWN":          { "label": "LEFT horn: the hat pushed straight DOWN", "kind": "held", "prober": null, "fsuipc": null, "verified": false },
-    "HAT_DOWN_LEFT":     { "label": "LEFT horn: the hat pushed DOWN-LEFT (diagonal)", "kind": "held", "prober": null, "fsuipc": null, "verified": false },
-    "HAT_LEFT":          { "label": "LEFT horn: the hat pushed LEFT", "kind": "held", "prober": null, "fsuipc": null, "verified": false },
-    "HAT_UP_LEFT":       { "label": "LEFT horn: the hat pushed UP-LEFT (diagonal)", "kind": "held", "prober": null, "fsuipc": null, "verified": false },
-
-    "ELEV_TRIM_LEFT":    { "label": "LEFT horn: the black ELEVATOR TRIM switch pushed to the LEFT", "kind": "momentary", "prober": null, "fsuipc": null, "verified": false },
-    "ELEV_TRIM_RIGHT":   { "label": "LEFT horn: the black ELEVATOR TRIM switch pushed to the RIGHT", "kind": "momentary", "prober": null, "fsuipc": null, "verified": false },
-
-    "RED_BUTTON":        { "label": "RIGHT horn: the RED button", "kind": "momentary", "prober": null, "fsuipc": null, "verified": false },
-    "RIGHT_WHITE_BUTTON":{ "label": "RIGHT horn: the WHITE button", "kind": "momentary", "prober": null, "fsuipc": null, "verified": false },
-    "AIL_TRIM_TOP":      { "label": "RIGHT horn: the black AILERON TRIM switch, the TOP button", "kind": "momentary", "prober": null, "fsuipc": null, "verified": false },
-    "AIL_TRIM_BOTTOM":   { "label": "RIGHT horn: the black AILERON TRIM switch, the BOTTOM button", "kind": "momentary", "prober": null, "fsuipc": null, "verified": false },
-
-    "SW_ALT":            { "label": "base: MASTER, the ALT switch, flipped ON (up) - flip it OFF first if it is on", "kind": "latching", "prober": null, "fsuipc": null, "verified": false },
-    "SW_BAT":            { "label": "base: MASTER, the BAT switch, flipped ON (up)", "kind": "latching", "prober": null, "fsuipc": null, "verified": false },
-    "SW_AVIONICS_BUS1":  { "label": "base: AVIONICS BUS1 flipped ON (up)", "kind": "latching", "prober": null, "fsuipc": null, "verified": false },
-    "SW_AVIONICS_BUS2":  { "label": "base: AVIONICS BUS2 flipped ON (up)", "kind": "latching", "prober": null, "fsuipc": null, "verified": false },
-    "SW_BEACON":         { "label": "base: BCN light switch flipped ON (up)", "kind": "latching", "prober": null, "fsuipc": null, "verified": false },
-    "SW_LAND":           { "label": "base: LAND light switch flipped ON (up)", "kind": "latching", "prober": null, "fsuipc": null, "verified": false },
-    "SW_TAXI":           { "label": "base: TAXI light switch flipped ON (up)", "kind": "latching", "prober": null, "fsuipc": null, "verified": false },
-    "SW_NAV":            { "label": "base: NAV light switch flipped ON (up)", "kind": "latching", "prober": null, "fsuipc": null, "verified": false },
-    "SW_STROBE":         { "label": "base: STROBE light switch flipped ON (up)", "kind": "latching", "prober": null, "fsuipc": null, "verified": false },
-
-    "MAG_OFF":           { "label": "base: ignition key turned to OFF (turn it to R first if it is already at OFF)", "kind": "latching", "prober": null, "fsuipc": null, "verified": false },
-    "MAG_R":             { "label": "base: ignition key turned to R", "kind": "latching", "prober": null, "fsuipc": null, "verified": false },
-    "MAG_L":             { "label": "base: ignition key turned to L", "kind": "latching", "prober": null, "fsuipc": null, "verified": false },
-    "MAG_BOTH":          { "label": "base: ignition key turned to BOTH", "kind": "latching", "prober": null, "fsuipc": null, "verified": false },
-    "MAG_START":         { "label": "base: ignition key turned and HELD at START, then let it spring back", "kind": "momentary", "prober": null, "fsuipc": null, "verified": false }
-  },
-  "map": {
-    "$comment": "Empty on purpose. What each Alpha control does is Mark's decision (see notes/alpha-plan.md), taken after the physical map is measured. Same shape as the Bravo's map: press / release / when, controls as FSUIPC numbers or preset names."
-  }
+    "$comment":  "The Honeycomb Alpha yoke, same shape as bravo-buttons.json: \u0027controls\u0027 is the PHYSICAL map (which button number each control is - measured by tools/Probe-HoneycombDevices.ps1 -Capture data/alpha-buttons.json, never typed in), \u0027map\u0027 is what each control does in the sim. \u0027device\u0027 tells the capture which unit to read. Names are Mark\u0027s (2026-09-06): LEFT horn has the push-to-talk trigger on the back, the 8-direction hat, a WHITE button, and two black up/down switches side by side (left one, right one); RIGHT horn has the RED button, a WHITE button and two black left/right switches stacked (top one, bottom one). Base: MASTER ALT/BAT, AVIONICS BUS1/BUS2, BCN LAND TAXI NAV STROBE, ignition key OFF/R/L/BOTH/START. Every control starts unverified; the capture asks for each in turn, S skips. Numbering is FSUIPC\u0027s: prober minus 1, and above 31 plus 100. Latching = stays put; momentary = springs back.",
+    "schemaVersion":  1,
+    "device":  "alpha",
+    "joystickMatch":  "alpha",
+    "controls":  {
+                     "PTT":  {
+                                 "label":  "LEFT horn: the push-to-talk trigger on the BACK of the horn",
+                                 "kind":  "momentary",
+                                 "prober":  1,
+                                 "fsuipc":  0,
+                                 "verified":  true
+                             },
+                     "LEFT_WHITE_BUTTON":  {
+                                               "label":  "LEFT horn: the WHITE button",
+                                               "kind":  "momentary",
+                                               "prober":  2,
+                                               "fsuipc":  1,
+                                               "verified":  true
+                                           },
+                     "HAT_UP":  {
+                                    "label":  "LEFT horn: the hat pushed straight UP",
+                                    "kind":  "held",
+                                    "prober":  null,
+                                    "fsuipc":  null,
+                                    "verified":  false
+                                },
+                     "HAT_UP_RIGHT":  {
+                                          "label":  "LEFT horn: the hat pushed UP-RIGHT (diagonal)",
+                                          "kind":  "held",
+                                          "prober":  null,
+                                          "fsuipc":  null,
+                                          "verified":  false
+                                      },
+                     "HAT_RIGHT":  {
+                                       "label":  "LEFT horn: the hat pushed RIGHT",
+                                       "kind":  "held",
+                                       "prober":  null,
+                                       "fsuipc":  null,
+                                       "verified":  false
+                                   },
+                     "HAT_DOWN_RIGHT":  {
+                                            "label":  "LEFT horn: the hat pushed DOWN-RIGHT (diagonal)",
+                                            "kind":  "held",
+                                            "prober":  null,
+                                            "fsuipc":  null,
+                                            "verified":  false
+                                        },
+                     "HAT_DOWN":  {
+                                      "label":  "LEFT horn: the hat pushed straight DOWN",
+                                      "kind":  "held",
+                                      "prober":  null,
+                                      "fsuipc":  null,
+                                      "verified":  false
+                                  },
+                     "HAT_DOWN_LEFT":  {
+                                           "label":  "LEFT horn: the hat pushed DOWN-LEFT (diagonal)",
+                                           "kind":  "held",
+                                           "prober":  null,
+                                           "fsuipc":  null,
+                                           "verified":  false
+                                       },
+                     "HAT_LEFT":  {
+                                      "label":  "LEFT horn: the hat pushed LEFT",
+                                      "kind":  "held",
+                                      "prober":  null,
+                                      "fsuipc":  null,
+                                      "verified":  false
+                                  },
+                     "HAT_UP_LEFT":  {
+                                         "label":  "LEFT horn: the hat pushed UP-LEFT (diagonal)",
+                                         "kind":  "held",
+                                         "prober":  null,
+                                         "fsuipc":  null,
+                                         "verified":  false
+                                     },
+                     "ELEV_TRIM_LEFT":  {
+                                            "label":  "LEFT horn: the black ELEVATOR TRIM switch pushed to the LEFT",
+                                            "kind":  "momentary",
+                                            "prober":  6,
+                                            "fsuipc":  5,
+                                            "verified":  true
+                                        },
+                     "ELEV_TRIM_RIGHT":  {
+                                             "label":  "LEFT horn: the black ELEVATOR TRIM switch pushed to the RIGHT",
+                                             "kind":  "momentary",
+                                             "prober":  8,
+                                             "fsuipc":  7,
+                                             "verified":  true
+                                         },
+                     "RED_BUTTON":  {
+                                        "label":  "RIGHT horn: the RED button",
+                                        "kind":  "momentary",
+                                        "prober":  4,
+                                        "fsuipc":  3,
+                                        "verified":  true
+                                    },
+                     "RIGHT_WHITE_BUTTON":  {
+                                                "label":  "RIGHT horn: the WHITE button",
+                                                "kind":  "momentary",
+                                                "prober":  3,
+                                                "fsuipc":  2,
+                                                "verified":  true
+                                            },
+                     "AIL_TRIM_TOP":  {
+                                          "label":  "RIGHT horn: the black AILERON TRIM switch, the TOP button",
+                                          "kind":  "momentary",
+                                          "prober":  10,
+                                          "fsuipc":  9,
+                                          "verified":  true
+                                      },
+                     "AIL_TRIM_BOTTOM":  {
+                                             "label":  "RIGHT horn: the black AILERON TRIM switch, the BOTTOM button",
+                                             "kind":  "momentary",
+                                             "prober":  12,
+                                             "fsuipc":  11,
+                                             "verified":  true
+                                         },
+                     "SW_ALT":  {
+                                    "label":  "base: MASTER, the ALT switch, flipped ON (up) - flip it OFF first if it is on",
+                                    "kind":  "latching",
+                                    "prober":  0,
+                                    "fsuipc":  -1,
+                                    "verified":  true
+                                },
+                     "SW_BAT":  {
+                                    "label":  "base: MASTER, the BAT switch, flipped ON (up)",
+                                    "kind":  "latching",
+                                    "prober":  0,
+                                    "fsuipc":  -1,
+                                    "verified":  true
+                                },
+                     "SW_AVIONICS_BUS1":  {
+                                              "label":  "base: AVIONICS BUS1 flipped ON (up)",
+                                              "kind":  "latching",
+                                              "prober":  0,
+                                              "fsuipc":  -1,
+                                              "verified":  true
+                                          },
+                     "SW_AVIONICS_BUS2":  {
+                                              "label":  "base: AVIONICS BUS2 flipped ON (up)",
+                                              "kind":  "latching",
+                                              "prober":  0,
+                                              "fsuipc":  -1,
+                                              "verified":  true
+                                          },
+                     "SW_BEACON":  {
+                                       "label":  "base: BCN light switch flipped ON (up)",
+                                       "kind":  "latching",
+                                       "prober":  0,
+                                       "fsuipc":  -1,
+                                       "verified":  true
+                                   },
+                     "SW_LAND":  {
+                                     "label":  "base: LAND light switch flipped ON (up)",
+                                     "kind":  "latching",
+                                     "prober":  0,
+                                     "fsuipc":  -1,
+                                     "verified":  true
+                                 },
+                     "SW_TAXI":  {
+                                     "label":  "base: TAXI light switch flipped ON (up)",
+                                     "kind":  "latching",
+                                     "prober":  0,
+                                     "fsuipc":  -1,
+                                     "verified":  true
+                                 },
+                     "SW_NAV":  {
+                                    "label":  "base: NAV light switch flipped ON (up)",
+                                    "kind":  "latching",
+                                    "prober":  0,
+                                    "fsuipc":  -1,
+                                    "verified":  true
+                                },
+                     "SW_STROBE":  {
+                                       "label":  "base: STROBE light switch flipped ON (up)",
+                                       "kind":  "latching",
+                                       "prober":  0,
+                                       "fsuipc":  -1,
+                                       "verified":  true
+                                   },
+                     "MAG_OFF":  {
+                                     "label":  "base: ignition key turned to OFF (turn it to R first if it is already at OFF)",
+                                     "kind":  "latching",
+                                     "prober":  0,
+                                     "fsuipc":  -1,
+                                     "verified":  true
+                                 },
+                     "MAG_R":  {
+                                   "label":  "base: ignition key turned to R",
+                                   "kind":  "latching",
+                                   "prober":  0,
+                                   "fsuipc":  -1,
+                                   "verified":  true
+                               },
+                     "MAG_L":  {
+                                   "label":  "base: ignition key turned to L",
+                                   "kind":  "latching",
+                                   "prober":  0,
+                                   "fsuipc":  -1,
+                                   "verified":  true
+                               },
+                     "MAG_BOTH":  {
+                                      "label":  "base: ignition key turned to BOTH",
+                                      "kind":  "latching",
+                                      "prober":  0,
+                                      "fsuipc":  -1,
+                                      "verified":  true
+                                  },
+                     "MAG_START":  {
+                                       "label":  "base: ignition key turned and HELD at START, then let it spring back",
+                                       "kind":  "momentary",
+                                       "prober":  35,
+                                       "fsuipc":  134,
+                                       "verified":  true
+                                   }
+                 },
+    "map":  {
+                "$comment":  "Empty on purpose. What each Alpha control does is Mark\u0027s decision (see notes/alpha-plan.md), taken after the physical map is measured. Same shape as the Bravo\u0027s map: press / release / when, controls as FSUIPC numbers or preset names."
+            }
 }
