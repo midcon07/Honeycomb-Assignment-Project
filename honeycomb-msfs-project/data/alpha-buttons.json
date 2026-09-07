@@ -233,8 +233,8 @@
                                       "verified":  false
                                   },
                      "MAG_START":  {
-                                       "label":  "base: ignition key turned and HELD at START, then let it spring back",
-                                       "kind":  "momentary",
+                                       "label":  "base: ignition key turned to START and HELD there while you press ENTER (it springs back on its own afterwards)",
+                                       "kind":  "held",
                                        "prober":  null,
                                        "fsuipc":  null,
                                        "verified":  false

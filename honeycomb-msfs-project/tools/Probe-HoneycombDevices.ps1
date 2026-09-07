@@ -545,6 +545,8 @@ function Start-WatchLoop {
 
 # --- main -------------------------------------------------------------------
 
+
+
 function Get-GamingControllers {
     <#
         Every game controller as Windows itself decodes it (Windows.Gaming.Input,
@@ -603,17 +605,23 @@ function Start-CaptureSession {
         the button Windows reports for it. Four kinds:
 
           momentary  press it; the first NEW button against the resting set is
-                     the answer, and the capture waits for it to be let go.
+                     the answer, and the capture waits for that button to be
+                     let go before moving on.
           latching   two steps with Enter after each: first put the control in
-                     the OTHER position (so the asked-for one is never where it
-                     already is), which becomes the baseline; then move it to
-                     the asked-for position and, once it has settled (a rotary
-                     passes through positions), exactly one new button must
-                     have appeared. Anything else is said, and the step repeats.
+                     a DIFFERENT position (so the asked-for one is never where
+                     it already is), which becomes the baseline; then move it
+                     to the asked-for position and, once it has settled (a
+                     rotary passes through positions), exactly one new button
+                     must have appeared. Anything else is said, and the step
+                     repeats.
           held       hold it, press Enter, one reading: exactly one new button.
-          hat        hold it, press Enter, one reading of the hat DIRECTION.
-                     The FSUIPC number comes from the manual, not from a
-                     measurement, and the entry says so ("assumed").
+                     Used for anything that springs back on its own, such as
+                     the ignition key's START, which would otherwise be read
+                     on the way through the positions before it.
+          hat        hold it, press Enter, one reading of the hat DIRECTION,
+                     which must be the direction the line asked for. The FSUIPC
+                     number comes from the manual, not from a measurement, and
+                     the entry says so ("assumed").
 
         The table is written after every control, so an interrupted session
         loses nothing. Numbers are stored twice: the 1-based count the Game
@@ -621,7 +629,8 @@ function Start-CaptureSession {
         button: one less, and from 132 when above 31 (FSUIPC7 User Guide;
         checked on a Bravo: panel 33 was FSUIPC 132).
 
-        Keys: S skips the current control, Q stops. Both need a real console.
+        Keys: S skips the current control, Q stops - on every prompt and
+        during every wait. Both need a real console.
     #>
     param([string] $Path, [switch] $All)
 
@@ -635,8 +644,8 @@ function Start-CaptureSession {
     $table = Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json
 
     # Which unit the table describes. Its root "device" is an object
-    # {name, vid, pid} (the Bravo's shape; the Alpha's too now); a bare word
-    # "bravo" / "alpha" is accepted as well. Absent means the Bravo.
+    # {name, vid, pid} (both tables now); a bare word "bravo" / "alpha" is
+    # accepted as well. Absent means the Bravo.
     $want = $null; $wantPid = $null
     if ($table.PSObject.Properties['device'] -and $null -ne $table.device) {
         $d = $table.device
@@ -658,8 +667,11 @@ function Start-CaptureSession {
     $ctl = $ctl[0]
     $unitName = '{0} - {1} buttons, {2} hat(s), {3} axes, as Windows sees it' -f $want, $ctl.ButtonCount, $ctl.SwitchCount, $ctl.AxisCount
 
+    # ---- readers. Every one returns an ARRAY (possibly empty) or $null for
+    # "could not read"; the leading comma keeps an empty array from being
+    # unrolled to nothing on the way out of the function.
     function Get-Pressed {
-        try { return @((Read-GamingController -Controller $ctl).Buttons | ForEach-Object { [int]$_ }) } catch { return $null }
+        try { $r = Read-GamingController -Controller $ctl; return ,@($r.Buttons | ForEach-Object { [int]$_ }) } catch { return $null }
     }
     function Get-Hat {
         try {
@@ -668,7 +680,7 @@ function Start-CaptureSession {
         } catch { return $null }
     }
     function Wait-Settled {
-        # The pressed set unchanged for 600 ms.
+        # The pressed set unchanged for 600 ms. $null only if nothing readable.
         $last = Get-Pressed; $since = Get-Date
         while (((Get-Date) - $since).TotalMilliseconds -lt 600) {
             Start-Sleep -Milliseconds 100
@@ -676,19 +688,8 @@ function Start-CaptureSession {
             if ($null -eq $now) { continue }
             if (($now -join ',') -ne ($last -join ',')) { $last = $now; $since = Get-Date }
         }
-        return @($last)
-    }
-    function Wait-Released {
-        # Until nothing beyond the given set is held. The set itself is NOT
-        # replaced by what is held meanwhile - adopting a wrongly-pressed pair
-        # as the baseline made the right button invisible afterwards (review,
-        # 2026-09-07).
-        param([int[]] $Base)
-        while ($true) {
-            $now = Get-Pressed
-            if ($null -ne $now -and @($now | Where-Object { $Base -notcontains $_ }).Count -eq 0) { return }
-            Start-Sleep -Milliseconds 100
-        }
+        if ($null -eq $last) { return $null }
+        return ,@($last)
     }
     function Read-Key {
         # Blocking key read. $null when there is no console to read from.
@@ -698,11 +699,48 @@ function Start-CaptureSession {
         try { if ([Console]::KeyAvailable) { return [Console]::ReadKey($true) } } catch { }
         return $null
     }
+    function Wait-ButtonUp {
+        # Until one specific button is no longer held. Says so every two
+        # seconds while it is; Q returns $false (stop). The rest of the set is
+        # not examined: a latched switch moved by mistake is the next
+        # control's business, not this one's (review, 2026-09-07).
+        param([int] $Button)
+        $said = Get-Date
+        while ($true) {
+            $k = Read-KeyIfAny
+            if ($null -ne $k -and $k.Key -eq 'Q') { return $false }
+            $now = Get-Pressed
+            if ($null -ne $now -and ($now -notcontains $Button)) { return $true }
+            if (((Get-Date) - $said).TotalSeconds -ge 2) { Write-Host ('   still held: button {0} - let go of it' -f $Button) -ForegroundColor DarkGray; $said = Get-Date }
+            Start-Sleep -Milliseconds 100
+        }
+    }
+    function Wait-BackToRest {
+        # Until nothing beyond the given set is held. Names what is still held
+        # every two seconds so a switch flipped by mistake can be put back;
+        # Q returns $false (stop). The set itself is never replaced by what is
+        # held meanwhile.
+        param([int[]] $Base)
+        $said = Get-Date
+        while ($true) {
+            $k = Read-KeyIfAny
+            if ($null -ne $k -and $k.Key -eq 'Q') { return $false }
+            $now = Get-Pressed
+            if ($null -ne $now) {
+                $extra = @($now | Where-Object { $Base -notcontains $_ })
+                if ($extra.Count -eq 0) { return $true }
+                if (((Get-Date) - $said).TotalSeconds -ge 2) {
+                    Write-Host ('   still held beyond the resting set: {0} - let go, and if it is a switch, put it back' -f ($extra -join ', ')) -ForegroundColor DarkGray
+                    $said = Get-Date
+                }
+            }
+            Start-Sleep -Milliseconds 100
+        }
+    }
     function Save {
         [System.IO.File]::WriteAllText($Path, (($table | ConvertTo-Json -Depth 10) + "`r`n"), (New-Object System.Text.UTF8Encoding($false)))
     }
     function To-Fsuipc { param([int] $Prober) $f = $Prober - 1; if ($f -gt 31) { $f += 100 }; return $f }
-    function New-Set { param([string[]] $Items) if ($null -eq $Items) { return @() } else { return @($Items) } }
 
     $names = @($table.controls.PSObject.Properties | ForEach-Object { $_.Name })
     $todo  = @($names | Where-Object {
@@ -717,6 +755,18 @@ function Start-CaptureSession {
     Write-Host 'Do exactly what each line asks. S = skip this one, Q = stop.' -ForegroundColor Cyan
     Write-Host ''
 
+    # Wait for a real reading. Right after enumeration Windows can report
+    # nothing held for a moment, and every Honeycomb unit holds buttons at
+    # rest (switch and selector positions), so "nothing" means "not yet".
+    $t0 = Get-Date; $first = $null
+    while (((Get-Date) - $t0).TotalSeconds -lt 5) {
+        $first = Get-Pressed
+        if ($null -ne $first -and $first.Count -gt 0) { break }
+        Start-Sleep -Milliseconds 150
+    }
+    if ($null -eq $first -or $first.Count -eq 0) {
+        Write-Host 'Windows reports nothing held at rest. A Honeycomb unit always holds something (switch positions), so it may not be reading yet - continuing anyway; if the first control does not register, stop with Q and run again.' -ForegroundColor Yellow
+    }
     $baseline = Wait-Settled
     if ($null -eq $baseline) { Write-Host ('Could not read the {0}.' -f $want) -ForegroundColor Red; return 2 }
     Write-Host ('At rest, these buttons are held: {0}' -f $(if ($baseline.Count) { $baseline -join ', ' } else { 'none' })) -ForegroundColor DarkGray
@@ -731,13 +781,19 @@ function Start-CaptureSession {
 
         $hit = $null
         $skipped = $false
+        $kind = if ($c.PSObject.Properties['kind'] -and $c.kind) { [string]$c.kind } else { 'momentary' }
 
-        if ($c.kind -eq 'hat') {
-            # ---- hat: direction, read once on Enter --------------------------
-            if ($ctl.SwitchCount -lt 1) { Write-Host '   Windows reports no hat switch on this unit - skipped' -ForegroundColor Red; continue }
-            Write-Host '   HOLD the hat in that direction, then press ENTER   (S = skip, Q = stop)' -ForegroundColor Cyan
+        if ($kind -eq 'hat') {
+            # ---- hat: direction, read once on Enter, and it must be the
+            # direction this line asked for (review, 2026-09-07: any direction
+            # was accepted, so a 4-way hat or a slipped thumb would have filed
+            # one direction under another's name).
+            $expected = (($name -replace '^HAT_', '') -split '_' | ForEach-Object { $_.Substring(0, 1).ToUpper() + $_.Substring(1).ToLower() }) -join ''
+            $strict = $HAT_FSUIPC.Contains($expected)
+            if ($ctl.SwitchCount -lt 1) { Write-Host '   Windows reports no hat switch on this unit - skipped' -ForegroundColor Red; $skipped = $true }
+            else { Write-Host '   HOLD the hat in that direction, then press ENTER   (S = skip, Q = stop)' -ForegroundColor Cyan }
             $pos = $null
-            while ($null -eq $pos) {
+            while (-not $skipped -and $null -eq $pos) {
                 $k = Read-Key
                 if ($null -eq $k) { Write-Host '   no keyboard on this console - a hat needs one; skipped' -ForegroundColor Red; $skipped = $true; break }
                 if ($k.Key -eq 'S') { Write-Host '   skipped' -ForegroundColor DarkGray; $skipped = $true; break }
@@ -746,26 +802,29 @@ function Start-CaptureSession {
                 $h = Get-Hat
                 if ($null -eq $h) { Write-Host '   could not read the hat - try again' -ForegroundColor Red; continue }
                 if ($h -eq 'Center') { Write-Host '   the hat is centred - hold it in the direction, then press ENTER' -ForegroundColor Red; continue }
+                if (-not $HAT_FSUIPC.Contains($h)) { Write-Host ('   unexpected hat direction "{0}" - try again, or S to skip' -f $h) -ForegroundColor Red; continue }
+                if ($strict -and $h -ne $expected) {
+                    Write-Host ('   seen: hat {0}, but this line asks for {1} - hold it exactly in that direction and press ENTER, or S if this hat has no such direction' -f $h, $expected) -ForegroundColor Red
+                    continue
+                }
                 $pos = $h
             }
-            if ($skipped) { continue }
-            if (-not $HAT_FSUIPC.Contains($pos)) { Write-Host ('   unexpected hat direction "{0}" - skipped' -f $pos) -ForegroundColor Red; continue }
-            $c.prober   = $null
-            $c.fsuipc   = [int]$HAT_FSUIPC[$pos]
-            $c.verified = $false
-            $c | Add-Member -NotePropertyName hat       -NotePropertyValue $pos -Force
-            $c | Add-Member -NotePropertyName assumed   -NotePropertyValue $true -Force
-            $c | Add-Member -NotePropertyName numbering -NotePropertyValue $HAT_SOURCE -Force
-            Save
-            $done++
-            Write-Host ('   seen: hat {0} - saved. FSUIPC number {1} comes from the FSUIPC7 manual, not from a measurement here; the first flight with it confirms it. Let go now.' -f $pos, $c.fsuipc) -ForegroundColor Green
-            Start-Sleep -Milliseconds 800
-            continue
+            if (-not $skipped) {
+                $c.prober   = $null
+                $c.fsuipc   = [int]$HAT_FSUIPC[$pos]
+                $c.verified = $false
+                $c | Add-Member -NotePropertyName hat       -NotePropertyValue $pos -Force
+                $c | Add-Member -NotePropertyName assumed   -NotePropertyValue $true -Force
+                $c | Add-Member -NotePropertyName numbering -NotePropertyValue $HAT_SOURCE -Force
+                Save
+                $done++
+                Write-Host ('   seen: hat {0} - saved. FSUIPC number {1} comes from the FSUIPC7 manual, not from a measurement here; the first flight with it confirms it. Let go now.' -f $pos, $c.fsuipc) -ForegroundColor Green
+                Start-Sleep -Milliseconds 800
+            }
         }
-
-        if ($c.kind -eq 'held') {
+        elseif ($kind -eq 'held') {
             # ---- held: one reading on Enter ----------------------------------
-            Write-Host '   HOLD it there, then press ENTER   (S = skip, Q = stop)' -ForegroundColor Cyan
+            Write-Host '   HOLD it there, then press ENTER while still holding it   (S = skip, Q = stop)' -ForegroundColor Cyan
             while ($null -eq $hit) {
                 $k = Read-Key
                 if ($null -eq $k) { Write-Host '   no keyboard on this console - a held control needs one; skipped' -ForegroundColor Red; $skipped = $true; break }
@@ -776,21 +835,20 @@ function Start-CaptureSession {
                 if ($null -eq $now) { Write-Host '   could not read the unit - try again' -ForegroundColor Red; continue }
                 $new = @($now | Where-Object { $baseline -notcontains $_ })
                 if ($new.Count -eq 1) { $hit = [int]$new[0] }
-                elseif ($new.Count -eq 0) { Write-Host '   nothing is held - hold it in position, then press ENTER' -ForegroundColor Red }
+                elseif ($new.Count -eq 0) { Write-Host '   nothing is held - hold it in position, then press ENTER while still holding it' -ForegroundColor Red }
                 else { Write-Host ('   more than one button is held ({0}) - let go of everything, hold just that one, then press ENTER' -f ($new -join ', ')) -ForegroundColor Red }
             }
-            if ($skipped) { continue }
         }
-        elseif ($c.kind -eq 'latching') {
+        elseif ($kind -eq 'latching') {
             # ---- latching: two steps, fresh baseline in between --------------
-            # Step 1 puts the control in the OTHER position, so the asked-for
+            # Step 1 puts the control in a different position, so the asked-for
             # position is never where it already is - the failure that once
             # shifted three detent numbers, and that a printed "move it out
             # first" hint would have turned into recording the wrong position
             # (review, 2026-09-07). Step 2 reads once the set has settled, so a
             # rotary passing through positions is read at rest.
             while ($null -eq $hit) {
-                Write-Host '   Step 1: put it in the OTHER position (not the one asked for), then press ENTER   (S = skip, Q = stop)' -ForegroundColor Cyan
+                Write-Host '   Step 1: put it in a DIFFERENT position (any other one), then press ENTER   (S = skip, Q = stop)' -ForegroundColor Cyan
                 $k = Read-Key
                 if ($null -eq $k) { Write-Host '   no keyboard on this console - a switch needs one; skipped' -ForegroundColor Red; $skipped = $true; break }
                 if ($k.Key -eq 'S') { Write-Host '   skipped' -ForegroundColor DarkGray; $skipped = $true; break }
@@ -812,10 +870,10 @@ function Start-CaptureSession {
                 elseif ($new.Count -eq 0) { Write-Host '   nothing changed - it is still where it was. Starting this one again.' -ForegroundColor Red }
                 else { Write-Host ('   more than one new button ({0}) - only that one control should move between the two steps. Starting this one again.' -f ($new -join ', ')) -ForegroundColor Red }
             }
-            if ($skipped) { continue }
         }
         else {
             # ---- momentary: the first new button against the resting set ----
+            Write-Host '   PRESS it once and let go   (S = skip, Q = stop)' -ForegroundColor Cyan
             while ($null -eq $hit) {
                 $k = Read-KeyIfAny
                 if ($null -ne $k) {
@@ -829,27 +887,32 @@ function Start-CaptureSession {
                 if ($new.Count -eq 1) { $hit = [int]$new[0] }
                 elseif ($new.Count -gt 1) {
                     Write-Host ('   more than one new button appeared ({0}) - let go of everything, then press just that one' -f ($new -join ', ')) -ForegroundColor Red
-                    Wait-Released -Base $baseline
+                    if (-not (Wait-BackToRest -Base $baseline)) { & $stopMsg; return 0 }
                 }
             }
-            if ($skipped) { continue }
         }
 
         # ---- record ----------------------------------------------------------
-        $fs = To-Fsuipc $hit
-        $c.prober = $hit; $c.fsuipc = $fs; $c.verified = $true
-        Save
-        $done++
-        Write-Host ('   captured: panel button {0} = FSUIPC button {1}   (saved)' -f $hit, $fs) -ForegroundColor Green
-
-        if ($c.kind -ne 'latching') {
-            # A pressed button must be let go before the next control, or it
-            # would sit in the next baseline and the "held right now" line
-            # would name something no longer held.
-            Write-Host '   let go now' -ForegroundColor DarkGray
-            Wait-Released -Base $baseline
+        if ($null -ne $hit) {
+            $fs = To-Fsuipc $hit
+            $c.prober = $hit; $c.fsuipc = $fs; $c.verified = $true
+            Save
+            $done++
+            Write-Host ('   captured: panel button {0} = FSUIPC button {1}   (saved)' -f $hit, $fs) -ForegroundColor Green
+            if ($kind -ne 'latching') {
+                # The pressed button must be let go before the next control, or
+                # it would sit in the next baseline. Only THAT button is waited
+                # for: a sprung key lands on another position, and that is fine.
+                Write-Host '   let go now' -ForegroundColor DarkGray
+                if (-not (Wait-ButtonUp -Button $hit)) { & $stopMsg; return 0 }
+            }
         }
-        $baseline = Wait-Settled
+
+        # New resting set for the next control - after a capture, and after a
+        # skip too, since a skipped step 1 may have moved a switch. Kept as it
+        # was if nothing could be read.
+        $nb = Wait-Settled
+        if ($null -ne $nb) { $baseline = $nb }
     }
 
     Write-Host ''
