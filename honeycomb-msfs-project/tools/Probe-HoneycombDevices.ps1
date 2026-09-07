@@ -549,6 +549,8 @@ function Start-WatchLoop {
 
 
 
+
+
 function Get-GamingControllers {
     <#
         Every game controller as Windows itself decodes it (Windows.Gaming.Input,
@@ -701,6 +703,12 @@ function Start-CaptureSession {
         try { if ([Console]::KeyAvailable) { return [Console]::ReadKey($true) } } catch { }
         return $null
     }
+    function Drain-Keys {
+        # Empty the keyboard buffer. An Enter tapped twice, or held, stays
+        # queued through the waits (which read no keys) and would answer the
+        # next prompt by itself (review, 2026-09-07).
+        while ($null -ne (Read-KeyIfAny)) { }
+    }
     function Wait-ButtonUp {
         # Until one specific button is no longer held. Says so every two
         # seconds while it is; Q returns $false (stop). The rest of the set is
@@ -761,6 +769,7 @@ function Start-CaptureSession {
     # down, the key turned back - lands in the first control (review,
     # 2026-09-07). No console (input redirected) means no gate.
     Write-Host 'When everything is at rest and you are holding nothing, press ENTER   (Q = stop)' -ForegroundColor Cyan
+    Drain-Keys
     while ($true) {
         $k = Read-Key
         if ($null -eq $k) { break }
@@ -783,6 +792,7 @@ function Start-CaptureSession {
     $baseline = Wait-Settled
     if ($null -eq $baseline) { Write-Host ('Could not read the {0}.' -f $want) -ForegroundColor Red; return 2 }
     Write-Host ('At rest, these buttons are held: {0}' -f $(if ($baseline.Count) { $baseline -join ', ' } else { 'none' })) -ForegroundColor DarkGray
+    Drain-Keys
 
     $done = 0
     $stopMsg = { Write-Host ('Stopped. {0} captured this session; the file is saved.' -f $done) -ForegroundColor Yellow }
@@ -805,6 +815,7 @@ function Start-CaptureSession {
             $strict = $HAT_FSUIPC.Contains($expected)
             if ($ctl.SwitchCount -lt 1) { Write-Host '   Windows reports no hat switch on this unit - skipped' -ForegroundColor Red; $skipped = $true }
             else { Write-Host '   HOLD the hat in that direction, then press ENTER   (S = skip, Q = stop)' -ForegroundColor Cyan }
+            Drain-Keys
             $pos = $null
             while (-not $skipped -and $null -eq $pos) {
                 $k = Read-Key
@@ -838,6 +849,7 @@ function Start-CaptureSession {
         elseif ($kind -eq 'held') {
             # ---- held: one reading on Enter ----------------------------------
             Write-Host '   HOLD it there, then press ENTER while still holding it   (S = skip, Q = stop)' -ForegroundColor Cyan
+            Drain-Keys
             while ($null -eq $hit) {
                 $k = Read-Key
                 if ($null -eq $k) { Write-Host '   no keyboard on this console - a held control needs one; skipped' -ForegroundColor Red; $skipped = $true; break }
@@ -862,6 +874,7 @@ function Start-CaptureSession {
             # rotary passing through positions is read at rest.
             while ($null -eq $hit) {
                 Write-Host '   Step 1: put it in a DIFFERENT position (any other one), then press ENTER   (S = skip, Q = stop)' -ForegroundColor Cyan
+                Drain-Keys
                 $k = Read-Key
                 if ($null -eq $k) { Write-Host '   no keyboard on this console - a switch needs one; skipped' -ForegroundColor Red; $skipped = $true; break }
                 if ($k.Key -eq 'S') { Write-Host '   skipped' -ForegroundColor DarkGray; $skipped = $true; break }
@@ -871,6 +884,7 @@ function Start-CaptureSession {
                 if ($null -eq $base) { Write-Host '   could not read the unit - try again' -ForegroundColor Red; continue }
 
                 Write-Host ('   Step 2: now move it to: {0}   then press ENTER' -f $c.label) -ForegroundColor Cyan
+                Drain-Keys
                 $k = $null
                 while ($true) {
                     $k = Read-Key
