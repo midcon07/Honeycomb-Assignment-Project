@@ -1,4 +1,4 @@
-{
+﻿{
     "$comment":  "The Honeycomb Alpha yoke, same shape as bravo-buttons.json: \u0027controls\u0027 is the PHYSICAL map (which button number each control is - measured by tools/Probe-HoneycombDevices.ps1 -Capture data/alpha-buttons.json, never typed in), \u0027map\u0027 is what each control does in the sim. \u0027device\u0027 tells the capture which unit to read. Names are Mark\u0027s (2026-09-06): LEFT horn has the push-to-talk trigger on the back, the 8-direction hat, a WHITE button, and two black up/down switches side by side (left one, right one); RIGHT horn has the RED button, a WHITE button and two black left/right switches stacked (top one, bottom one). Base: MASTER ALT/BAT, AVIONICS BUS1/BUS2, BCN LAND TAXI NAV STROBE, ignition key OFF/R/L/BOTH/START. Every control starts unverified; the capture asks for each in turn, S skips. Numbering is FSUIPC\u0027s: prober minus 1, and above 31 plus 100. Latching = stays put; momentary = springs back.",
     "schemaVersion":  1,
     "device":  "alpha",
@@ -74,20 +74,34 @@
                                          "fsuipc":  null,
                                          "verified":  false
                                      },
-                     "ELEV_TRIM_LEFT":  {
-                                            "label":  "LEFT horn: the black ELEVATOR TRIM switch pushed to the LEFT",
-                                            "kind":  "momentary",
-                                            "prober":  6,
-                                            "fsuipc":  5,
-                                            "verified":  true
-                                        },
-                     "ELEV_TRIM_RIGHT":  {
-                                             "label":  "LEFT horn: the black ELEVATOR TRIM switch pushed to the RIGHT",
-                                             "kind":  "momentary",
-                                             "prober":  8,
-                                             "fsuipc":  7,
-                                             "verified":  true
-                                         },
+                     "LH_LEFT_SWITCH_UP":  {
+                                               "label":  "LEFT horn: the LEFT black switch pushed UP",
+                                               "kind":  "momentary",
+                                               "prober":  null,
+                                               "fsuipc":  null,
+                                               "verified":  false
+                                           },
+                     "LH_LEFT_SWITCH_DOWN":  {
+                                                 "label":  "LEFT horn: the LEFT black switch pushed DOWN",
+                                                 "kind":  "momentary",
+                                                 "prober":  null,
+                                                 "fsuipc":  null,
+                                                 "verified":  false
+                                             },
+                     "LH_RIGHT_SWITCH_UP":  {
+                                                "label":  "LEFT horn: the RIGHT black switch pushed UP",
+                                                "kind":  "momentary",
+                                                "prober":  null,
+                                                "fsuipc":  null,
+                                                "verified":  false
+                                            },
+                     "LH_RIGHT_SWITCH_DOWN":  {
+                                                  "label":  "LEFT horn: the RIGHT black switch pushed DOWN",
+                                                  "kind":  "momentary",
+                                                  "prober":  null,
+                                                  "fsuipc":  null,
+                                                  "verified":  false
+                                              },
                      "RED_BUTTON":  {
                                         "label":  "RIGHT horn: the RED button",
                                         "kind":  "momentary",
@@ -102,20 +116,34 @@
                                                 "fsuipc":  2,
                                                 "verified":  true
                                             },
-                     "AIL_TRIM_TOP":  {
-                                          "label":  "RIGHT horn: the black AILERON TRIM switch, the TOP button",
-                                          "kind":  "momentary",
-                                          "prober":  10,
-                                          "fsuipc":  9,
-                                          "verified":  true
-                                      },
-                     "AIL_TRIM_BOTTOM":  {
-                                             "label":  "RIGHT horn: the black AILERON TRIM switch, the BOTTOM button",
-                                             "kind":  "momentary",
-                                             "prober":  12,
-                                             "fsuipc":  11,
-                                             "verified":  true
-                                         },
+                     "RH_TOP_SWITCH_LEFT":  {
+                                                "label":  "RIGHT horn: the TOP black switch pushed LEFT",
+                                                "kind":  "momentary",
+                                                "prober":  null,
+                                                "fsuipc":  null,
+                                                "verified":  false
+                                            },
+                     "RH_TOP_SWITCH_RIGHT":  {
+                                                 "label":  "RIGHT horn: the TOP black switch pushed RIGHT",
+                                                 "kind":  "momentary",
+                                                 "prober":  null,
+                                                 "fsuipc":  null,
+                                                 "verified":  false
+                                             },
+                     "RH_BOTTOM_SWITCH_LEFT":  {
+                                                   "label":  "RIGHT horn: the BOTTOM black switch pushed LEFT",
+                                                   "kind":  "momentary",
+                                                   "prober":  null,
+                                                   "fsuipc":  null,
+                                                   "verified":  false
+                                               },
+                     "RH_BOTTOM_SWITCH_RIGHT":  {
+                                                    "label":  "RIGHT horn: the BOTTOM black switch pushed RIGHT",
+                                                    "kind":  "momentary",
+                                                    "prober":  null,
+                                                    "fsuipc":  null,
+                                                    "verified":  false
+                                                },
                      "SW_ALT":  {
                                     "label":  "base: MASTER, the ALT switch, flipped ON (up) - flip it OFF first if it is on",
                                     "kind":  "latching",
