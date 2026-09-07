@@ -290,6 +290,13 @@ $Scenarios['perfect'] = {
     Assert-Captured (Read-Table $path)
     Check (Screen-Has 'Finished: 34 control\(s\)') 'says Finished: 34'
     Check (-not (Screen-Has '(?i)skipped|nothing changed|more than one|still held|could not read|centred|asks for')) 'no complaint on a perfect run'
+    $saved = Read-Table $path
+    foreach ($n in $Tog.Keys) {
+        $c = $saved.controls.$n
+        Check ($c.PSObject.Properties['otherPosition'] -and $c.otherPosition.prober -eq $Tog[$n][1] -and $c.otherPosition.fsuipc -eq ($Tog[$n][1] - 1)) ("$n otherPosition should be panel $($Tog[$n][1])")
+    }
+    Check ($saved.controls.MAG_R.otherPosition.prober -eq $KeyPos.MAG_OFF) 'MAG_R records that it came from OFF'
+    Check ($saved.controls.MAG_OFF.otherPosition.prober -eq $KeyPos.MAG_BOTH) 'MAG_OFF records that it came from BOTH'
     Check ($Fake.Queue.Count -eq 0) "hands used every step (left: $($Fake.Queue.Count))"
     Check (Test-Path $r.Log) 'log written'
     $logText = Get-Content -LiteralPath $r.Log -Raw

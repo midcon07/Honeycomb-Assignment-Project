@@ -26,64 +26,88 @@
                                     "label":  "LEFT horn: the hat pushed straight UP",
                                     "kind":  "hat",
                                     "prober":  null,
-                                    "fsuipc":  null,
-                                    "verified":  false
+                                    "fsuipc":  32,
+                                    "verified":  false,
+                                    "hat":  "Up",
+                                    "assumed":  true,
+                                    "numbering":  "FSUIPC7 User Guide (May 2026), Buttons \u0026 Switch Assignments: a POV hat is buttons 32 (forward) to 39, clockwise in 45-degree steps. Not yet seen in FSUIPC7.log."
                                 },
                      "HAT_UP_RIGHT":  {
                                           "label":  "LEFT horn: the hat pushed UP-RIGHT (diagonal)",
                                           "kind":  "hat",
                                           "prober":  null,
-                                          "fsuipc":  null,
-                                          "verified":  false
+                                          "fsuipc":  33,
+                                          "verified":  false,
+                                          "hat":  "UpRight",
+                                          "assumed":  true,
+                                          "numbering":  "FSUIPC7 User Guide (May 2026), Buttons \u0026 Switch Assignments: a POV hat is buttons 32 (forward) to 39, clockwise in 45-degree steps. Not yet seen in FSUIPC7.log."
                                       },
                      "HAT_RIGHT":  {
                                        "label":  "LEFT horn: the hat pushed RIGHT",
                                        "kind":  "hat",
                                        "prober":  null,
-                                       "fsuipc":  null,
-                                       "verified":  false
+                                       "fsuipc":  34,
+                                       "verified":  false,
+                                       "hat":  "Right",
+                                       "assumed":  true,
+                                       "numbering":  "FSUIPC7 User Guide (May 2026), Buttons \u0026 Switch Assignments: a POV hat is buttons 32 (forward) to 39, clockwise in 45-degree steps. Not yet seen in FSUIPC7.log."
                                    },
                      "HAT_DOWN_RIGHT":  {
                                             "label":  "LEFT horn: the hat pushed DOWN-RIGHT (diagonal)",
                                             "kind":  "hat",
                                             "prober":  null,
-                                            "fsuipc":  null,
-                                            "verified":  false
+                                            "fsuipc":  35,
+                                            "verified":  false,
+                                            "hat":  "DownRight",
+                                            "assumed":  true,
+                                            "numbering":  "FSUIPC7 User Guide (May 2026), Buttons \u0026 Switch Assignments: a POV hat is buttons 32 (forward) to 39, clockwise in 45-degree steps. Not yet seen in FSUIPC7.log."
                                         },
                      "HAT_DOWN":  {
                                       "label":  "LEFT horn: the hat pushed straight DOWN",
                                       "kind":  "hat",
                                       "prober":  null,
-                                      "fsuipc":  null,
-                                      "verified":  false
+                                      "fsuipc":  36,
+                                      "verified":  false,
+                                      "hat":  "Down",
+                                      "assumed":  true,
+                                      "numbering":  "FSUIPC7 User Guide (May 2026), Buttons \u0026 Switch Assignments: a POV hat is buttons 32 (forward) to 39, clockwise in 45-degree steps. Not yet seen in FSUIPC7.log."
                                   },
                      "HAT_DOWN_LEFT":  {
                                            "label":  "LEFT horn: the hat pushed DOWN-LEFT (diagonal)",
                                            "kind":  "hat",
                                            "prober":  null,
-                                           "fsuipc":  null,
-                                           "verified":  false
+                                           "fsuipc":  37,
+                                           "verified":  false,
+                                           "hat":  "DownLeft",
+                                           "assumed":  true,
+                                           "numbering":  "FSUIPC7 User Guide (May 2026), Buttons \u0026 Switch Assignments: a POV hat is buttons 32 (forward) to 39, clockwise in 45-degree steps. Not yet seen in FSUIPC7.log."
                                        },
                      "HAT_LEFT":  {
                                       "label":  "LEFT horn: the hat pushed LEFT",
                                       "kind":  "hat",
                                       "prober":  null,
-                                      "fsuipc":  null,
-                                      "verified":  false
+                                      "fsuipc":  38,
+                                      "verified":  false,
+                                      "hat":  "Left",
+                                      "assumed":  true,
+                                      "numbering":  "FSUIPC7 User Guide (May 2026), Buttons \u0026 Switch Assignments: a POV hat is buttons 32 (forward) to 39, clockwise in 45-degree steps. Not yet seen in FSUIPC7.log."
                                   },
                      "HAT_UP_LEFT":  {
                                          "label":  "LEFT horn: the hat pushed UP-LEFT (diagonal)",
                                          "kind":  "hat",
                                          "prober":  null,
-                                         "fsuipc":  null,
-                                         "verified":  false
+                                         "fsuipc":  39,
+                                         "verified":  false,
+                                         "hat":  "UpLeft",
+                                         "assumed":  true,
+                                         "numbering":  "FSUIPC7 User Guide (May 2026), Buttons \u0026 Switch Assignments: a POV hat is buttons 32 (forward) to 39, clockwise in 45-degree steps. Not yet seen in FSUIPC7.log."
                                      },
                      "LH_LEFT_SWITCH_UP":  {
                                                "label":  "LEFT horn: the LEFT black switch pushed UP",
                                                "kind":  "momentary",
-                                               "prober":  null,
-                                               "fsuipc":  null,
-                                               "verified":  false
+                                               "prober":  6,
+                                               "fsuipc":  5,
+                                               "verified":  true
                                            },
                      "LH_LEFT_SWITCH_DOWN":  {
                                                  "label":  "LEFT horn: the LEFT black switch pushed DOWN",
@@ -151,104 +175,159 @@
                      "SW_ALT":  {
                                     "label":  "base: MASTER, the ALT switch, flipped ON (up)",
                                     "kind":  "latching",
-                                    "prober":  null,
-                                    "fsuipc":  null,
-                                    "verified":  false
+                                    "prober":  13,
+                                    "fsuipc":  12,
+                                    "verified":  true,
+                                    "otherPosition":  {
+                                                          "label":  "the same switch flipped OFF (down)",
+                                                          "prober":  14,
+                                                          "fsuipc":  13,
+                                                          "measured":  "the button released when the ON button appeared, capture log 2026-09-07 18:09"
+                                                      }
                                 },
                      "SW_BAT":  {
                                     "label":  "base: MASTER, the BAT switch, flipped ON (up)",
                                     "kind":  "latching",
-                                    "prober":  null,
-                                    "fsuipc":  null,
-                                    "verified":  false
+                                    "prober":  15,
+                                    "fsuipc":  14,
+                                    "verified":  true,
+                                    "otherPosition":  {
+                                                          "label":  "the same switch flipped OFF (down)",
+                                                          "prober":  16,
+                                                          "fsuipc":  15,
+                                                          "measured":  "the button released when the ON button appeared, capture log 2026-09-07 18:09"
+                                                      }
                                 },
                      "SW_AVIONICS_BUS1":  {
                                               "label":  "base: AVIONICS BUS1 flipped ON (up)",
                                               "kind":  "latching",
-                                              "prober":  null,
-                                              "fsuipc":  null,
-                                              "verified":  false
+                                              "prober":  17,
+                                              "fsuipc":  16,
+                                              "verified":  true,
+                                              "otherPosition":  {
+                                                                    "label":  "the same switch flipped OFF (down)",
+                                                                    "prober":  18,
+                                                                    "fsuipc":  17,
+                                                                    "measured":  "the button released when the ON button appeared, capture log 2026-09-07 18:09"
+                                                                }
                                           },
                      "SW_AVIONICS_BUS2":  {
                                               "label":  "base: AVIONICS BUS2 flipped ON (up)",
                                               "kind":  "latching",
-                                              "prober":  null,
-                                              "fsuipc":  null,
-                                              "verified":  false
+                                              "prober":  19,
+                                              "fsuipc":  18,
+                                              "verified":  true,
+                                              "otherPosition":  {
+                                                                    "label":  "the same switch flipped OFF (down)",
+                                                                    "prober":  20,
+                                                                    "fsuipc":  19,
+                                                                    "measured":  "the button released when the ON button appeared, capture log 2026-09-07 18:09"
+                                                                }
                                           },
                      "SW_BEACON":  {
                                        "label":  "base: BCN light switch flipped ON (up)",
                                        "kind":  "latching",
-                                       "prober":  null,
-                                       "fsuipc":  null,
-                                       "verified":  false
+                                       "prober":  21,
+                                       "fsuipc":  20,
+                                       "verified":  true,
+                                       "otherPosition":  {
+                                                             "label":  "the same switch flipped OFF (down)",
+                                                             "prober":  22,
+                                                             "fsuipc":  21,
+                                                             "measured":  "the button released when the ON button appeared, capture log 2026-09-07 18:09"
+                                                         }
                                    },
                      "SW_LAND":  {
                                      "label":  "base: LAND light switch flipped ON (up)",
                                      "kind":  "latching",
-                                     "prober":  null,
-                                     "fsuipc":  null,
-                                     "verified":  false
+                                     "prober":  23,
+                                     "fsuipc":  22,
+                                     "verified":  true,
+                                     "otherPosition":  {
+                                                           "label":  "the same switch flipped OFF (down)",
+                                                           "prober":  24,
+                                                           "fsuipc":  23,
+                                                           "measured":  "the button released when the ON button appeared, capture log 2026-09-07 18:09"
+                                                       }
                                  },
                      "SW_TAXI":  {
                                      "label":  "base: TAXI light switch flipped ON (up)",
                                      "kind":  "latching",
-                                     "prober":  null,
-                                     "fsuipc":  null,
-                                     "verified":  false
+                                     "prober":  25,
+                                     "fsuipc":  24,
+                                     "verified":  true,
+                                     "otherPosition":  {
+                                                           "label":  "the same switch flipped OFF (down)",
+                                                           "prober":  26,
+                                                           "fsuipc":  25,
+                                                           "measured":  "the button released when the ON button appeared, capture log 2026-09-07 18:09"
+                                                       }
                                  },
                      "SW_NAV":  {
                                     "label":  "base: NAV light switch flipped ON (up)",
                                     "kind":  "latching",
-                                    "prober":  null,
-                                    "fsuipc":  null,
-                                    "verified":  false
+                                    "prober":  27,
+                                    "fsuipc":  26,
+                                    "verified":  true,
+                                    "otherPosition":  {
+                                                          "label":  "the same switch flipped OFF (down)",
+                                                          "prober":  28,
+                                                          "fsuipc":  27,
+                                                          "measured":  "the button released when the ON button appeared, capture log 2026-09-07 18:09"
+                                                      }
                                 },
                      "SW_STROBE":  {
                                        "label":  "base: STROBE light switch flipped ON (up)",
                                        "kind":  "latching",
-                                       "prober":  null,
-                                       "fsuipc":  null,
-                                       "verified":  false
+                                       "prober":  29,
+                                       "fsuipc":  28,
+                                       "verified":  true,
+                                       "otherPosition":  {
+                                                             "label":  "the same switch flipped OFF (down)",
+                                                             "prober":  30,
+                                                             "fsuipc":  29,
+                                                             "measured":  "the button released when the ON button appeared, capture log 2026-09-07 18:09"
+                                                         }
                                    },
                      "MAG_R":  {
                                    "label":  "base: ignition key turned to R",
                                    "kind":  "latching",
-                                   "prober":  null,
-                                   "fsuipc":  null,
-                                   "verified":  false
+                                   "prober":  32,
+                                   "fsuipc":  31,
+                                   "verified":  true
                                },
                      "MAG_L":  {
                                    "label":  "base: ignition key turned to L",
                                    "kind":  "latching",
-                                   "prober":  null,
-                                   "fsuipc":  null,
-                                   "verified":  false
+                                   "prober":  33,
+                                   "fsuipc":  132,
+                                   "verified":  true
                                },
                      "MAG_BOTH":  {
                                       "label":  "base: ignition key turned to BOTH",
                                       "kind":  "latching",
-                                      "prober":  null,
-                                      "fsuipc":  null,
-                                      "verified":  false
+                                      "prober":  34,
+                                      "fsuipc":  133,
+                                      "verified":  true
                                   },
                      "MAG_START":  {
                                        "label":  "base: ignition key turned to START and HELD there while you press ENTER (it springs back on its own afterwards)",
                                        "kind":  "held",
-                                       "prober":  null,
-                                       "fsuipc":  null,
-                                       "verified":  false
+                                       "prober":  35,
+                                       "fsuipc":  134,
+                                       "verified":  true
                                    },
                      "MAG_OFF":  {
                                      "label":  "base: ignition key turned to OFF",
                                      "kind":  "latching",
-                                     "prober":  null,
-                                     "fsuipc":  null,
-                                     "verified":  false
+                                     "prober":  31,
+                                     "fsuipc":  30,
+                                     "verified":  true
                                  }
                  },
     "map":  {
                 "$comment":  "Empty on purpose. What each Alpha control does is Mark\u0027s decision (see notes/alpha-plan.md), taken after the physical map is measured. Same shape as the Bravo\u0027s map: press / release / when, controls as FSUIPC numbers or preset names."
             },
-    "numbering":  "prober = the number the Windows Game Controllers panel shows (1-based). fsuipc = prober - 1, and 100 more when that is above 31 (FSUIPC7 User Guide; checked on a Bravo: panel 33 = FSUIPC 132). A hat is not a button: its entries carry hat (the direction) and fsuipc from the FSUIPC7 User Guide rule, POV = buttons 32 (forward) to 39 clockwise, marked assumed until a FSUIPC7.log line has shown it."
+    "numbering":  "prober = the number the Windows Game Controllers panel shows (1-based). fsuipc = prober - 1, and 100 more when that is above 31 (FSUIPC7 User Guide; checked on a Bravo: panel 33 = FSUIPC 132). A hat is not a button: its entries carry hat (the direction) and fsuipc from the FSUIPC7 User Guide rule, POV = buttons 32 (forward) to 39 clockwise, marked assumed until a FSUIPC7.log line has shown it.",
+    "coverage":  "All 35 buttons Windows reports are accounted for (2026-09-07): 1-12 the yoke (trigger, two white, red, eight rocker positions), 13-30 the nine base switches (odd ON, next even OFF, in otherPosition), 31-35 the key (OFF, R, L, BOTH, START). The hat is a separate switch, not a button. Two axes (aileron, elevator) are not in this table."
 }

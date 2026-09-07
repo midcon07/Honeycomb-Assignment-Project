@@ -987,7 +987,23 @@ function Start-CaptureSession {
                 $settled = Wait-Settled
                 if ($null -eq $settled) { Say '   could not read the unit - starting this one again' -ForegroundColor Red; continue }
                 $new = @($settled | Where-Object { $base -notcontains $_ })
-                if ($new.Count -eq 1) { $hit = [int]$new[0]; $baseline = $settled }
+                if ($new.Count -eq 1) {
+                    $hit = [int]$new[0]; $baseline = $settled
+                    # The position it left is in the same two readings: the
+                    # one button that was held before and is not now. A
+                    # two-position switch's OFF, a selector's previous
+                    # position. Kept, so every button of the unit ends up
+                    # named somewhere (2026-09-07: the Alpha's nine OFF
+                    # positions were only in the log).
+                    $gone = @($base | Where-Object { $settled -notcontains $_ })
+                    if ($gone.Count -eq 1) {
+                        $gp = [int]$gone[0]
+                        $c | Add-Member -NotePropertyName otherPosition -NotePropertyValue ([pscustomobject]@{
+                            label = 'the position it was moved FROM at Step 2'; prober = $gp; fsuipc = (To-Fsuipc $gp)
+                            measured = 'the button released when this one appeared, same capture'
+                        }) -Force
+                    }
+                }
                 elseif ($new.Count -eq 0) { Say '   nothing changed - it was already in that position at Step 1, or it did not move. Starting this one again.' -ForegroundColor Red }
                 else { Say ('   more than one new button ({0}) - only that one control should move between the two steps. Starting this one again.' -f ($new -join ', ')) -ForegroundColor Red }
             }
