@@ -1,4 +1,4 @@
-﻿{
+{
     "$comment":  "The Honeycomb Alpha yoke, same shape as bravo-buttons.json: \u0027controls\u0027 is the PHYSICAL map (which button number each control is - measured by tools/Probe-HoneycombDevices.ps1 -Capture data/alpha-buttons.json, never typed in), \u0027map\u0027 is what each control does in the sim. \u0027device\u0027 tells the capture which unit to read. Names are Mark\u0027s (2026-09-06): LEFT horn has the push-to-talk trigger on the back, the 8-direction hat, a WHITE button, and two black up/down switches side by side (left one, right one); RIGHT horn has the RED button, a WHITE button and two black left/right switches stacked (top one, bottom one). Base: MASTER ALT/BAT, AVIONICS BUS1/BUS2, BCN LAND TAXI NAV STROBE, ignition key OFF/R/L/BOTH/START. Every control starts unverified; the capture asks for each in turn, S skips. Numbering is FSUIPC\u0027s: prober minus 1, and above 31 plus 100. Latching = stays put; momentary = springs back.",
     "schemaVersion":  1,
     "device":  {
@@ -11,16 +11,16 @@
                      "PTT":  {
                                  "label":  "LEFT horn: the push-to-talk trigger on the BACK of the horn",
                                  "kind":  "momentary",
-                                 "prober":  null,
-                                 "fsuipc":  null,
-                                 "verified":  false
+                                 "prober":  1,
+                                 "fsuipc":  0,
+                                 "verified":  true
                              },
                      "LEFT_WHITE_BUTTON":  {
                                                "label":  "LEFT horn: the WHITE button",
                                                "kind":  "momentary",
-                                               "prober":  null,
-                                               "fsuipc":  null,
-                                               "verified":  false
+                                               "prober":  2,
+                                               "fsuipc":  1,
+                                               "verified":  true
                                            },
                      "HAT_UP":  {
                                     "label":  "LEFT horn: the hat pushed straight UP",
@@ -88,65 +88,65 @@
                      "LH_LEFT_SWITCH_DOWN":  {
                                                  "label":  "LEFT horn: the LEFT black switch pushed DOWN",
                                                  "kind":  "momentary",
-                                                 "prober":  null,
-                                                 "fsuipc":  null,
-                                                 "verified":  false
+                                                 "prober":  5,
+                                                 "fsuipc":  4,
+                                                 "verified":  true
                                              },
                      "LH_RIGHT_SWITCH_UP":  {
                                                 "label":  "LEFT horn: the RIGHT black switch pushed UP",
                                                 "kind":  "momentary",
-                                                "prober":  null,
-                                                "fsuipc":  null,
-                                                "verified":  false
+                                                "prober":  8,
+                                                "fsuipc":  7,
+                                                "verified":  true
                                             },
                      "LH_RIGHT_SWITCH_DOWN":  {
                                                   "label":  "LEFT horn: the RIGHT black switch pushed DOWN",
                                                   "kind":  "momentary",
-                                                  "prober":  null,
-                                                  "fsuipc":  null,
-                                                  "verified":  false
+                                                  "prober":  7,
+                                                  "fsuipc":  6,
+                                                  "verified":  true
                                               },
                      "RED_BUTTON":  {
                                         "label":  "RIGHT horn: the RED button",
                                         "kind":  "momentary",
-                                        "prober":  null,
-                                        "fsuipc":  null,
-                                        "verified":  false
+                                        "prober":  4,
+                                        "fsuipc":  3,
+                                        "verified":  true
                                     },
                      "RIGHT_WHITE_BUTTON":  {
                                                 "label":  "RIGHT horn: the WHITE button",
                                                 "kind":  "momentary",
-                                                "prober":  null,
-                                                "fsuipc":  null,
-                                                "verified":  false
+                                                "prober":  3,
+                                                "fsuipc":  2,
+                                                "verified":  true
                                             },
                      "RH_TOP_SWITCH_LEFT":  {
                                                 "label":  "RIGHT horn: the TOP black switch pushed LEFT",
                                                 "kind":  "momentary",
-                                                "prober":  null,
-                                                "fsuipc":  null,
-                                                "verified":  false
+                                                "prober":  9,
+                                                "fsuipc":  8,
+                                                "verified":  true
                                             },
                      "RH_TOP_SWITCH_RIGHT":  {
                                                  "label":  "RIGHT horn: the TOP black switch pushed RIGHT",
                                                  "kind":  "momentary",
-                                                 "prober":  null,
-                                                 "fsuipc":  null,
-                                                 "verified":  false
+                                                 "prober":  10,
+                                                 "fsuipc":  9,
+                                                 "verified":  true
                                              },
                      "RH_BOTTOM_SWITCH_LEFT":  {
                                                    "label":  "RIGHT horn: the BOTTOM black switch pushed LEFT",
                                                    "kind":  "momentary",
-                                                   "prober":  null,
-                                                   "fsuipc":  null,
-                                                   "verified":  false
+                                                   "prober":  11,
+                                                   "fsuipc":  10,
+                                                   "verified":  true
                                                },
                      "RH_BOTTOM_SWITCH_RIGHT":  {
                                                     "label":  "RIGHT horn: the BOTTOM black switch pushed RIGHT",
                                                     "kind":  "momentary",
-                                                    "prober":  null,
-                                                    "fsuipc":  null,
-                                                    "verified":  false
+                                                    "prober":  12,
+                                                    "fsuipc":  11,
+                                                    "verified":  true
                                                 },
                      "SW_ALT":  {
                                     "label":  "base: MASTER, the ALT switch, flipped ON (up)",
