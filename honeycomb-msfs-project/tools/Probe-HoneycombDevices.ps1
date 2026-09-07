@@ -642,6 +642,28 @@ function Start-CaptureSession {
         }
 
         $hit = $null
+
+        # kind "held": hold the control in position, press ENTER, and the state
+        # is read once against the baseline. Mark, 2026-09-06, for the hat:
+        # far more reliable than catching a change while the thing is moving.
+        if ($c.kind -eq 'held') {
+            Write-Host '   HOLD it there, then press ENTER   (S = skip, Q = stop)' -ForegroundColor Cyan
+            while ($null -eq $hit) {
+                $k = [Console]::ReadKey($true)
+                if ($k.Key -eq 'S') { Write-Host '   skipped' -ForegroundColor DarkGray; break }
+                if ($k.Key -eq 'Q') { Write-Host ('Stopped. {0} captured this session; the file is saved.' -f $done) -ForegroundColor Yellow; return 0 }
+                if ($k.Key -ne 'Enter') { continue }
+                $now = Get-Pressed
+                if ($null -eq $now) { Write-Host '   could not read the device - try again' -ForegroundColor Red; continue }
+                $new = @($now | Where-Object { $baseline -notcontains $_ })
+                if ($new.Count -eq 1) { $hit = [int]$new[0] }
+                elseif ($new.Count -eq 0) { Write-Host '   nothing is held - hold it in position, then press ENTER' -ForegroundColor Red }
+                else { Write-Host ('   two buttons are held ({0}): a diagonal is two directions at once and needs no number of its own - press S to skip it' -f ($new -join ', ')) -ForegroundColor Red }
+            }
+            if ($null -eq $hit) { continue }
+            Write-Host '   got it - let go now' -ForegroundColor DarkGray
+        }
+
         while ($null -eq $hit) {
             # KeyAvailable throws when input is redirected (no console). That
             # only means the skip/stop keys are unavailable; the capture itself
