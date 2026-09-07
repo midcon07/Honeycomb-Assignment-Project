@@ -236,6 +236,7 @@ but has not loaded them with FSUIPC running.
 
 ## Open
 
+- **GOAL (Mark, 2026-09-06): the same system for the Honeycomb Alpha.** Plan and decisions in `notes/alpha-plan.md`. First step done: `data/alpha-buttons.json` (27 controls, all unverified) and the capture follows the table's `device`. Next: Mark captures; then decisions 1-4 in the plan; then the writer is generalised with fenced per-device blocks.
 - **Security audit 2026-09-05 → `notes/security-audit-2026-09-05.md`**, ten items as a checklist. Do 1 (global `[Buttons]` writer discards the user's own lines), 2 (`myevents.txt` overwritten), 4 (Google Fonts fetched on every start) before anyone outside Mark and midcon07 runs it.
 - **VERIFY LATER (Mark, 2026-09-05): the IAS button reportedly does nothing on midcon07's machine.** Not yet tested by Mark; he will report. Candidates when it comes back: the 172/G1000 wants FLC via a different event than `AP_AIRSPEED_HOLD` (65898 family; check `events.txt` for the aircraft), or BigBoy's button map was written before the map was complete. Do not fix blind - wait for the report.
 

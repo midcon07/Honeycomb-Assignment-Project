@@ -580,8 +580,18 @@ function Start-CaptureSession {
     if (-not (Test-Path -LiteralPath $Path)) { throw "No button table at $Path" }
     $table = Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json
 
-    $dev = @($devices | Where-Object { $_.Name -match '(?i)bravo' } | Select-Object -First 1)
-    if ($dev.Count -eq 0) { Write-Host 'The Bravo is not connected. Plug it in and run this again.' -ForegroundColor Red; return 2 }
+    # Which unit the table describes: its root "device" ("bravo" or "alpha"),
+    # bravo when absent. The same guided capture measures both; the table
+    # decides, so a capture can never write one unit's numbers into the
+    # other's file.
+    $want = 'bravo'
+    try {
+        $hdr = Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json
+        if ($hdr.PSObject.Properties['device'] -and $hdr.device) { $want = ([string]$hdr.device).Trim().ToLower() }
+    } catch { }
+    if ($want -notin @('bravo', 'alpha')) { Write-Host ('The table says device "{0}"; only bravo or alpha are known.' -f $want) -ForegroundColor Red; return 2 }
+    $dev = @($devices | Where-Object { $_.Name -match ('(?i)' + $want) } | Select-Object -First 1)
+    if ($dev.Count -eq 0) { Write-Host ('The {0} is not connected. Plug it in and run this again.' -f $want) -ForegroundColor Red; return 2 }
     $dev = $dev[0]
 
     function Get-Pressed {
@@ -615,7 +625,7 @@ function Start-CaptureSession {
     Write-Host ''
 
     $baseline = Wait-Settled
-    if ($null -eq $baseline) { Write-Host 'Could not read the Bravo.' -ForegroundColor Red; return 2 }
+    if ($null -eq $baseline) { Write-Host ('Could not read the {0}.' -f $dev.Name) -ForegroundColor Red; return 2 }
     Write-Host ('At rest, these buttons are held: {0}' -f $(if ($baseline.Count) { $baseline -join ', ' } else { 'none' })) -ForegroundColor DarkGray
 
     $done = 0
