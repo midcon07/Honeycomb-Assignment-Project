@@ -44,7 +44,15 @@ foreach ($s in $states) {
     & $probe -Json $f 2>$null | Out-Null
     if (Test-Path -LiteralPath $f) {
         $d = (Get-Content -LiteralPath $f -Raw | ConvertFrom-Json).Devices | Where-Object { $_.Name -match '(?i)alpha' } | Select-Object -First 1
-        if ($d) { Write-Host ('   saved. buttons: [{0}]  report: {1}' -f (@($d.Buttons) -join ','), $d.ReportHex) -ForegroundColor Green }
+        if ($d) {
+            # Decode the buttons from the bytes ourselves: the Alpha's report is
+            # 11 bytes - id, X (2), Y (2), a spare byte, then a 5-byte bitmap from
+            # byte 6, bit 0 = button 1 (measured 2026-09-06 against the watch view).
+            $bytes = @($d.ReportHex -split ' ' | ForEach-Object { [Convert]::ToInt32($_, 16) })
+            $down = @()
+            for ($i = 6; $i -lt $bytes.Count; $i++) { for ($b = 0; $b -lt 8; $b++) { if ($bytes[$i] -band (1 -shl $b)) { $down += (($i - 6) * 8 + $b + 1) } } }
+            Write-Host ('   saved. buttons down: [{0}]  report: {1}' -f ($down -join ','), $d.ReportHex) -ForegroundColor Green
+        }
         else    { Write-Host '   saved, but no Alpha in it - is it plugged in?' -ForegroundColor Red }
     } else { Write-Host '   nothing saved' -ForegroundColor Red }
 }
