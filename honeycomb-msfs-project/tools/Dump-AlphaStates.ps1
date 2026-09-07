@@ -41,7 +41,11 @@ foreach ($s in $states) {
     Write-Host ('>> ' + $s.ask) -ForegroundColor Yellow
     [void](Read-Host '   then press Enter')
     $f = [System.IO.Path]::Combine($OutDir, $s.id + '.json')
-    & $probe -Json $f 2>$null | Out-Null
+    if (Test-Path -LiteralPath $f) { Remove-Item -LiteralPath $f -Force }
+    $err = $null
+    try { $out = & $probe -Json $f 2>&1 | Out-String } catch { $err = $_.Exception.Message }
+    if ($err) { Write-Host ('   the probe failed: ' + $err) -ForegroundColor Red }
+    elseif ($out -match '(?im)^.*(error|denied|exception).*$') { Write-Host ('   the probe said: ' + $Matches[0].Trim()) -ForegroundColor Red }
     if (Test-Path -LiteralPath $f) {
         $d = (Get-Content -LiteralPath $f -Raw | ConvertFrom-Json).Devices | Where-Object { $_.Name -match '(?i)alpha' } | Select-Object -First 1
         if ($d) {
@@ -54,7 +58,7 @@ foreach ($s in $states) {
             Write-Host ('   saved. buttons down: [{0}]  report: {1}' -f ($down -join ','), $d.ReportHex) -ForegroundColor Green
         }
         else    { Write-Host '   saved, but no Alpha in it - is it plugged in?' -ForegroundColor Red }
-    } else { Write-Host '   nothing saved' -ForegroundColor Red }
+    } else { Write-Host '   NOTHING SAVED for this step - tell Mark what the line above says' -ForegroundColor Red }
 }
 Write-Host ''
 Write-Host ('Done. Files are in ' + $OutDir) -ForegroundColor Green
