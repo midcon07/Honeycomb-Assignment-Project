@@ -547,6 +547,8 @@ function Start-WatchLoop {
 
 
 
+
+
 function Get-GamingControllers {
     <#
         Every game controller as Windows itself decodes it (Windows.Gaming.Input,
@@ -754,6 +756,17 @@ function Start-CaptureSession {
     Write-Host 'Before the first one: put every switch and the key where they normally rest, and hold nothing.' -ForegroundColor Cyan
     Write-Host 'Do exactly what each line asks. S = skip this one, Q = stop.' -ForegroundColor Cyan
     Write-Host ''
+    # The resting set is read only after the person says everything is at
+    # rest. Read it straight away and the tidying itself - a switch flipped
+    # down, the key turned back - lands in the first control (review,
+    # 2026-09-07). No console (input redirected) means no gate.
+    Write-Host 'When everything is at rest and you are holding nothing, press ENTER   (Q = stop)' -ForegroundColor Cyan
+    while ($true) {
+        $k = Read-Key
+        if ($null -eq $k) { break }
+        if ($k.Key -eq 'Q') { Write-Host 'Stopped before the first control; nothing was changed.' -ForegroundColor Yellow; return 0 }
+        if ($k.Key -eq 'Enter') { break }
+    }
 
     # Wait for a real reading. Right after enumeration Windows can report
     # nothing held for a moment, and every Honeycomb unit holds buttons at
@@ -858,7 +871,12 @@ function Start-CaptureSession {
                 if ($null -eq $base) { Write-Host '   could not read the unit - try again' -ForegroundColor Red; continue }
 
                 Write-Host ('   Step 2: now move it to: {0}   then press ENTER' -f $c.label) -ForegroundColor Cyan
-                $k = Read-Key
+                $k = $null
+                while ($true) {
+                    $k = Read-Key
+                    if ($null -eq $k -or $k.Key -in @('Enter', 'S', 'Q')) { break }
+                    Write-Host '   press ENTER once it is in that position   (S = skip, Q = stop)' -ForegroundColor Cyan
+                }
                 if ($null -eq $k) { $skipped = $true; break }
                 if ($k.Key -eq 'S') { Write-Host '   skipped' -ForegroundColor DarkGray; $skipped = $true; break }
                 if ($k.Key -eq 'Q') { & $stopMsg; return 0 }
@@ -884,9 +902,36 @@ function Start-CaptureSession {
                 $now = Get-Pressed
                 if ($null -eq $now) { continue }
                 $new = @($now | Where-Object { $baseline -notcontains $_ })
-                if ($new.Count -eq 1) { $hit = [int]$new[0] }
-                elseif ($new.Count -gt 1) {
+                if ($new.Count -eq 0) { continue }
+                if ($new.Count -gt 1) {
                     Write-Host ('   more than one new button appeared ({0}) - let go of everything, then press just that one' -f ($new -join ', ')) -ForegroundColor Red
+                    if (-not (Wait-BackToRest -Base $baseline)) { & $stopMsg; return 0 }
+                    continue
+                }
+                # One new button. Not saved yet: it is watched until it is let
+                # go, and nothing else may appear meanwhile - two fingers
+                # landing a few milliseconds apart would otherwise file the
+                # first one under this name (review, 2026-09-07). A button
+                # that never lets go is a switch position, not a press.
+                $cand = [int]$new[0]; $t0 = Get-Date; $outcome = $null
+                while ($null -eq $outcome) {
+                    $k = Read-KeyIfAny
+                    if ($null -ne $k -and $k.Key -eq 'Q') { & $stopMsg; return 0 }
+                    Start-Sleep -Milliseconds 40
+                    $now = Get-Pressed
+                    if ($null -eq $now) { continue }
+                    $extra = @($now | Where-Object { $baseline -notcontains $_ })
+                    if ($extra.Count -eq 0) { $outcome = 'clean'; break }
+                    if (@($extra | Where-Object { $_ -ne $cand }).Count -gt 0) { $outcome = 'more'; break }
+                    if (((Get-Date) - $t0).TotalSeconds -ge 8) { $outcome = 'stuck'; break }
+                }
+                if ($outcome -eq 'clean') { $hit = $cand }
+                elseif ($outcome -eq 'more') {
+                    Write-Host ('   more than one button was pressed ({0}) - let go of everything, then press just that one' -f ($extra -join ', ')) -ForegroundColor Red
+                    if (-not (Wait-BackToRest -Base $baseline)) { & $stopMsg; return 0 }
+                }
+                else {
+                    Write-Host ('   button {0} is still held after 8 seconds. If that was a switch, it is a position, not a press: put it back where it was. Then press this control once and let go.' -f $cand) -ForegroundColor Red
                     if (-not (Wait-BackToRest -Base $baseline)) { & $stopMsg; return 0 }
                 }
             }
@@ -899,10 +944,11 @@ function Start-CaptureSession {
             Save
             $done++
             Write-Host ('   captured: panel button {0} = FSUIPC button {1}   (saved)' -f $hit, $fs) -ForegroundColor Green
-            if ($kind -ne 'latching') {
-                # The pressed button must be let go before the next control, or
-                # it would sit in the next baseline. Only THAT button is waited
+            if ($kind -eq 'held') {
+                # A held control must be let go before the next control, or it
+                # would sit in the next baseline. Only THAT button is waited
                 # for: a sprung key lands on another position, and that is fine.
+                # (A momentary capture has already seen its button released.)
                 Write-Host '   let go now' -ForegroundColor DarkGray
                 if (-not (Wait-ButtonUp -Button $hit)) { & $stopMsg; return 0 }
             }
