@@ -73,6 +73,9 @@
 param(
     [switch] $Watch,
     [switch] $Sample,
+    # Print every game controller as Windows decodes it: buttons down (1-based,
+    # as the Game Controllers panel numbers them), hat direction, axes.
+    [switch] $WindowsView,
     [string] $Json,
     [switch] $All,
     [int]    $IntervalMs = 80,
@@ -549,6 +552,47 @@ if ($devices.Count -eq 0) {
     return
 }
 
+function Get-GamingControllers {
+    <#
+        Every game controller as Windows itself decodes it (Windows.Gaming.Input,
+        in-box since Windows 10): buttons by index, hat switches as directions,
+        axes normalised 0..1. This is the view the Game Controllers panel shows.
+
+        Why this and not the raw USB report: measured 2026-09-07 on the Alpha,
+        the raw report read by hand never showed a button change under a hand
+        that the panel saw perfectly, and the yoke's hat is a HAT SWITCH, not
+        eight buttons - it does not exist in a button list at all. Windows'
+        0-based button index is FSUIPC's button number (the panel shows it
+        plus one). Works with FSUIPC running; needs no simulator.
+    #>
+    try { [Windows.Gaming.Input.RawGameController, Windows.Gaming.Input, ContentType=WindowsRuntime] | Out-Null } catch { return @() }
+    $list = @([Windows.Gaming.Input.RawGameController]::RawGameControllers)
+    if ($list.Count -eq 0) { Start-Sleep -Milliseconds 400; $list = @([Windows.Gaming.Input.RawGameController]::RawGameControllers) }
+    return $list
+}
+
+function Read-GamingController {
+    # One reading. Buttons come back 1-BASED (index + 1) so they line up with
+    # the tables' "prober" numbers and the single To-Fsuipc rule.
+    param($Controller)
+    $b = New-Object bool[] $Controller.ButtonCount
+    $h = New-Object Windows.Gaming.Input.GameControllerSwitchPosition[] $Controller.SwitchCount
+    $a = New-Object double[] $Controller.AxisCount
+    $null = $Controller.GetCurrentReading($b, $h, $a)
+    $down = New-Object System.Collections.ArrayList
+    for ($i = 0; $i -lt $b.Length; $i++) { if ($b[$i]) { [void]$down.Add($i + 1) } }
+    [pscustomobject]@{
+        Buttons = @($down)
+        Hats    = @($h | ForEach-Object { $_.ToString() })
+        Axes    = @($a)
+    }
+}
+
+# FSUIPC's numbering for a hat (POV): buttons 32 to 39, north first, then
+# clockwise. From the FSUIPC documentation; to be confirmed against a line in
+# FSUIPC7.log with the sim running before the first hat assignment is trusted.
+$HAT_FSUIPC = [ordered]@{ Up = 32; UpRight = 33; Right = 34; DownRight = 35; Down = 36; DownLeft = 37; Left = 38; UpLeft = 39 }
+
 function Start-CaptureSession {
     <#
         Guided capture of the Bravo's button numbers into a JSON table.
@@ -590,14 +634,23 @@ function Start-CaptureSession {
         if ($hdr.PSObject.Properties['device'] -and $hdr.device) { $want = ([string]$hdr.device).Trim().ToLower() }
     } catch { }
     if ($want -notin @('bravo', 'alpha')) { Write-Host ('The table says device "{0}"; only bravo or alpha are known.' -f $want) -ForegroundColor Red; return 2 }
-    $dev = @($devices | Where-Object { $_.Name -match ('(?i)' + $want) } | Select-Object -First 1)
-    if ($dev.Count -eq 0) { Write-Host ('The {0} is not connected. Plug it in and run this again.' -f $want) -ForegroundColor Red; return 2 }
-    $dev = $dev[0]
+    $wantPid = if ($want -eq 'alpha') { 0x1900 } else { 0x1901 }
+    $ctl = @(Get-GamingControllers | Where-Object { $_.HardwareVendorId -eq 0x294B -and $_.HardwareProductId -eq $wantPid } | Select-Object -First 1)
+    if ($ctl.Count -eq 0) {
+        Write-Host ('Windows does not list the {0} as a game controller. Plug it in, check it shows in joy.cpl, and run this again.' -f $want) -ForegroundColor Red
+        return 2
+    }
+    $ctl = $ctl[0]
+    $dev = [pscustomobject]@{ Name = ('{0} - {1} buttons, {2} hat(s), {3} axes, as Windows sees it' -f $want, $ctl.ButtonCount, $ctl.SwitchCount, $ctl.AxisCount) }
 
     function Get-Pressed {
-        $s = Read-DeviceState -Path $dev.Path -TimeoutMs 400
-        if ($null -eq $s) { return $null }
-        return @($s.Buttons | ForEach-Object { [int]$_ })
+        try { return @((Read-GamingController -Controller $ctl).Buttons | ForEach-Object { [int]$_ }) } catch { return $null }
+    }
+    function Get-Hat {
+        try {
+            $r = Read-GamingController -Controller $ctl
+            if ($r.Hats.Count) { return [string]$r.Hats[0] } else { return $null }
+        } catch { return $null }
     }
     function Wait-Settled {
         # The pressed set unchanged for 600 ms.
@@ -642,6 +695,37 @@ function Start-CaptureSession {
         }
 
         $hit = $null
+
+        # kind "hat": the hat is a switch with a direction, not a button, so
+        # it is read as one - hold it, press ENTER, read the direction. Its
+        # FSUIPC number follows the POV rule ($HAT_FSUIPC), which is written
+        # down beside the number until a log line has confirmed it.
+        if ($c.kind -eq 'hat') {
+            if ($ctl.SwitchCount -lt 1) { Write-Host '   Windows reports no hat switch on this unit - skipped' -ForegroundColor Red; continue }
+            Write-Host '   HOLD the hat in that direction, then press ENTER   (S = skip, Q = stop)' -ForegroundColor Cyan
+            $pos = $null
+            while ($null -eq $pos) {
+                $k = [Console]::ReadKey($true)
+                if ($k.Key -eq 'S') { Write-Host '   skipped' -ForegroundColor DarkGray; break }
+                if ($k.Key -eq 'Q') { Write-Host ('Stopped. {0} captured this session; the file is saved.' -f $done) -ForegroundColor Yellow; return 0 }
+                if ($k.Key -ne 'Enter') { continue }
+                $h = Get-Hat
+                if ($null -eq $h) { Write-Host '   could not read the hat - try again' -ForegroundColor Red; continue }
+                if ($h -eq 'Center') { Write-Host '   the hat is centred - hold it in the direction, then press ENTER' -ForegroundColor Red; continue }
+                $pos = $h
+            }
+            if ($null -eq $pos) { continue }
+            if (-not $HAT_FSUIPC.Contains($pos)) { Write-Host ('   unexpected hat direction "{0}" - skipped' -f $pos) -ForegroundColor Red; continue }
+            $c.prober = $null
+            $c.fsuipc = [int]$HAT_FSUIPC[$pos]
+            $c.verified = $true
+            $c | Add-Member -NotePropertyName hat -NotePropertyValue $pos -Force
+            $c | Add-Member -NotePropertyName numbering -NotePropertyValue 'hat: FSUIPC treats the POV as buttons 32-39, north first then clockwise - from the FSUIPC documentation; confirm in FSUIPC7.log with the sim running' -Force
+            Save
+            $done++
+            Write-Host ('   captured: hat {0} = FSUIPC button {1}   (saved) - let go now' -f $pos, $c.fsuipc) -ForegroundColor Green
+            continue
+        }
 
         # kind "held": hold the control in position, press ENTER, and the state
         # is read once against the baseline. Mark, 2026-09-06, for the hat:
@@ -709,6 +793,19 @@ function Start-CaptureSession {
     Write-Host ''
     Write-Host ('Finished: {0} control(s) captured and saved to {1}' -f $done, $Path) -ForegroundColor Green
     return 0
+}
+
+if ($WindowsView) {
+    $ctrls = @(Get-GamingControllers)
+    if ($ctrls.Count -eq 0) { Write-Host 'Windows lists no game controllers.' -ForegroundColor Yellow; exit 2 }
+    foreach ($c in $ctrls) {
+        $r = Read-GamingController -Controller $c
+        Write-Host ('{0}  vid=0x{1:X4} pid=0x{2:X4}  buttons={3} hats={4} axes={5}' -f $c.DisplayName, $c.HardwareVendorId, $c.HardwareProductId, $c.ButtonCount, $c.SwitchCount, $c.AxisCount)
+        Write-Host ('   buttons down (panel numbering, 1-based): {0}' -f $(if ($r.Buttons.Count) { $r.Buttons -join ', ' } else { 'none' }))
+        if ($r.Hats.Count) { Write-Host ('   hat: {0}' -f ($r.Hats -join ', ')) }
+        Write-Host ('   axes: {0}' -f (($r.Axes | ForEach-Object { [math]::Round($_, 3) }) -join ', '))
+    }
+    exit 0
 }
 
 if ($Capture) {

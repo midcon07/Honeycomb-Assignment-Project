@@ -7,69 +7,69 @@
                      "PTT":  {
                                  "label":  "LEFT horn: the push-to-talk trigger on the BACK of the horn",
                                  "kind":  "momentary",
-                                 "prober":  1,
-                                 "fsuipc":  0,
-                                 "verified":  true
+                                 "prober":  null,
+                                 "fsuipc":  null,
+                                 "verified":  false
                              },
                      "LEFT_WHITE_BUTTON":  {
                                                "label":  "LEFT horn: the WHITE button",
                                                "kind":  "momentary",
-                                               "prober":  2,
-                                               "fsuipc":  1,
-                                               "verified":  true
+                                               "prober":  null,
+                                               "fsuipc":  null,
+                                               "verified":  false
                                            },
                      "HAT_UP":  {
                                     "label":  "LEFT horn: the hat pushed straight UP",
-                                    "kind":  "held",
+                                    "kind":  "hat",
                                     "prober":  null,
                                     "fsuipc":  null,
                                     "verified":  false
                                 },
                      "HAT_UP_RIGHT":  {
                                           "label":  "LEFT horn: the hat pushed UP-RIGHT (diagonal)",
-                                          "kind":  "held",
+                                          "kind":  "hat",
                                           "prober":  null,
                                           "fsuipc":  null,
                                           "verified":  false
                                       },
                      "HAT_RIGHT":  {
                                        "label":  "LEFT horn: the hat pushed RIGHT",
-                                       "kind":  "held",
+                                       "kind":  "hat",
                                        "prober":  null,
                                        "fsuipc":  null,
                                        "verified":  false
                                    },
                      "HAT_DOWN_RIGHT":  {
                                             "label":  "LEFT horn: the hat pushed DOWN-RIGHT (diagonal)",
-                                            "kind":  "held",
+                                            "kind":  "hat",
                                             "prober":  null,
                                             "fsuipc":  null,
                                             "verified":  false
                                         },
                      "HAT_DOWN":  {
                                       "label":  "LEFT horn: the hat pushed straight DOWN",
-                                      "kind":  "held",
+                                      "kind":  "hat",
                                       "prober":  null,
                                       "fsuipc":  null,
                                       "verified":  false
                                   },
                      "HAT_DOWN_LEFT":  {
                                            "label":  "LEFT horn: the hat pushed DOWN-LEFT (diagonal)",
-                                           "kind":  "held",
+                                           "kind":  "hat",
                                            "prober":  null,
                                            "fsuipc":  null,
                                            "verified":  false
                                        },
                      "HAT_LEFT":  {
                                       "label":  "LEFT horn: the hat pushed LEFT",
-                                      "kind":  "held",
+                                      "kind":  "hat",
                                       "prober":  null,
                                       "fsuipc":  null,
                                       "verified":  false
                                   },
                      "HAT_UP_LEFT":  {
                                          "label":  "LEFT horn: the hat pushed UP-LEFT (diagonal)",
-                                         "kind":  "held",
+                                         "kind":  "hat",
                                          "prober":  null,
                                          "fsuipc":  null,
                                          "verified":  false
@@ -105,16 +105,16 @@
                      "RED_BUTTON":  {
                                         "label":  "RIGHT horn: the RED button",
                                         "kind":  "momentary",
-                                        "prober":  4,
-                                        "fsuipc":  3,
-                                        "verified":  true
+                                        "prober":  null,
+                                        "fsuipc":  null,
+                                        "verified":  false
                                     },
                      "RIGHT_WHITE_BUTTON":  {
                                                 "label":  "RIGHT horn: the WHITE button",
                                                 "kind":  "momentary",
-                                                "prober":  3,
-                                                "fsuipc":  2,
-                                                "verified":  true
+                                                "prober":  null,
+                                                "fsuipc":  null,
+                                                "verified":  false
                                             },
                      "RH_TOP_SWITCH_LEFT":  {
                                                 "label":  "RIGHT horn: the TOP black switch pushed LEFT",
@@ -147,100 +147,100 @@
                      "SW_ALT":  {
                                     "label":  "base: MASTER, the ALT switch, flipped ON (up) - flip it OFF first if it is on",
                                     "kind":  "latching",
-                                    "prober":  0,
-                                    "fsuipc":  -1,
-                                    "verified":  true
+                                    "prober":  null,
+                                    "fsuipc":  null,
+                                    "verified":  false
                                 },
                      "SW_BAT":  {
                                     "label":  "base: MASTER, the BAT switch, flipped ON (up)",
                                     "kind":  "latching",
-                                    "prober":  0,
-                                    "fsuipc":  -1,
-                                    "verified":  true
+                                    "prober":  null,
+                                    "fsuipc":  null,
+                                    "verified":  false
                                 },
                      "SW_AVIONICS_BUS1":  {
                                               "label":  "base: AVIONICS BUS1 flipped ON (up)",
                                               "kind":  "latching",
-                                              "prober":  0,
-                                              "fsuipc":  -1,
-                                              "verified":  true
+                                              "prober":  null,
+                                              "fsuipc":  null,
+                                              "verified":  false
                                           },
                      "SW_AVIONICS_BUS2":  {
                                               "label":  "base: AVIONICS BUS2 flipped ON (up)",
                                               "kind":  "latching",
-                                              "prober":  0,
-                                              "fsuipc":  -1,
-                                              "verified":  true
+                                              "prober":  null,
+                                              "fsuipc":  null,
+                                              "verified":  false
                                           },
                      "SW_BEACON":  {
                                        "label":  "base: BCN light switch flipped ON (up)",
                                        "kind":  "latching",
-                                       "prober":  0,
-                                       "fsuipc":  -1,
-                                       "verified":  true
+                                       "prober":  null,
+                                       "fsuipc":  null,
+                                       "verified":  false
                                    },
                      "SW_LAND":  {
                                      "label":  "base: LAND light switch flipped ON (up)",
                                      "kind":  "latching",
-                                     "prober":  0,
-                                     "fsuipc":  -1,
-                                     "verified":  true
+                                     "prober":  null,
+                                     "fsuipc":  null,
+                                     "verified":  false
                                  },
                      "SW_TAXI":  {
                                      "label":  "base: TAXI light switch flipped ON (up)",
                                      "kind":  "latching",
-                                     "prober":  0,
-                                     "fsuipc":  -1,
-                                     "verified":  true
+                                     "prober":  null,
+                                     "fsuipc":  null,
+                                     "verified":  false
                                  },
                      "SW_NAV":  {
                                     "label":  "base: NAV light switch flipped ON (up)",
                                     "kind":  "latching",
-                                    "prober":  0,
-                                    "fsuipc":  -1,
-                                    "verified":  true
+                                    "prober":  null,
+                                    "fsuipc":  null,
+                                    "verified":  false
                                 },
                      "SW_STROBE":  {
                                        "label":  "base: STROBE light switch flipped ON (up)",
                                        "kind":  "latching",
-                                       "prober":  0,
-                                       "fsuipc":  -1,
-                                       "verified":  true
+                                       "prober":  null,
+                                       "fsuipc":  null,
+                                       "verified":  false
                                    },
                      "MAG_OFF":  {
                                      "label":  "base: ignition key turned to OFF (turn it to R first if it is already at OFF)",
                                      "kind":  "latching",
-                                     "prober":  0,
-                                     "fsuipc":  -1,
-                                     "verified":  true
+                                     "prober":  null,
+                                     "fsuipc":  null,
+                                     "verified":  false
                                  },
                      "MAG_R":  {
                                    "label":  "base: ignition key turned to R",
                                    "kind":  "latching",
-                                   "prober":  0,
-                                   "fsuipc":  -1,
-                                   "verified":  true
+                                   "prober":  null,
+                                   "fsuipc":  null,
+                                   "verified":  false
                                },
                      "MAG_L":  {
                                    "label":  "base: ignition key turned to L",
                                    "kind":  "latching",
-                                   "prober":  0,
-                                   "fsuipc":  -1,
-                                   "verified":  true
+                                   "prober":  null,
+                                   "fsuipc":  null,
+                                   "verified":  false
                                },
                      "MAG_BOTH":  {
                                       "label":  "base: ignition key turned to BOTH",
                                       "kind":  "latching",
-                                      "prober":  0,
-                                      "fsuipc":  -1,
-                                      "verified":  true
+                                      "prober":  null,
+                                      "fsuipc":  null,
+                                      "verified":  false
                                   },
                      "MAG_START":  {
                                        "label":  "base: ignition key turned and HELD at START, then let it spring back",
                                        "kind":  "momentary",
-                                       "prober":  35,
-                                       "fsuipc":  134,
-                                       "verified":  true
+                                       "prober":  null,
+                                       "fsuipc":  null,
+                                       "verified":  false
                                    }
                  },
     "map":  {
