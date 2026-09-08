@@ -447,6 +447,10 @@ internal sealed partial class MainForm : Form
                 await SetupButtonsAsync();
                 break;
 
+            case "recalibrateAlpha":
+                await RecalibrateAlphaAsync();
+                break;
+
             case "startTest":
                 await EnterTestModeAsync();
                 break;
@@ -931,6 +935,59 @@ internal sealed partial class MainForm : Form
         Program.Log($"setupButtons finished, exit {res.ExitCode}");
         await Progress(100, ok ? "Done." : "Nothing was written.");
         await SetupDone(ok, said, what);
+        await PushPreflightAsync(true);
+    }
+
+    /// <summary>
+    /// Recalibrates the Alpha yoke: tools/Set-AlphaCalibration.ps1 in a
+    /// console window of its own, because it talks the person through three
+    /// measurements (hands off, turn, push/pull) and needs their keyboard.
+    /// It writes Windows' calibration store for the yoke, which anything
+    /// that already has the yoke open keeps ignoring until it opens the yoke
+    /// again - so FSUIPC is closed first and started again after, the same
+    /// dance as the lever and button writes. The gate's "Alpha yoke centred"
+    /// check is what says whether it worked.
+    /// </summary>
+    private async Task RecalibrateAlphaAsync()
+    {
+        Program.Log("recalibrateAlpha");
+        var wasRunning = System.Diagnostics.Process.GetProcessesByName("FSUIPC7").Length > 0;
+        if (wasRunning && !Runner.StopFsuipc(TimeSpan.FromSeconds(10)))
+        {
+            await Send(new { kind = "alphaCal", ok = false,
+                             message = "FSUIPC7 would not close, so the yoke was not recalibrated. Close it from its icon near the clock, then try again." });
+            return;
+        }
+
+        int exit = -1;
+        try
+        {
+            var psi = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "powershell.exe",
+                UseShellExecute = true     // its own window, with a keyboard
+            };
+            psi.ArgumentList.Add("-NoProfile");
+            psi.ArgumentList.Add("-ExecutionPolicy");
+            psi.ArgumentList.Add("Bypass");
+            psi.ArgumentList.Add("-File");
+            psi.ArgumentList.Add(Path.Combine(Runner.ToolsDir, "Set-AlphaCalibration.ps1"));
+            using var p = System.Diagnostics.Process.Start(psi);
+            if (p != null) { await p.WaitForExitAsync(); exit = p.ExitCode; }
+        }
+        catch (Exception ex)
+        {
+            Program.Log("recalibrateAlpha failed to start: " + ex.Message);
+        }
+
+        var root = _cfg?.FsuipcRoot;
+        if (string.IsNullOrWhiteSpace(root)) root = Runner.FindFsuipcRoot();
+        if (wasRunning && !string.IsNullOrWhiteSpace(root))
+            Program.Log("FSUIPC7 restarted after recalibration: " + Runner.LaunchFsuipc(root));
+
+        Program.Log($"recalibrateAlpha finished, exit {exit}");
+        await Send(new { kind = "alphaCal", ok = exit == 0, exit });
+        // The gate re-reads the yoke's centre, which is the verdict.
         await PushPreflightAsync(true);
     }
 

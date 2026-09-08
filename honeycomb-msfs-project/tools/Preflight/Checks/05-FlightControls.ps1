@@ -54,6 +54,7 @@
             return
         }
 
+        $alphaPresent = $false
         foreach ($d in $devices) {
             $pattern = 'VID_{0}&PID_{1}' -f $d.Vid, $d.Pid
             $hits = @($found | Where-Object { $_.PNPDeviceID -match $pattern })
@@ -75,6 +76,34 @@
             } else {
                 $names = ($hits | ForEach-Object { $_.Name } | Select-Object -Unique) -join ', '
                 Add-Result ('{0} connected' -f $d.Label) 'PASS' ('{0} ({1})' -f $names, $hits[0].PNPDeviceID)
+                if ($d.Pid -eq '1900') { $alphaPresent = $true }
+            }
+        }
+
+        # --- is the yoke reading centred with hands off? -----------------------
+        # The Alpha's pots drift (Mark, 2026-09-07: "sometimes Alphas lose their
+        # calibration"), and a yoke that rests two or three percent off centre
+        # is flown by the simulator as if it were being held there. The number
+        # comes from the Windows joystick API, which returns the CALIBRATED
+        # value - the same one the simulator and FSUIPC get (measured
+        # 2026-09-07: writing a new centre into Windows' calibration store
+        # moved this reading to exactly zero). Not blocking: it is a
+        # recommendation, and the launcher's "Recalibrate the Alpha" does it.
+        if ($alphaPresent) {
+            try {
+                . (Join-PathSafe $script:ProjectRoot 'tools\Test-AlphaCalibration.ps1') -Library
+                $v = Get-AlphaCalibrationVerdict -Limit 3.0
+                if (-not $v.Found) {
+                    Add-Result 'Alpha yoke centred' 'SKIP' $v.Detail $v.Remedy
+                } elseif ($v.Ok) {
+                    Add-Result 'Alpha yoke centred' 'PASS' $v.Detail
+                } else {
+                    Add-Result 'Alpha yoke centred' 'WARN' $v.Detail $v.Remedy
+                }
+            } catch {
+                Add-Result 'Alpha yoke centred' 'SKIP' `
+                    ('The yoke''s centre could not be read: {0}' -f $_.Exception.Message) `
+                    'This is a fault in the program, not your setup. Report it.'
             }
         }
 

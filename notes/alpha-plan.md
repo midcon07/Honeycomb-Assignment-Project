@@ -71,8 +71,15 @@ test in the app.
       Alpha's write does not erase the Bravo's and vice versa (this also
       settles security-audit item 1 - lines outside the fences are left
       alone).
+- [x] Yoke calibration (Mark, 2026-09-07): the gate reads the yoke's centre as
+      the simulator sees it ("Alpha yoke centred", WARN beyond 3%), and
+      "Recalibrate the Alpha" in the launcher measures centre and travel from
+      the raw pots and writes Windows' calibration store, with a backup.
+      The sweep also measures which pot is roll and which is pitch.
 - [ ] Yoke axes: fixed block appended to every `[Axes.<name>]` write
-      (decision 2), or the MSFS axes-only profile.
+      (decision 2), or the MSFS axes-only profile. The FSUIPC letters for
+      joystick D must be read from FSUIPC's axis window with the sim running
+      before the block is written; nothing binds D today.
 - [ ] Preflight: the "Empty Bravo profile set" confirmation gains the Alpha,
       or a second confirmation.
 - [ ] App: "Set up Alpha in FSUIPC" button, green from the file; test rows

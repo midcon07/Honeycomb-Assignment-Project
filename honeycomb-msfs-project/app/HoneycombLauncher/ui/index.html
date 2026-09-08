@@ -827,6 +827,15 @@ window.APP = {
         break;
       case "preflightBusy": S.preflightBusy = true; return;   // silent: no redraw for a background re-check
       case "preflight":     S.preflightBusy = false; S.preflight = msg.data || msg; break;
+      case "alphaCal": {
+        /* The recalibration window has closed. The button comes back; the
+           gate's next result colours it. A refusal (FSUIPC would not close)
+           is said in a dialog, because nothing else will say it. */
+        var acb = byId("alphaCalBtn");
+        if (acb) { acb.disabled = false; acb.textContent = "Recalibrate the Alpha"; }
+        if (msg.message) { showDialog(false, "Recalibrate the Alpha", msg.message, null, ""); }
+        return;
+      }
       case "planBusy":      S.planBusy = true; break;
       case "plan":
         S.planBusy = false; S.plan = msg.data || msg;
@@ -1092,12 +1101,26 @@ function renderButtons() {
   setState("setupBtn", a && (c.leversWrittenIds || []).indexOf(a.id) >= 0 ? "done" : "todo");
   setState("buttonsBtn", c.buttonsWritten ? "done" : "todo");
   setState("bravoProfileBtn", c.bravoProfileConfirmed ? "done" : "todo");
+  setState("alphaCalBtn", alphaCentred());
   setState("testBtn", testComplete() ? "done" : "todo");
   var hasPlan = !!(S.plan && S.plan.OriginIcao && S.plan.DestIcao);
   ["depWx", "destWx"].forEach(function (id) {
     var w = byId(id);
     if (w && !w.busy) { w.disabled = !hasPlan; }
   });
+}
+/* The gate's verdict on the yoke's centre: "done" (green) when it passed,
+   "todo" (amber) when it recommends a recalibration, null (unlit) when the
+   gate has not looked or could not read the yoke. */
+function alphaCentred() {
+  var res = (S.preflight && S.preflight.results) || [];
+  for (var i = 0; i < res.length; i++) {
+    if (res[i].Check !== "Alpha yoke centred") { continue; }
+    if (res[i].State === "PASS") { return "done"; }
+    if (res[i].State === "WARN") { return "todo"; }
+    return null;
+  }
+  return null;
 }
 /* Every applicable step ticked, in a test that is running. */
 function testComplete() {
@@ -1442,6 +1465,21 @@ byId("sbLink").addEventListener("click", function (e) {
     post({ action: "confirmBravoProfile" });
   });
   bar.appendChild(m);
+
+  /* The yoke's calibration. Amber when the gate's "Alpha yoke centred" check
+     says the yoke rests more than a few percent off centre with hands off,
+     green when it is centred, unlit until the gate has looked. Pressing it
+     opens a window that talks the person through three measurements; the
+     gate's next look is the result. */
+  var ac = el("button", "pbtn", "Recalibrate the Alpha");
+  ac.type = "button";
+  ac.id = "alphaCalBtn";
+  ac.addEventListener("click", function () {
+    ac.disabled = true;
+    ac.textContent = "Recalibrating…";
+    post({ action: "recalibrateAlpha" });
+  });
+  bar.appendChild(ac);
 
   /* Start Simulator, last in the row because it is the last thing done. It
      used to sit under the checklist with one grey look whether or not it
