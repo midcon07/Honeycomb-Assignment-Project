@@ -80,17 +80,22 @@ $Scenarios = [ordered]@{}
 
 $Scenarios['clean'] = {
     Reset-Fake
-    $Fake.Keys.Enqueue('Enter')                                # step 1 ENTER
-    $Fake.Calls.Add((Rest 511 500 2))                          # hands off, tiny wobble
-    $Fake.Calls.Add((Sweep X 20 1010 511 500))                 # roll: X moves
-    $Fake.Calls.Add((Sweep Y 15 1005 511 500))                 # pitch: Y moves
+    $Fake.Keys.Enqueue('Enter'); $Fake.Keys.Enqueue('Enter'); $Fake.Keys.Enqueue('Enter')   # steps 1, 4, 5
+    $Fake.Calls.Add((Rest 511 495 2))                          # hands off, tiny wobble
+    $Fake.Calls.Add((Sweep X 20 1010 511 495))                 # roll: X moves
+    $Fake.Calls.Add((Sweep Y 15 1005 511 495))                 # pitch: Y moves
+    $Fake.Calls.Add((Rest 509 492))                            # settled from forward-left
+    $Fake.Calls.Add((Rest 513 508))                            # settled from back-right
     $rc = Invoke-Recalibration -Device $null
     Check ($rc -eq 0) "rc 0 (was $rc)"
     $s0 = Slot 0; $s1 = Slot 1
-    Check ($null -ne $s0 -and ($s0 -join ',') -eq '20,511,1010') "slot 0 (X) = 20/511/1010, is $($s0 -join '/')"
-    Check ($null -ne $s1 -and ($s1 -join ',') -eq '15,500,1005') "slot 1 (Y) = 15/500/1005, is $($s1 -join '/')"
+    Check ($null -ne $s0 -and ($s0 -join ',') -eq '20,511,1010') "slot 0 (X) = 20/511/1010 (midpoint of 509 and 513), is $($s0 -join '/')"
+    Check ($null -ne $s1 -and ($s1 -join ',') -eq '15,500,1005') "slot 1 (Y) = 15/500/1005 (midpoint of 492 and 508, not the first rest 495), is $($s1 -join '/')"
     $axes = Get-Content -LiteralPath $script:AlphaAxesFile -Raw | ConvertFrom-Json
     Check ($axes.roll -eq 'X' -and $axes.pitch -eq 'Y') 'axes file says roll X, pitch Y'
+    Check ($axes.settleSpreadPercent.roll -eq 0.4 -and $axes.settleSpreadPercent.pitch -eq 1.6) "axes file records the settling spread (roll 0.4, pitch 1.6; is $($axes.settleSpreadPercent.roll), $($axes.settleSpreadPercent.pitch))"
+    Check (Said 'pot Y: settles between 492 and 508') 'says where pitch settles'
+    Check (Said 'Within the yoke') 'after reading judged against the spread'
     $bk = @(Get-ChildItem $work -Filter 'alpha-calibration-backup-*.json')
     Check ($bk.Count -eq 1) 'one backup written'
     if ($bk.Count -eq 1) {
@@ -100,7 +105,7 @@ $Scenarios['clean'] = {
         Check ($b.registryKey -eq $ScratchKey) 'backup names the key it wrote'
     }
     Check (Said 'roll is pot X: 20 to 1010, rests at 511') 'says which pot roll is'
-    Check (Said 'pitch is pot Y: 15 to 1005, rests at 500') 'says which pot pitch is'
+    Check (Said 'pitch is pot Y: 15 to 1005, rests at 495') 'says which pot pitch is'
     Check (Said 'written and read back') 'says written'
     Check (Said 'After: roll \+0\.0%, pitch -0\.1%') 'shows the after reading'
     Check (-not (Said 'Trying again|Starting over|Stopped')) 'no complaint on a clean run'
@@ -111,10 +116,11 @@ $Scenarios['wired-the-other-way'] = {
     # Turning the yoke moves pot Y on this unit. The identity must follow the
     # measurement: roll's numbers land in slot 1.
     Reset-Fake
-    $Fake.Keys.Enqueue('Enter')
+    $Fake.Keys.Enqueue('Enter'); $Fake.Keys.Enqueue('Enter'); $Fake.Keys.Enqueue('Enter')
     $Fake.Calls.Add((Rest 480 530))
     $Fake.Calls.Add((Sweep Y 10 1000 480 530))                 # roll sweep moves Y
     $Fake.Calls.Add((Sweep X 25 1015 480 530))                 # pitch sweep moves X
+    $Fake.Calls.Add((Rest 478 528)); $Fake.Calls.Add((Rest 482 532))
     $rc = Invoke-Recalibration -Device $null
     Check ($rc -eq 0) "rc 0 (was $rc)"
     Check (((Slot 1) -join ',') -eq '10,530,1000') "slot 1 (Y) holds roll's numbers 10/530/1000, is $((Slot 1) -join '/')"
@@ -126,16 +132,18 @@ $Scenarios['wired-the-other-way'] = {
 
 $Scenarios['mistakes'] = {
     Reset-Fake
-    $Fake.Keys.Enqueue('Enter'); $Fake.Keys.Enqueue('Enter')   # step 1 twice
+    foreach ($k in 1..5) { $Fake.Keys.Enqueue('Enter') }       # step 1 twice, step 4 twice, step 5
     $Fake.Calls.Add(@{ Samples = @(@(511, 500), @(560, 500), @(511, 470)); Key = 'Enter' })   # hands on: moving
     $Fake.Calls.Add((Rest 511 500))                            # then still
     $Fake.Calls.Add((Both 511 500))                            # roll sweep: both moved
     $Fake.Calls.Add((Sweep X 20 1010 511 500))                 # roll proper
     $Fake.Calls.Add((Sweep X 22 1008 511 500))                 # pitch sweep: same pot again
     $Fake.Calls.Add((Sweep Y 15 1005 511 500))                 # pitch proper
+    $Fake.Calls.Add(@{ Samples = @(@(511, 500), @(511, 530), @(511, 500)); Key = 'Enter' })   # step 4 with a hand on it
+    $Fake.Calls.Add((Rest 511 500)); $Fake.Calls.Add((Rest 511 500))
     $rc = Invoke-Recalibration -Device $null
     Check ($rc -eq 0) "rc 0 (was $rc)"
-    Check ((SaidCount 'it was moving') -eq 1) 'hands-on rest reported once'
+    Check ((SaidCount 'it was moving') -eq 2) 'hands-on rest reported at step 1 and step 4'
     Check ((SaidCount 'Exactly one should travel') -eq 1) 'both-moved sweep reported once'
     Check ((SaidCount 'moved the same pot') -eq 1) 'same-pot sweep reported once'
     Check (((Slot 0) -join ',') -eq '20,511,1010' -and ((Slot 1) -join ',') -eq '15,500,1005') 'stored the proper sweeps, not the mistaken ones'
@@ -171,8 +179,9 @@ $Scenarios['restore'] = {
     Reset-Fake
     # Something stored beforehand, so the backup has bytes to put back.
     Write-SlotBytes -Slot 0 -Bytes (ConvertTo-CalibrationBytes -Min 1 -Centre 500 -Max 1020)
-    $Fake.Keys.Enqueue('Enter')
+    $Fake.Keys.Enqueue('Enter'); $Fake.Keys.Enqueue('Enter'); $Fake.Keys.Enqueue('Enter')
     $Fake.Calls.Add((Rest 511 500)); $Fake.Calls.Add((Sweep X 20 1010 511 500)); $Fake.Calls.Add((Sweep Y 15 1005 511 500))
+    $Fake.Calls.Add((Rest 511 500)); $Fake.Calls.Add((Rest 511 500))
     $rc = Invoke-Recalibration -Device $null
     Check ($rc -eq 0 -and ((Slot 0) -join ',') -eq '20,511,1010') 'recalibrated over the stored value'
     $bk = @(Get-ChildItem $work -Filter 'alpha-calibration-backup-*.json')

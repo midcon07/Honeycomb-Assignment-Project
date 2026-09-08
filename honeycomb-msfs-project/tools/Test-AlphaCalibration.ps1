@@ -84,13 +84,14 @@ function Get-AlphaJoystickId {
 function Get-AlphaAxisNames {
     # Roll and pitch by measurement when the sweep has been done, by
     # convention (X roll, Y pitch) until then - and the result says which.
-    $r = [pscustomobject]@{ Roll = 'X'; Pitch = 'Y'; Measured = $false; When = '' }
+    $r = [pscustomobject]@{ Roll = 'X'; Pitch = 'Y'; Measured = $false; When = ''; SpreadRoll = $null; SpreadPitch = $null }
     try {
         if (Test-Path -LiteralPath $script:AlphaAxesFile) {
             $f = Get-Content -LiteralPath $script:AlphaAxesFile -Raw | ConvertFrom-Json
             if ($f.roll -in @('X', 'Y') -and $f.pitch -in @('X', 'Y') -and $f.roll -ne $f.pitch) {
                 $r.Roll = [string]$f.roll; $r.Pitch = [string]$f.pitch; $r.Measured = $true; $r.When = [string]$f.measured
             }
+            if ($f.PSObject.Properties['settleSpreadPercent']) { $r.SpreadRoll = [double]$f.settleSpreadPercent.roll; $r.SpreadPitch = [double]$f.settleSpreadPercent.pitch }
         }
     } catch { }
     return $r
@@ -164,10 +165,18 @@ function Get-AlphaCalibrationVerdict {
     }
     $worst = [math]::Max([math]::Abs($r.RollPercent), [math]::Abs($r.PitchPercent))
     $ok = $worst -le $Limit
+    $names = Get-AlphaAxisNames
     $how = if ($r.AxesMeasured) { '' } else { ' (roll and pitch by convention until the first recalibration measures them)' }
-    $detail = 'At rest, as the simulator sees it: roll {0:+0.0;-0.0}%, pitch {1:+0.0;-0.0}% off centre, limit {2}%{3}' -f $r.RollPercent, $r.PitchPercent, $Limit, $how
+    $spread = ''
+    if ($null -ne $names.SpreadPitch) { $spread = '; on its own it settles within roll +/-{0}%, pitch +/-{1}%' -f $names.SpreadRoll, $names.SpreadPitch }
+    $detail = 'At rest, as the simulator sees it: roll {0:+0.0;-0.0}%, pitch {1:+0.0;-0.0}% off centre, limit {2}%{3}{4}' -f $r.RollPercent, $r.PitchPercent, $Limit, $spread, $how
     $remedy = if ($ok) { '' } else {
-        'The yoke is not reading centred with hands off, so the simulator flies it as if it were being held that way. Press "Recalibrate the Alpha" in the launcher and follow the window that opens: hands off first, then turn and push the yoke through its full travel.'
+        $mech = $null -ne $names.SpreadPitch -and ([math]::Abs($r.PitchPercent) -le $names.SpreadPitch + 0.6) -and ([math]::Abs($r.RollPercent) -le $names.SpreadRoll + 0.6)
+        if ($mech) {
+            'The yoke is off centre, but no further than it settles on its own after moving - that is the yoke''s centring mechanism, and a recalibration cannot narrow it. Turn and push the yoke through its travel, let it go, and this will read differently. If it is often this far off, that is what the yoke does.'
+        } else {
+            'The yoke is not reading centred with hands off, so the simulator flies it as if it were being held that way. Press "Recalibrate the Alpha" in the launcher and follow the window that opens: hands off first, then turn and push the yoke through its full travel.'
+        }
     }
     return [pscustomobject]@{ Found = $true; Ok = $ok; Reading = $r; Detail = $detail; Remedy = $remedy }
 }

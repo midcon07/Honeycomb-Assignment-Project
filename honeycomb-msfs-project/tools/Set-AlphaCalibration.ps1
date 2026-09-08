@@ -206,6 +206,44 @@ function Invoke-Recalibration {
         }
     }
 
+    # ---- 4 and 5. where it settles from each direction ------------------------
+    # Measured on Mark's Alpha 2026-09-07: the pitch pot rested at 491, then
+    # 495, then 510 within one minute, depending on which way the yoke had
+    # last moved - a settling band of about two percent either side, from the
+    # centring mechanism, not the pot. One rest lands on an edge of that
+    # band. So the centre is the midpoint of the rest reached from one end
+    # and the rest reached from the other, and the band is reported, because
+    # no calibration can make the yoke settle more precisely than it does.
+    $settle = @{}
+    foreach ($step in @(
+        @{ N = 4; Name = 'fromForwardLeft'; Ask = 'Push the yoke fully FORWARD and turn it fully LEFT, then let go of it completely and keep your hands off. Press ENTER.' },
+        @{ N = 5; Name = 'fromBackRight';   Ask = 'Pull the yoke fully BACK and turn it fully RIGHT, then let go of it completely and keep your hands off. Press ENTER.' }
+    )) {
+        while (-not $settle.ContainsKey($step.Name)) {
+            Write-Line ('{0}. {1}' -f $step.N, $step.Ask) Yellow
+            if (-not (Wait-Enter)) { Write-Line 'Stopped. Nothing was changed.' Yellow; return 1 }
+            Write-Line '   measuring for three seconds - hands off...' DarkGray
+            $r = Get-RawSamples -Device $Device -Seconds 3
+            $rx = Get-Range $r.Samples 'X'; $ry = Get-Range $r.Samples 'Y'
+            if ($null -eq $rx -or $rx.Count -lt 2) { Write-Line '   the yoke sent nothing in three seconds. Trying again.' Red; continue }
+            if (($rx.Max - $rx.Min) -gt 6 -or ($ry.Max - $ry.Min) -gt 6) {
+                Write-Line ('   it was moving (X {0}-{1}, Y {2}-{3}). Hands off, and let it settle. Trying again.' -f $rx.Min, $rx.Max, $ry.Min, $ry.Max) Red
+                continue
+            }
+            $settle[$step.Name] = @{ X = $rx.Median; Y = $ry.Median }
+            Write-Line ('   settled at: X {0}, Y {1}' -f $rx.Median, $ry.Median) Green
+        }
+    }
+    $band = @{}
+    foreach ($axis in @('X', 'Y')) {
+        $a = [int]$settle.fromForwardLeft[$axis]; $b = [int]$settle.fromBackRight[$axis]
+        $mid = [int][math]::Round(($a + $b) / 2.0)
+        $band[$axis] = @{ Low = [math]::Min($a, $b); High = [math]::Max($a, $b); Counts = [math]::Abs($a - $b); Percent = [math]::Round([math]::Abs($a - $b) / 2.0 / 511.0 * 100.0, 1) }
+        Write-Line ('   pot {0}: settles between {1} and {2} depending on where it came from (first rest {3}); centre taken as {4}, spread +/-{5}%' -f $axis, $band[$axis].Low, $band[$axis].High, $centre[$axis], $mid, $band[$axis].Percent) DarkGray
+        $centre[$axis] = $mid
+        foreach ($name in $sweep.Keys) { if ($sweep[$name].Axis -eq $axis) { $sweep[$name].Centre = $mid } }
+    }
+
     # ---- write ---------------------------------------------------------------
     Write-Line ''
     Write-Line 'Storing:' Cyan
@@ -227,6 +265,7 @@ function Invoke-Recalibration {
         before = [ordered]@{ '0' = $old['X']; '1' = $old['Y'] }
         after  = [ordered]@{ X = $new['X']; Y = $new['Y'] }
         axes   = [ordered]@{ roll = $sweep.roll.Axis; pitch = $sweep.pitch.Axis }
+        settle = [ordered]@{ fromForwardLeft = $settle.fromForwardLeft; fromBackRight = $settle.fromBackRight; spreadPercent = [ordered]@{ X = $band.X.Percent; Y = $band.Y.Percent } }
     }
     [System.IO.File]::WriteAllText($backup, (($rec | ConvertTo-Json -Depth 5) + "`r`n"), (New-Object System.Text.UTF8Encoding($false)))
     Write-Line ('   backup of the old values: {0}' -f $backup) DarkGray
@@ -236,7 +275,12 @@ function Invoke-Recalibration {
 
     # Which pot is which, measured, for the check's labels.
     $null = New-Item -ItemType Directory -Force -Path (Split-Path -Parent $script:AlphaAxesFile)
-    [System.IO.File]::WriteAllText($script:AlphaAxesFile, (([ordered]@{ roll = $sweep.roll.Axis; pitch = $sweep.pitch.Axis; measured = (Get-Date).ToString('s'); how = 'Set-AlphaCalibration sweep: the one pot that moved when the yoke was only turned, and the one that moved when it was only pushed and pulled' } | ConvertTo-Json) + "`r`n"), (New-Object System.Text.UTF8Encoding($false)))
+    [System.IO.File]::WriteAllText($script:AlphaAxesFile, (([ordered]@{
+        roll = $sweep.roll.Axis; pitch = $sweep.pitch.Axis; measured = (Get-Date).ToString('s')
+        how = 'Set-AlphaCalibration sweep: the one pot that moved when the yoke was only turned, and the one that moved when it was only pushed and pulled'
+        settleSpreadPercent = [ordered]@{ roll = $band[$sweep.roll.Axis].Percent; pitch = $band[$sweep.pitch.Axis].Percent }
+        settleNote = 'Half the distance between where the yoke settles from one end of its travel and from the other, as a percent of half travel. The yoke cannot rest more precisely than this on its own; a reading inside it is the mechanism, not the calibration.'
+    } | ConvertTo-Json) + "`r`n"), (New-Object System.Text.UTF8Encoding($false)))
 
     # ---- verify from a fresh process -----------------------------------------
     Write-Line ''
@@ -246,8 +290,14 @@ function Invoke-Recalibration {
     if ($null -eq $after -or -not $after.found) { Write-Line 'Could not read the result back. The values are stored; the launcher will show the centre on its next check.' Yellow; return 0 }
     $rp = [double]$after.reading.RollPercent; $pp = [double]$after.reading.PitchPercent
     $line = 'After: roll {0:+0.0;-0.0}%, pitch {1:+0.0;-0.0}% off centre with hands off, as the simulator will see it.' -f $rp, $pp
-    if ([math]::Abs($rp) -le 1.0 -and [math]::Abs($pp) -le 1.0) { Write-Line $line Green }
-    else { Write-Line $line Yellow; Write-Line '   Not centred. If a hand was on the yoke during the check, run this again; if not, the pot may be moving on its own - run it again and compare.' Yellow }
+    # Judged against what the yoke can do: anywhere inside its own settling
+    # spread (plus a little for the reading) is the mechanism at work.
+    $tolR = $band[$sweep.roll.Axis].Percent + 0.6; $tolP = $band[$sweep.pitch.Axis].Percent + 0.6
+    if ([math]::Abs($rp) -le $tolR -and [math]::Abs($pp) -le $tolP) {
+        Write-Line $line Green
+        Write-Line ('   Within the yoke''s own settling spread (roll +/-{0}%, pitch +/-{1}%), which is as centred as it rests.' -f $band[$sweep.roll.Axis].Percent, $band[$sweep.pitch.Axis].Percent) Green
+    }
+    else { Write-Line $line Yellow; Write-Line ('   Outside the yoke''s own settling spread (roll +/-{0}%, pitch +/-{1}%). If a hand was on the yoke during the check, run this again; if not, run it again and compare the numbers.' -f $band[$sweep.roll.Axis].Percent, $band[$sweep.pitch.Axis].Percent) Yellow }
     Write-Line ''
     Write-Line 'Anything that already had the yoke open keeps the old calibration until it opens the yoke again. The launcher restarts FSUIPC for you; if the simulator is running, restart it.' Cyan
     return 0
