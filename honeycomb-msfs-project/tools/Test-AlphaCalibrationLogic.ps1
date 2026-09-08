@@ -182,6 +182,22 @@ $Scenarios['restore'] = {
     Check ($null -eq (Slot 1)) 'slot 1, which had nothing before, has nothing again'
 }
 
+$Scenarios['entry-point'] = {
+    # The tool as a real process, the way the launcher starts it, with no
+    # keyboard: it must get as far as saying so (exit 2), not return quietly
+    # from a library gate (exit 0 with nothing said - the 2026-09-07 fault,
+    # which every dot-sourced test masked).
+    $tool = Join-Path $here 'Set-AlphaCalibration.ps1'
+    $outFile = Join-Path $work 'entry.txt'
+    $cmd = 'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "{0}" < nul > "{1}" 2>&1' -f $tool, $outFile
+    & cmd.exe /c $cmd
+    $code = $LASTEXITCODE
+    $text = if (Test-Path -LiteralPath $outFile) { Get-Content -LiteralPath $outFile -Raw } else { '' }
+    Check ($code -eq 2) "exit code 2 without a keyboard (was $code)"
+    Check ($text -match 'Log: ') 'says where its log is'
+    Check ($text -match 'PowerShell window of its own') 'says it needs a window'
+}
+
 foreach ($n in $Scenarios.Keys) {
     Out-Line ('== ' + $n) Cyan
     $before = $script:Failures.Count

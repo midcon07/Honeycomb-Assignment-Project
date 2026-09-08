@@ -45,9 +45,16 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
+# Remembered BEFORE the dot-sourcing below: a dot-sourced script's parameters
+# land as variables in THIS scope, so ". probe -Library" sets $Library here
+# to $true and this script would then stop at its own library gate, every
+# time, silently, with exit code 0 (2026-09-07: the first press of
+# "Recalibrate the Alpha" did exactly that).
+$runAsLibrary = [bool]$Library
+$wantRegistryKey = $RegistryKey
 . (Join-Path $here 'Probe-HoneycombDevices.ps1') -Library
 . (Join-Path $here 'Test-AlphaCalibration.ps1') -Library
-if (-not $RegistryKey) { $RegistryKey = $script:AlphaCalibrationKey }
+$RegistryKey = if ($wantRegistryKey) { $wantRegistryKey } else { $script:AlphaCalibrationKey }
 
 $BackupDir = Join-Path $env:LOCALAPPDATA 'HoneycombAssignment'
 $Slots = @{ X = 0; Y = 1 }
@@ -264,15 +271,25 @@ function Invoke-Restore {
     return 0
 }
 
-if ($Library) { return }
+if ($runAsLibrary) { return }
 
 if ($Restore) {
     if (-not (Test-Path -LiteralPath $Restore)) { Write-Line "No backup file at $Restore" Red; exit 1 }
     exit (Invoke-Restore -Path $Restore)
 }
 
+# Everything this window shows is also written to a log, so a run that went
+# wrong can be read afterwards instead of retold (2026-09-07: the first run
+# from the launcher closed in seconds with nothing to read).
+$logDir = Join-Path $env:LOCALAPPDATA 'HoneycombAssignment\logs'
+$null = New-Item -ItemType Directory -Force -Path $logDir
+$logPath = Join-Path $logDir ('recalibrate-alpha-' + (Get-Date -Format 'yyyyMMdd-HHmmss') + '.log')
+try { Start-Transcript -LiteralPath $logPath | Out-Null } catch { }
+Write-Line ('Log: {0}' -f $logPath) DarkGray
+
 if (-not (Test-ConsoleInput)) {
     Write-Line 'This needs a PowerShell window of its own: keyboard input is not available here.' Red
+    Write-Line 'Press ENTER to close this window.' DarkGray; $null = Read-ConsoleKey
     exit 2
 }
 $device = Open-AlphaRaw
@@ -281,10 +298,12 @@ if ($null -eq $device) {
     Write-Line 'Press ENTER to close this window.' DarkGray; $null = Read-ConsoleKey
     exit 2
 }
-try { $rc = Invoke-Recalibration -Device $device }
-catch { Write-Line ('Failed: ' + $_.Exception.Message) Red; $rc = 1 }
+$rc = 1
+try { $rc = [int](Invoke-Recalibration -Device $device) }
+catch { Write-Line ('Failed: ' + $_.Exception.Message) Red; Write-Line ('   at ' + $_.ScriptStackTrace) DarkGray; $rc = 1 }
 finally { $device.Dispose() }
 Write-Line ''
-Write-Line 'Press ENTER to close this window.' DarkGray
+Write-Line ('Finished with code {0}. Press ENTER to close this window.' -f $rc) DarkGray
 $null = Read-ConsoleKey
+try { Stop-Transcript | Out-Null } catch { }
 exit $rc
