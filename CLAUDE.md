@@ -250,10 +250,7 @@ but has not loaded them with FSUIPC running.
 
 - Lever 4 = `V` is by elimination from FSUIPC's six-axis list, not directly
   pushed. One throttle test closes it; not urgent.
-- **Retired 2026-09-05: `FLEET` now comes from the host. `LAYOUTS` is still a hand copy of `data/lever-layouts.json`
-  and drifted** (King Air 350 wrong layout, C90 absent, turboprop layouts
-  missing — fixed 2026-09-04, but the copy remains). The page should read the
-  JSON; until it does, every table change must be made twice.
+- **Retired 2026-09-10: `FLEET`, `LAYOUTS` and the cap labels all come from the host** (`AircraftTable.LoadLayouts`, pushed in the config message as `layouts` and `capLabels`; the page builds its one-line caps summary from the per-lever cap ids). The hand copies are gone; `data/lever-layouts.json` is the only place a layout is described. Checked in a browser by feeding the page the real table: jet, prop, FADEC and turboprop layouts all draw from it.
 - **Bravo button map — MEASURED 2026-09-04 by `Probe-HoneycombDevices.ps1
   -Capture`, stored in `data/bravo-buttons.json`.** Prober numbers (FSUIPC =
   n−1, and +100 above 31 — confirmed at scale, e.g. 34 → 133): AP panel

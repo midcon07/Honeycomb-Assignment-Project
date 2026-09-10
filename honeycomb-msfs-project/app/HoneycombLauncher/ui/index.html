@@ -739,43 +739,39 @@
 /* Data-driven console. Everything comes from the host application; nothing
    here is hardcoded state. The PowerShell tools remain the source of truth. */
 
-/* The eleven layouts. caps/fns are per lever, 1 to 6, so the diagram is drawn
-   from the same data the summary line is written from. Mirrors
-   data/lever-layouts.json; that file is the source of truth. */
-var B = "black", U = "blue", R = "red", J = "jet", SB = "sb", FL = "flap", X = "none";
-var LAYOUTS = {
-  prop_1_fixed: { name: "Single engine, fixed-pitch prop", caps: "BLACK and RED on levers 1 and 2",
-    lv: [B,R,X,X,X,X], fns: ["Throttle","Mixture",null,null,null,null] },
-  prop_1_cs: { name: "Single engine, constant-speed prop", caps: "BLACK, BLUE, RED on levers 1 to 3",
-    lv: [B,U,R,X,X,X], fns: ["Throttle","Prop","Mixture",null,null,null] },
-  prop_2_fixed: { name: "Twin engine, fixed-pitch prop", caps: "2 x BLACK, 2 x RED on levers 1 to 4",
-    lv: [B,B,R,R,X,X], fns: ["Throttle 1","Throttle 2","Mixture 1","Mixture 2",null,null] },
-  prop_2_cs: { name: "Twin engine, constant-speed prop", caps: "2 x BLACK, 2 x BLUE, 2 x RED - all six",
-    lv: [B,B,U,U,R,R], fns: ["Throttle 1","Throttle 2","Prop 1","Prop 2","Mixture 1","Mixture 2"] },
-  /* Turboprops: same handles as constant-speed, but the red levers are
-     CONDITION levers, and the sim drives them differently. Measured on the
-     King Air 350 - see data/lever-layouts.json. */
-  turboprop_1: { name: "Single turboprop", caps: "BLACK, BLUE, RED on levers 1 to 3",
-    lv: [B,U,R,X,X,X], fns: ["Power","Prop","Condition",null,null,null] },
-  turboprop_2: { name: "Twin turboprop", caps: "2 x BLACK, 2 x BLUE, 2 x RED - all six",
-    lv: [B,B,U,U,R,R], fns: ["Power 1","Power 2","Prop 1","Prop 2","Condition 1","Condition 2"] },
-  fadec_1: { name: "Single engine, FADEC", caps: "BLACK on lever 1, the rest empty",
-    lv: [B,X,X,X,X,X], fns: ["Throttle",null,null,null,null,null] },
-  fadec_2: { name: "Twin engine, FADEC", caps: "2 x BLACK on levers 1 and 2, the rest empty",
-    lv: [B,B,X,X,X,X], fns: ["Throttle 1","Throttle 2",null,null,null,null] },
-  jet_1: { name: "Single engine jet", caps: "SPEED BRAKE, 1 throttle, FLAP",
-    lv: [SB,X,J,X,X,FL], fns: ["Speed brake",null,"Engine 1",null,null,"Flaps"] },
-  jet_2: { name: "Twin engine jet", caps: "SPEED BRAKE, 2 throttles, FLAP",
-    lv: [SB,X,J,J,X,FL], fns: ["Speed brake",null,"Engine 1","Engine 2",null,"Flaps"] },
-  jet_3: { name: "Tri engine jet", caps: "SPEED BRAKE, 3 throttles, FLAP",
-    lv: [SB,X,J,J,J,FL], fns: ["Speed brake",null,"Engine 1","Engine 2","Engine 3","Flaps"] },
-  jet_4: { name: "Four engine jet", caps: "SPEED BRAKE, 4 throttles, FLAP",
-    lv: [SB,J,J,J,J,FL], fns: ["Speed brake","Engine 1","Engine 2","Engine 3","Engine 4","Flaps"] },
-  glider: { name: "Glider", caps: "SPEED BRAKE only, the rest empty",
-    lv: [SB,X,X,X,X,X], fns: ["Speed brake",null,null,null,null,null] }
-};
-var CAP_LABEL = { black:"Black", blue:"Blue", red:"Red",
-                  jet:"White", sb:"SPEED BRAKE", flap:"FLAP", none:"No cap" };
+/* The lever layouts and the cap vocabulary. Filled by the host from
+   data/lever-layouts.json - one source. The hand copy that used to live here
+   drifted (King Air 350 on the wrong layout, the C90 missing, a cap labelled
+   differently), so every table change had to be made twice. A layout is
+   {name, group, lv: cap id per lever 1-6 ("none" = empty), fns: function
+   per lever, caps: a one-line summary built here from lv}. */
+var LAYOUTS = {};
+var CAP_LABEL = { none: "No cap" };
+function capsText(lv) {
+  /* "BLACK on 1, RED on 2" - runs of the same cap are folded: "2 x WHITE THROTTLE on 3-4". */
+  var parts = [], i = 0;
+  while (i < lv.length) {
+    var cap = lv[i];
+    if (cap === "none") { i++; continue; }
+    var j = i; while (j + 1 < lv.length && lv[j + 1] === cap) { j++; }
+    var label = String(CAP_LABEL[cap] || cap).toUpperCase();
+    parts.push(j > i ? ((j - i + 1) + " x " + label + " on " + (i + 1) + "-" + (j + 1)) : (label + " on " + (i + 1)));
+    i = j + 1;
+  }
+  return parts.length ? parts.join(", ") : "all six levers empty";
+}
+function setLayouts(layouts, capLabels) {
+  if (capLabels) { CAP_LABEL = capLabels; if (!CAP_LABEL.none) { CAP_LABEL.none = "No cap"; } }
+  LAYOUTS = {};
+  Object.keys(layouts || {}).forEach(function (id) {
+    var L = layouts[id] || {};
+    var lv = (L.lv || []).map(function (c) { return c || "none"; });
+    /* The table names a layout within its group ("Jets" / "Twin engine"), so
+       the label shown carries both: "Jets: Twin engine". */
+    var label = L.group ? (L.group + ": " + (L.name || id)) : (L.name || id);
+    LAYOUTS[id] = { name: label, group: L.group || "", lv: lv, fns: L.fns || [], caps: capsText(lv) };
+  });
+}
 
 /* The aircraft list. Filled by the host from the shipped table plus this
    machine's own additions - it used to be typed here by hand and drifted
@@ -832,6 +828,7 @@ window.APP = {
       case "config":
         S.config = msg;
         if (msg.fleet) { FLEET = msg.fleet; }
+        if (msg.layouts) { setLayouts(msg.layouts, msg.capLabels); }
         // Prefill the Pilot ID box, but never overwrite what someone is typing.
         if (document.activeElement !== byId("pilotIdInput")) { byId("pilotIdInput").value = msg.pilotId || ""; }
         if (!S.selectedId && msg.lastAircraftId) { S.selectedId = msg.lastAircraftId; }

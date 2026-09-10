@@ -571,9 +571,14 @@ internal sealed partial class MainForm : Form
         var fleet = AircraftTable.LoadMerged()
             .Select(e => new { id = e.Id, name = e.Name, type = e.Icao ?? "", layout = e.Layout, local = e.Local })
             .ToArray();
+        // The layouts and cap labels the page draws from: the same file, so
+        // the page's own copy (which drifted) is gone.
+        var (layouts, capLabels) = AircraftTable.LoadLayouts();
         return Send(new
         {
             kind = "config",
+            layouts,
+            capLabels,
             exists = _cfg != null,
             problem = _cfgProblem,
             pilotId = _cfg?.SimBriefPilotId ?? "",

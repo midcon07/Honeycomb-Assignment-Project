@@ -90,6 +90,50 @@ internal static class AircraftTable
         return list;
     }
 
+    /// <summary>
+    /// The lever layouts and the cap vocabulary from the shipped table, for
+    /// the page. The page used to carry a hand copy of both and it drifted
+    /// (King Air 350 on the wrong layout, C90 absent, a cap labelled
+    /// differently), so every table change had to be made twice. One source
+    /// now: a layout is {name, group, lv[6] cap ids with "none" for an empty
+    /// lever, fns[6] function names}; capLabels maps cap id to its label.
+    /// </summary>
+    public static (Dictionary<string, object> layouts, Dictionary<string, string> capLabels) LoadLayouts()
+    {
+        var layouts = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+        var caps = new Dictionary<string, string> { ["none"] = "No cap" };
+        try
+        {
+            if (File.Exists(ShippedPath))
+            {
+                using var doc = JsonDocument.Parse(File.ReadAllText(ShippedPath));
+                if (doc.RootElement.TryGetProperty("handles", out var handles) && handles.ValueKind == JsonValueKind.Object)
+                    foreach (var h in handles.EnumerateObject())
+                        if (h.Value.TryGetProperty("label", out var lbl) && lbl.ValueKind == JsonValueKind.String)
+                            caps[h.Name] = lbl.GetString() ?? h.Name;
+                if (doc.RootElement.TryGetProperty("layouts", out var arr) && arr.ValueKind == JsonValueKind.Array)
+                    foreach (var l in arr.EnumerateArray())
+                    {
+                        var id = l.TryGetProperty("id", out var idEl) && idEl.ValueKind == JsonValueKind.String ? idEl.GetString() : null;
+                        if (string.IsNullOrWhiteSpace(id)) continue;
+                        string?[] Strings(string prop) =>
+                            l.TryGetProperty(prop, out var a) && a.ValueKind == JsonValueKind.Array
+                                ? a.EnumerateArray().Select(x => x.ValueKind == JsonValueKind.String ? x.GetString() : null).ToArray()
+                                : Array.Empty<string?>();
+                        layouts[id] = new
+                        {
+                            name  = l.TryGetProperty("name", out var n) && n.ValueKind == JsonValueKind.String ? n.GetString() ?? id : id,
+                            group = l.TryGetProperty("group", out var g) && g.ValueKind == JsonValueKind.String ? g.GetString() ?? "" : "",
+                            lv    = Strings("caps").Select(c => string.IsNullOrEmpty(c) ? "none" : c).ToArray(),
+                            fns   = Strings("functions")
+                        };
+                    }
+            }
+        }
+        catch (Exception ex) { Program.LogError("read lever layouts", ex); }
+        return (layouts, caps);
+    }
+
     public static LocalAircraftFile LoadLocal()
     {
         try
