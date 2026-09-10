@@ -31,7 +31,7 @@ Tick a box when the item is done, and say in the line how it was verified.
 
 ## Findings — most serious first
 
-- [ ] **1. Global button writer discards the user's own assignments.**
+- [x] **1. Global button writer discards the user's own assignments.** DONE 2026-09-10: `tools/FsuipcIni.ps1` merges - lines on the quadrant's joystick are ours to replace, every other device's lines are kept and renumbered ahead of ours, and any replaced line the program did not write is named in the output. Proved by `tools/Test-FsuipcIniMerge.ps1`, including a real run against a scratch copy of the ini.
   `tools/Set-BravoButtons.ps1` keeps only `PollInterval`/`ButtonRepeat` from
   the existing global `[Buttons]` and replaces everything else. Correct for
   midcon07, destructive for anyone with an existing FSUIPC setup. A dated
@@ -39,7 +39,7 @@ Tick a box when the item is done, and say in the line how it was verified.
   Fix: refuse (with the backup path named) when the section holds lines we
   did not write, or fence ours between marker comments and leave the rest.
 
-- [ ] **2. Presets file overwritten.** `Set-LeverAssignments.ps1` copies
+- [x] **2. Presets file overwritten.** DONE 2026-09-10: our presets live between two marker lines in `myevents.txt`; the user's lines outside are untouched; an older plain copy of our file is fenced on the next write; a same-named preset with different code refuses the install and says so. `Set-LeverAssignments.ps1` copies
   `data/myevents.txt` over `<FSUIPC>\myevents.txt` whenever they differ. A
   user with their own presets loses them on the first lever write. Fix:
   append our block under a marker and update only that block.

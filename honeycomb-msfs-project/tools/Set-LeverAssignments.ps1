@@ -1012,13 +1012,20 @@ Write-Host ("Wrote {0} assignments to {1}" -f $n, $ini) -ForegroundColor Green
 # reads from its own folder at startup. BigBoy's log said "Preset file
 # myevents.txt not found" - nothing had ever installed it there. This is the
 # right moment: the ini has just been written and FSUIPC is about to restart.
+# Installed as the managed block of that file, never over a user's own
+# presets (audit 2026-09-05, finding 2). The merge rules live in FsuipcIni.ps1.
+. ([System.IO.Path]::Combine($PSScriptRoot, 'FsuipcIni.ps1'))
 $srcEv = [System.IO.Path]::Combine([System.IO.Path]::GetDirectoryName($DataFile), 'myevents.txt')
 $dstEv = [System.IO.Path]::Combine($FsuipcRoot, 'myevents.txt')
 if (Test-Path -LiteralPath $srcEv) {
-    $same = (Test-Path -LiteralPath $dstEv) -and ((Get-FileHash -LiteralPath $srcEv).Hash -eq (Get-FileHash -LiteralPath $dstEv).Hash)
-    if (-not $same) {
-        Copy-Item -LiteralPath $srcEv -Destination $dstEv -Force
-        Write-Host ("Installed presets: {0} (FSUIPC reads it at startup)" -f $dstEv) -ForegroundColor Green
+    $r = Merge-PresetBlock -Path $dstEv -Block (Get-Content -LiteralPath $srcEv -Raw)
+    switch ($r.Action) {
+        'created'   { Write-Host ("Installed presets: {0} (FSUIPC reads it at startup)" -f $dstEv) -ForegroundColor Green }
+        'appended'  { Write-Host ("Added this program's presets to your {0}, below your own (FSUIPC reads it at startup)" -f $dstEv) -ForegroundColor Green }
+        'replaced'  { Write-Host ("Updated this program's presets in {0}; your own are untouched" -f $dstEv) -ForegroundColor Green }
+        'converted' { Write-Host ("Fenced this program's presets in {0} (it held an older copy of them and nothing else)" -f $dstEv) -ForegroundColor Green }
+        'unchanged' { }
+        'refused'   { Write-Host ("Presets NOT installed in {0}: {1}" -f $dstEv, $r.Reason) -ForegroundColor Red; Write-Host 'The King Air condition levers and the parking brake need them; the lever lines are written and work without them.' -ForegroundColor Yellow }
     }
 }
 Write-Host ''
