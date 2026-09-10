@@ -49,7 +49,7 @@ Tick a box when the item is done, and say in the line how it was verified.
   the executable, or publish a SHA-256 with each release plus one line on how
   to check it, and distribute via GitHub Releases rather than desktop zips.
 
-- [ ] **4. Page loads a font from Google on every start.**
+- [x] **4. Page loads a font from Google on every start.** DONE 2026-09-10: the seven latin font files (Barlow Semi Condensed 400-700, IBM Plex Mono 400-600, 136 KB, SIL OFL with both licence texts) ship in `ui/fonts` and the page declares them with `@font-face`. Checked in a browser against a local server: every request stayed on localhost. The only URL left in the page is the SimBrief link, which the host opens in the system browser.
   `ui/index.html` lines 2-4: preconnect + stylesheet from
   `fonts.googleapis.com`. A silent outbound connection with no business in a
   cockpit tool, and the only external resource in the page. Fix: bundle the
