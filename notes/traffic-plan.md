@@ -134,14 +134,18 @@ read that; a byte diff around a profile switch may make it readable.
   holds until the next occasion. The sheet never claims to have verified
   anything.
 - **One printout window per session** (Mark, 2026-09-11: "I have more plans
-  for this window"). An anchor lamp in the top-left corner keeps it up on
-  top of everything (green = anchored, red = loose; click to toggle; dropping
-  it after a drag anchors it). With the lamp red, a choice scrolls it up into
-  a strip-of-paper icon (`PrintoutIconForm`) and clicking the icon scrolls
-  the same sheet back down, content intact - never a reprint. Draggable by
-  its paper to any monitor; the icon collapses to wherever it was left. The
-  first pin was a red pushpin (read as a light, and it overlapped), then a
-  bigger pushpin with a glow; the lamp is what Mark asked for.
+  for this window"). Opens pinned and open, and never collapses on its own.
+  An anchor lamp top-left: green = on top of everything, red = an ordinary
+  window; click to toggle, and dropping it after a drag anchors it. Window
+  chrome top-right, printed on the paper: A- A+ (seven dot pitches, saved as
+  `printoutPitch` in config.json; the window grows and shrinks with the
+  text), minimise (winds up into a small square of paper, `PrintoutIconForm`,
+  at the sheet's corner; one click winds the same sheet back down), maximise
+  (the working area of its monitor), close (NOT NOW if undecided). Resizable
+  by its edges - the text reflows to the width, wrapped at spaces, the print
+  head keeps its place. Draggable by its paper to any monitor. The first
+  version tore off and left a reprint stub; the second collapsed to an icon
+  by itself; this is what Mark asked for.
 - `HoneycombLauncher.exe --traffic-sheet [BATC|FSLTL|MSFS]` prints the
   sheet on its own with sample values and records nothing: for hearing and
   seeing it without a sim.

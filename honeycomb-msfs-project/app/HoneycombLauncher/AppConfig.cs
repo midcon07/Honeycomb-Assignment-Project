@@ -42,6 +42,8 @@ internal sealed class AppConfig
     [JsonPropertyName("trafficTypeRecorded")]    public string TrafficTypeRecorded    { get; set; } = "";
     [JsonPropertyName("trafficTypeRecordedBy")]  public string TrafficTypeRecordedBy  { get; set; } = "";
     [JsonPropertyName("trafficTypeRecordedUtc")] public string TrafficTypeRecordedUtc { get; set; } = "";
+    // The printout window's text size (dot pitch in px), from its A- / A+ buttons.
+    [JsonPropertyName("printoutPitch")]          public float  PrintoutPitch          { get; set; } = 2.6f;
 
     /// <summary>What MSFS's Traffic Type must be for the chosen mode; null when no mode is chosen.</summary>
     public static string TrafficTypeRequiredFor(string mode) => mode switch
