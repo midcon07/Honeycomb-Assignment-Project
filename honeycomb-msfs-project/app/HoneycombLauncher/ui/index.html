@@ -216,6 +216,8 @@
   }
 
   /* ---- aircraft selector bar --------------------------------------- */
+  .acbar-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; width: 100%; }
+  .acbar-choices #trafficSelect { flex: 0 0 auto; }
   .acbar {
     display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px;
     background: linear-gradient(180deg, var(--recess) 0%, var(--recess-deep) 100%);
@@ -668,19 +670,24 @@
     <div class="annun" id="annun"></div>
 
     <div class="acbar">
-      <label class="acbar-label" for="acSelect">Aircraft</label>
-      <select id="acSelect"></select>
-      <button class="pbtn" id="refreshBtn" type="button">Refresh Flight Plan</button>
-      <button class="pbtn" id="depWx"  type="button" disabled>Departure Wx</button>
-      <button class="pbtn" id="destWx" type="button" disabled>Destination Wx</button>
-      <button class="pbtn" id="addAcBtn" type="button">Add aircraft</button>
-      <label class="acbar-label" for="trafficSelect" title="Which engine feeds AI traffic. BATC and FSLTL need MSFS's Traffic Type set to Off in the sim; MSFS needs Real-Time Online.">Traffic</label>
-      <select id="trafficSelect">
-        <option value="">choose…</option>
-        <option value="BATC">BATC</option>
-        <option value="FSLTL">FSLTL</option>
-        <option value="MSFS">MSFS</option>
-      </select>
+      <!-- Row 1: the two choices. Row 2 onward: every button (Mark, 2026-09-11). -->
+      <div class="acbar-row acbar-choices">
+        <label class="acbar-label" for="acSelect">Aircraft</label>
+        <select id="acSelect"></select>
+        <label class="acbar-label" for="trafficSelect" title="Which engine feeds AI traffic. BATC and FSLTL need MSFS's Traffic Type set to Off in the sim; MSFS needs Real-Time Online.">Traffic</label>
+        <select id="trafficSelect">
+          <option value="">choose…</option>
+          <option value="BATC">BATC</option>
+          <option value="FSLTL">FSLTL</option>
+          <option value="MSFS">MSFS</option>
+        </select>
+      </div>
+      <div class="acbar-row" id="acbarButtons">
+        <button class="pbtn" id="refreshBtn" type="button">Refresh Flight Plan</button>
+        <button class="pbtn" id="depWx"  type="button" disabled>Departure Wx</button>
+        <button class="pbtn" id="destWx" type="button" disabled>Destination Wx</button>
+        <button class="pbtn" id="addAcBtn" type="button">Add aircraft</button>
+      </div>
     </div>
 
     <div class="meter hidden" id="meter" role="status" aria-live="polite">
@@ -1452,7 +1459,7 @@ byId("sbLink").addEventListener("click", function (e) {
 (function addConfirm() {
   var trafficSel = byId("trafficSelect");
   if (trafficSel) { trafficSel.addEventListener("change", function () { post({ action: "setTrafficMode", mode: trafficSel.value }); }); }
-  var bar = document.querySelector(".acbar");
+  var bar = byId("acbarButtons");
   var b = el("button", "pbtn", "Lever caps are set");
   b.type = "button";
   b.id = "capsBtn";
