@@ -3,19 +3,24 @@
 Started 2026-09-07 with Mark in the sim. Parked at the end of that evening;
 the "Tomorrow" list at the bottom is where to pick up.
 
-## The four modes (Mark, 2026-09-07)
+## The three modes (Mark, 2026-09-11; replaces the four flight types)
 
-| Flight | Traffic comes from | MSFS Options > General > Traffic |
+The mode is the TRAFFIC ENGINE, not the kind of flight:
+
+| Mode | MSFS Options > General > Online > Traffic Type | What must be running |
 |---|---|---|
-| VFR | FSLTL injector | the "FSLTL/BATC" settings |
-| IFR without ATC (multiplayer sessions) | FSLTL injector | the "FSLTL/BATC" settings |
-| IFR with ATC | BeyondATC, up to date, driving its own traffic | the "FSLTL/BATC" settings |
-| None of the above | MSFS/Asobo online traffic | the "fully online" settings |
+| BATC | **Off** | BeyondATC, up to date |
+| FSLTL | **Off** | the FSLTL traffic injector |
+| MSFS | **Real-Time Online** | neither |
 
-Mark's rule, verbatim in effect: **no FSLTL and no BATC = the settings as
-set at 23:43 on 2026-09-07 (fully online); either FSLTL or BATC = the
-settings as they were before that.** The words on the General > Traffic page
-for either mode are NOT yet recorded - see Tomorrow.
+BATC and FSLTL share the same MSFS settings; the difference is which engine
+feeds traffic. "Real-Time Online" is Asobo's engine plus other users'
+aircraft - right for multiplayer without an injector. The Online page as
+Mark has it (2026-09-11): Photogrammetry on, Air Traffic in career on,
+Live Weather on, Multiplayer on, servers Automatic [East USA], show
+multiplayer aircraft in close proximity on, replication High Fidelity;
+only Traffic Type changes between modes. The graphics densities
+(UserCfg.opt) are the same in every mode: aircraft 2, everything else 3.
 
 ## What is on disk, measured 2026-09-07
 
@@ -48,18 +53,30 @@ of traffic:
 - Writable when the sim is closed, like FSUIPC7.ini (the sim rewrites the
   file, so a write under a running sim is undone).
 
-**The Options > General > Traffic page (AI traffic type Off / AI offline /
-Real-time online, ground aircraft, multiplayer, ...) is not in UserCfg.opt or
-any readable file.** It is in the cloud-synced profile container under
-`...\SystemAppData\wgs\<account>\<folder>\` - the index names it
-`profile_00`; ~1.18 MB; **also rewritten within seconds of a settings change**
-(23:43:30, right after the slider changes), as a NEW blob file each time
-(container.253 -> container.254, new GUID-named blob). Not encrypted and not
-compressed: `strings` shows the controller GUIDs, `inputprofile_<n>` names
-and the profile name "Midcon General". Writing it is off the table (unknown
-layout, cloud copy wins). READING it may be possible: a byte diff between
-two saves with one setting changed between them shows where that setting
-lives. Not done yet - see Tomorrow.
+**Traffic Type is NOT on local disk at all - measured 2026-09-11 with the
+sim running.** In MSFS 2024 it lives on Options > General > **Online**
+(there is no Traffic page in the General list). Three saves of the
+cloud-synced profile container (`SystemAppData\wgs\...\profile_00`, ~1.24
+MB) were byte-compared: Online 21:05, Off 21:25 (after Save and back),
+Online 21:30. Between Off and Online the only differing bytes are (a) a
+16-bit save counter at offset ~813 that rises ~14 per second, (b) one
+108 KB block at ~861409 that is a raw memory dump - 64-bit pointers
+(`.. f7 7f 00 00`), repeating 242-byte structures, a different amount of
+zero fill each save - and (c) the last 3 bytes, a checksum. Between the two
+ONLINE saves the differences are exactly the same three things. No other
+file under the package (LocalCache, LocalState, the other wgs containers)
+or under Roaming/LocalLow was written during either save. So the setting
+goes straight to Microsoft's cloud profile and nothing local records it.
+**Do not chase this again.** The mode is recorded as a person's word, the
+same way as "Empty Bravo profile set".
+
+What the container DOES hold in readable form (1064 records, framing
+`<8-byte hash> 00000002 00000000 <8-byte hash> <u32 len> <key> 00 <4 bytes>
+2d 51 87 e6 <u32 len> <value> 00`): the aircraft/toolbar datastore - G1000
+and EFB map settings per aircraft, in-game panel layouts, Navigraph state
+and **the Navigraph and SimBrief sign-in tokens in clear**. Never copy this
+file into the repo or a package; snapshots taken for the diff were deleted.
+None of those records changed with Traffic Type.
 
 **Lead for a different problem:** that same container names which input
 profile is assigned to which controller GUID. The "Empty Bravo profile set"
@@ -96,21 +113,14 @@ read that; a byte diff around a profile switch may make it readable.
   the person chose and, if the container diff works, reads back what the
   sim actually has. Otherwise the person's word, like the Bravo profile.
 
-## Tomorrow
+## Next
 
-1. **Words for the levels.** Mark reads the Graphics > Traffic group once
-   and lists the word next to each control (they are 2, 3, 3, 3, 3, 3 in the
-   file now) and the full list of choices on one quantity control.
-2. **Words for the General > Traffic page** in BOTH modes: fully online (as
-   set now) and FSLTL/BATC (the previous settings). Read once each.
-3. **Container diff.** With the sim running: snapshot the newest blob in the
-   profile folder, switch General > Traffic to the other mode, snapshot the
-   new blob, `cmp -l` the two. If a handful of bytes differ, that is where the
-   traffic type lives; check it survives a restart. The watcher script from
-   2026-09-07 is in this session's scratchpad and is three lines; rewrite it.
-4. What the FSLTL injector and BATC each EXPECT the MSFS traffic type to be
-   (their own docs/config), so the check can say "BATC is running but MSFS
-   is still spawning its own traffic".
-5. Then: a preflight row per mode, and the mode choice in the launcher
-   (VFR / IFR no ATC / IFR with ATC / default), each with what must be
-   running and what the person must have set.
+1. Words for the graphics levels (2 and 3 as the sim shows them) - one
+   look at Graphics > Traffic. Low value; the numbers are enough to verify.
+2. What the FSLTL injector and BATC each EXPECT (docs/config), so the check
+   can say "BATC is running but MSFS Traffic Type is not Off" - which it can
+   only say from the recorded mode, not from disk.
+3. The mode choice in the launcher (BATC / FSLTL / MSFS), stored in
+   config.json with who and when, and preflight rows per mode: the engine
+   running or not, BATC up to date, densities sane, and the reminder of
+   what Traffic Type must be set to for the chosen mode.
