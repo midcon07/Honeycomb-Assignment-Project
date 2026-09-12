@@ -47,6 +47,11 @@ internal sealed class AppConfig
     // Where the printout window was last left by hand (moved or resized):
     // screen x, y and client width, height. Every sheet starts there.
     [JsonPropertyName("printoutBounds")]         public int[]  PrintoutBounds         { get; set; } = null;
+    // Where the launcher window itself was last left (x, y, width, height).
+    // It used to open centred on the primary monitor every time - which is
+    // the monitor the simulator fills, so a restored launcher came up behind
+    // the sim and could not be found (Mark, 2026-09-11).
+    [JsonPropertyName("launcherBounds")]         public int[]  LauncherBounds         { get; set; } = null;
 
     /// <summary>What MSFS's Traffic Type must be for the chosen mode; null when no mode is chosen.</summary>
     public static string TrafficTypeRequiredFor(string mode) => mode switch

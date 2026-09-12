@@ -120,6 +120,18 @@ internal sealed partial class MainForm : Form
         MinimumSize = new Size(1000, 700);
         StartPosition = FormStartPosition.CenterScreen;
         BackColor = Color.FromArgb(10, 12, 13);
+        // Where it was last left, if that place is still on a screen.
+        try
+        {
+            var lb = AppConfig.Load(out _)?.LauncherBounds;
+            if (lb != null && lb.Length == 4 && lb[2] >= MinimumSize.Width && lb[3] >= MinimumSize.Height)
+            {
+                var rb = new Rectangle(lb[0], lb[1], lb[2], lb[3]);
+                foreach (var sc in Screen.AllScreens)
+                    if (sc.WorkingArea.IntersectsWith(rb)) { StartPosition = FormStartPosition.Manual; Bounds = rb; break; }
+            }
+        }
+        catch (Exception ex) { Program.LogError("launcher place", ex); }
         // Keeps a taskbar entry and Alt-Tab behaviour despite having no frame.
         ShowInTaskbar = true;
         Controls.Add(_web);
@@ -298,6 +310,17 @@ internal sealed partial class MainForm : Form
         {
             m.Result = IntPtr.Zero;
             return;
+        }
+        if (m.Msg == 0x0232 /* WM_EXITSIZEMOVE */ && WindowState == FormWindowState.Normal)
+        {
+            // Moved or resized by hand: remembered, so the next start opens here.
+            try
+            {
+                _cfg ??= new AppConfig();
+                _cfg.LauncherBounds = new[] { Left, Top, Width, Height };
+                _cfg.Save();
+            }
+            catch (Exception ex) { Program.LogError("save launcher place", ex); }
         }
         if (m.Msg == WM_DEVICECHANGE && (int)m.WParam == DBT_DEVNODES_CHANGED)
         {
