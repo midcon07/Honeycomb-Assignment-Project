@@ -26,7 +26,7 @@ namespace HoneycombLauncher;
 /// </summary>
 internal sealed class TrafficReminderForm : Form
 {
-    public enum Outcome { None, Done, NotNow }
+    public enum Outcome { None, Done, NotNow, CloseYes, CloseNo }
     public Outcome Result { get; private set; } = Outcome.None;
     /// <summary>A choice was made (DONE or NOT NOW). The sheet stays up.</summary>
     public event Action<Outcome> Finished;
@@ -375,10 +375,7 @@ internal sealed class TrafficReminderForm : Form
             case Btn.Larger:  StepPitch(+1); break;
             case Btn.Minimise: Minimise(); break;
             case Btn.Maximise: ToggleMaximise(); break;
-            case Btn.Close:
-                if (Result == Outcome.None) { Result = Outcome.NotNow; Finished?.Invoke(Result); }
-                Close();
-                break;
+            case Btn.Close: AskClose(); break;
         }
     }
 
@@ -538,6 +535,9 @@ internal sealed class TrafficReminderForm : Form
             }
             t.Stop(); t.Dispose();
             _sounds.StopPrinting(); _sounds.LineFeedNow();
+            // The head has passed this line now, so a later layout keeps it
+            // (the YES line was being wiped by the layout for NO - Mark, 2026-09-11).
+            _headSrc = Math.Max(_headSrc, s + 1); _headChar = 0;
             then();
         };
         t.Start();
@@ -569,12 +569,13 @@ internal sealed class TrafficReminderForm : Form
         if (_printing || _busy || !IsChoice(s)) return;
         _sounds.StrikeNow();
         var outcome = _src[s].Click;
-        Result = outcome;
-        // The X goes into the box; no second choice after this one.
         int firstRow = _rows.FindIndex(x => x.Src == s);
         if (firstRow >= 0) PrintCharAt(firstRow, 1, 'X');
         _src[s].Text = "[X]" + _src[s].Text.Substring(3);
-        foreach (var x in _src) if (x.Click != Outcome.None) x.Struck = true;
+        if (outcome == Outcome.CloseYes || outcome == Outcome.CloseNo) { AnswerClose(outcome == Outcome.CloseYes); return; }
+        Result = outcome;
+        // No second choice after this one.
+        foreach (var x in _src) if (x.Click == Outcome.Done || x.Click == Outcome.NotNow) x.Struck = true;
         if (outcome == Outcome.Done)
         {
             var t = new System.Windows.Forms.Timer { Interval = 260 };
@@ -650,6 +651,62 @@ internal sealed class TrafficReminderForm : Form
         if (_sheet != null) e.Graphics.DrawImageUnscaled(_sheet, 0, 0);
     }
 
+    // ---- closing asks first (Mark, 2026-09-11) ---------------------------------------
+    // The X, Alt+F4, the taskbar: all print the question at the foot of the
+    // sheet, and only YES closes. More is going to come through this window
+    // during a flight, so a stray click must not throw it away.
+    private bool _askingClose, _closeConfirmed;
+
+    private void AskClose()
+    {
+        if (_askingClose || _busy || _printing) return;
+        _askingClose = true;
+        _sounds.StrikeNow();
+        _src.Add(new Src { Text = "" });
+        _src.Add(new Src { Text = "CLOSE THE PRINTOUT?" });
+        int yes = _src.Count; _src.Add(new Src { Text = "[ ] YES - CLOSE IT", Click = Outcome.CloseYes });
+        int no = _src.Count;  _src.Add(new Src { Text = "[ ] NO - KEEP IT", Click = Outcome.CloseNo });
+        // Room for three more rows, unless maximised or already tall enough.
+        int need = TopMargin + (int)(LineH * (_rows.Count + 3)) + BottomMargin;
+        if (!_maximised && ClientSize.Height < need) { var sc = Screen.FromControl(this).WorkingArea; Height = Math.Min(need, sc.Height); if (Bottom > sc.Bottom) Top = Math.Max(sc.Top, sc.Bottom - Height); }
+        _headSrc = Math.Max(_headSrc, yes - 2); _headChar = 0;   // the blank line above the question counts as printed
+        Relayout();
+        _printing = true;
+        PrintSourceThen(yes - 1, "CLOSE THE PRINTOUT?", () =>
+            PrintSourceThen(yes, "[ ] YES - CLOSE IT", () =>
+                PrintSourceThen(no, "[ ] NO - KEEP IT", () => { _headSrc = _src.Count; _headChar = 0; _printing = false; })));
+    }
+
+    /// <summary>The program replacing this sheet with a new one: no question asked.</summary>
+    public void CloseWithoutAsking() { _closeConfirmed = true; Close(); }
+
+    private void AnswerClose(bool yes)
+    {
+        if (yes)
+        {
+            _closeConfirmed = true;
+            if (Result == Outcome.None) { Result = Outcome.NotNow; Finished?.Invoke(Result); }
+            Close();
+            return;
+        }
+        // NO: the question is torn off the foot of the sheet, and it stays.
+        _askingClose = false;
+        _src.RemoveRange(_src.Count - 4, 4);
+        _headSrc = _src.Count; _headChar = 0;
+        Relayout();
+    }
+
+    protected override void OnFormClosing(FormClosingEventArgs e)
+    {
+        base.OnFormClosing(e);
+        if (e.CloseReason == CloseReason.UserClosing && !_closeConfirmed)
+        {
+            e.Cancel = true;
+            if (IsMinimised) Restore();
+            AskClose();
+        }
+    }
+
     protected override void OnFormClosed(FormClosedEventArgs e)
     {
         base.OnFormClosed(e);
@@ -663,7 +720,7 @@ internal sealed class TrafficReminderForm : Form
     {
         if (!_printing && !_busy)
         {
-            if (keyData == Keys.Escape) { Choose(_src.FindIndex(x => x.Click == Outcome.NotNow)); return true; }
+            if (keyData == Keys.Escape) { Choose(_src.FindIndex(x => x.Click == (_askingClose ? Outcome.CloseNo : Outcome.NotNow))); return true; }
             if (keyData == Keys.Enter)  { Choose(_src.FindIndex(x => x.Click == Outcome.Done)); return true; }
         }
         return base.ProcessCmdKey(ref msg, keyData);

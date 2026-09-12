@@ -46,6 +46,7 @@ internal static class Program
             // the square, restore, resize, text size. Close ends the demo.
             var ctx = new ApplicationContext();
             var sheet = new TrafficReminderForm(mode, required, "Real-Time Online", "midcon07", "2026-09-07T04:43:00Z", Environment.UserName);
+            sheet.Text = "Honeycomb Preflight - printout (demo)";   // never the same title as a real sheet
             PrintoutIconForm icon = null;
             sheet.PinChanged += p => Log("traffic sheet demo: " + (p ? "anchored" : "loose"));
             sheet.PitchChanged += p => Log("traffic sheet demo: pitch " + p);

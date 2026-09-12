@@ -1179,7 +1179,7 @@ internal sealed partial class MainForm : Form
         var required = AppConfig.TrafficTypeRequiredFor(mode);
         if (required == null) return;
         var recorded = _cfg?.TrafficTypeRecorded ?? "";
-        if (_trafficReminder != null && !_trafficReminder.IsDisposed) { try { _trafficReminder.Close(); } catch { } }
+        if (_trafficReminder != null && !_trafficReminder.IsDisposed) { try { _trafficReminder.CloseWithoutAsking(); } catch { } }
         if (_trafficIcon != null && !_trafficIcon.IsDisposed) _trafficIcon.Hide();
 
         float pitch = _cfg?.PrintoutPitch ?? 2.6f;
