@@ -172,7 +172,11 @@ read that; a byte diff around a profile switch may make it readable.
   when the sim last saved.
 - Rehearsed on the demo against a scratch copy of the file (Ultra -> Off ->
   level 2), then the real sheet printed from the live file: Ultra/Ultra, needs
-  Off/Off for BATC.
+  Off/Off for BATC. Then the real run (Mark, 12:22): the launcher saw each
+  slider step land in the file (Ultra -> level 2 -> Off, then parked -> Off),
+  the sheet struck its lines and printed GRAPHICS CONFIRMED; Mark: "looking
+  good". Save-and-back rewrites the file again with the same values, which
+  the sheet ignores.
 
 ## Next
 
