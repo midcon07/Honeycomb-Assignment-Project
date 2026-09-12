@@ -657,9 +657,21 @@ internal sealed class TrafficReminderForm : Form
     // during a flight, so a stray click must not throw it away.
     private bool _askingClose, _closeConfirmed;
 
+    /// <summary>Everything still to print appears at once: for when a person wants the sheet now, not in ten seconds.</summary>
+    private void CompletePrintNow()
+    {
+        if (!_printing) return;
+        _clock.Stop(); _lineFeedPause = 0;
+        _headSrc = _src.Count; _headChar = 0;
+        _printing = false;
+        _sounds.StopPrinting();
+        RedrawAll(); Invalidate();
+    }
+
     private void AskClose()
     {
-        if (_askingClose || _busy || _printing) return;
+        if (_askingClose || _busy) return;
+        if (_printing) CompletePrintNow();
         _askingClose = true;
         _sounds.StrikeNow();
         _src.Add(new Src { Text = "" });
