@@ -122,17 +122,26 @@ read that; a byte diff around a profile switch may make it readable.
 - **The reminder** (`TrafficReminderForm.cs`, `DotMatrix.cs`): a sheet of
   green-bar tractor-feed paper, always on top, that prints - one character
   at a time in a 5x7 dot font, with the printer's sounds synthesised in
-  memory (print-head loop, line-feed zip, strike, tear-off; written once to
+  memory (print-head loop, line-feed ratchet, strike; written once to
   `%LOCALAPPDATA%\HoneycombAssignment\sounds\`) - what to set in the sim:
   Options > General > Online > Traffic Type, then Save and back. It appears
   when the chosen mode needs a different Traffic Type from the one last
   recorded: at program start, on a mode change, and when Start Simulator
   is pressed (on top of the sim). Two printed lines are clickable (Enter /
   Escape too): DONE prints an X, strikes the line through, prints
-  "RECORDED hh:mm BY <user>", tears off, and writes
-  `trafficTypeRecorded/By/Utc` to config.json - **a person's word, and the
-  sheet says so in print**. NOT NOW tears off and holds until the next
-  occasion. The sheet never claims to have verified anything.
+  "RECORDED hh:mm BY <user>" and writes `trafficTypeRecorded/By/Utc` to
+  config.json - **a person's word, and the sheet says so in print**. NOT NOW
+  holds until the next occasion. The sheet never claims to have verified
+  anything.
+- **One printout window per session** (Mark, 2026-09-11: "I have more plans
+  for this window"). An anchor lamp in the top-left corner keeps it up on
+  top of everything (green = anchored, red = loose; click to toggle; dropping
+  it after a drag anchors it). With the lamp red, a choice scrolls it up into
+  a strip-of-paper icon (`PrintoutIconForm`) and clicking the icon scrolls
+  the same sheet back down, content intact - never a reprint. Draggable by
+  its paper to any monitor; the icon collapses to wherever it was left. The
+  first pin was a red pushpin (read as a light, and it overlapped), then a
+  bigger pushpin with a glow; the lamp is what Mark asked for.
 - `HoneycombLauncher.exe --traffic-sheet [BATC|FSLTL|MSFS]` prints the
   sheet on its own with sample values and records nothing: for hearing and
   seeing it without a sim.
