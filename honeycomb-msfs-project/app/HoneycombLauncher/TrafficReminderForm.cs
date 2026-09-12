@@ -218,7 +218,6 @@ internal sealed class TrafficReminderForm : Form
         {
             // Out: the pin leans over the paper, needle down to a dotted ring
             // where it goes; the head lifted, catching the light.
-            if (_pinHover) { using var glow = new SolidBrush(Color.FromArgb(80, 255, 200, 60)); g.FillEllipse(glow, cx - 26, cy - 30, 52, 52); }
             using var ring = new Pen(Color.FromArgb(210, 140, 130, 110), 1.6f) { DashStyle = DashStyle.Dot };
             g.DrawEllipse(ring, cx - 6, cy + 10, 12, 12);
             using var needleShadow = new Pen(Color.FromArgb(70, 0, 0, 0), 4f);
@@ -415,7 +414,21 @@ internal sealed class TrafficReminderForm : Form
     // press on the pin or on a clickable line is not a drag.
     [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern bool ReleaseCapture();
     [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
-    private const int WM_NCLBUTTONDOWN = 0x00A1, HTCAPTION = 0x2;
+    private const int WM_NCLBUTTONDOWN = 0x00A1, HTCAPTION = 0x2, WM_EXITSIZEMOVE = 0x0232;
+
+    // Dropping the sheet after a drag pushes the pin in where it lands
+    // (Mark, 2026-09-11): carried somewhere on purpose, it stays there.
+    protected override void WndProc(ref Message m)
+    {
+        base.WndProc(ref m);
+        if (m.Msg == WM_EXITSIZEMOVE && !Pinned && !_closing && !IsCollapsed)
+        {
+            Pinned = true;
+            RedrawPin();
+            _sounds.StrikeNow();
+            PinChanged?.Invoke(true);
+        }
+    }
 
     protected override void OnMouseDown(MouseEventArgs e)
     {
