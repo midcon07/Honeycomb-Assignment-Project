@@ -19,8 +19,10 @@ aircraft - right for multiplayer without an injector. The Online page as
 Mark has it (2026-09-11): Photogrammetry on, Air Traffic in career on,
 Live Weather on, Multiplayer on, servers Automatic [East USA], show
 multiplayer aircraft in close proximity on, replication High Fidelity;
-only Traffic Type changes between modes. The graphics densities
-(UserCfg.opt) are the same in every mode: aircraft 2, everything else 3.
+only Traffic Type changes between modes on the Online page. On the Graphics
+page two levels change too (Mark, 2026-09-12): Aircraft Traffic and Parked
+Aircraft are **Off** for BATC/FSLTL and **Ultra** for MSFS. Both are on disk
+(below), so those two are READ, not taken on anyone's word.
 
 ## What is on disk, measured 2026-09-07
 
@@ -44,12 +46,13 @@ of traffic:
 ```
 
 - The quantities are **levels, not percentages**: values seen 0, 2, 3.
-- **-1 = never set by a person** - the value the sim carries until the
-  control is touched, after which it becomes a level. The VR block still has
-  -1s.
-- Which word each level is (Off/Low/Medium/High/Ultra?) is NOT measured. Mark
-  saw the words on screen; the numbers 2 and 3 above correspond to whatever
-  the page showed at 23:43 - to be read back once.
+- **-1 = Off** (measured 2026-09-12: Mark set Aircraft Traffic and Parked
+  Aircraft to Off, the file went 2/3 -> -1/-1 within seconds; back to Ultra
+  -> 3/3, and the overall `Preset` line flipped Custom -> Ultra). The earlier
+  reading of -1 as "never set" was wrong. The VR block's -1s are Off too.
+- **3 = Ultra** (same measurement). 2 is one below Ultra (High, presumably)
+  but has not been read back against its word; 0 was seen once. The program
+  names unmeasured levels "LEVEL n" rather than guessing.
 - Writable when the sim is closed, like FSUIPC7.ini (the sim rewrites the
   file, so a write under a running sim is undone).
 
@@ -150,6 +153,27 @@ read that; a byte diff around a profile switch may make it readable.
   sheet on its own with sample values and records nothing: for hearing and
   seeing it without a sim.
 
+## Built 2026-09-12: the graphics levels, read from the sim
+
+- `SimSettings.cs` reads Graphics > Traffic (`AircraftTrafficQuantity`,
+  `ParkedAircraftQuantity`) from UserCfg.opt (Store, then Steam;
+  `HONEYCOMB_USERCFG` overrides the path for tests). `AppConfig.GraphicsRequiredFor`
+  holds the per-mode levels (-1/-1, 3/3).
+- The launcher checks the file's write time every two seconds. A change goes
+  to the sheet and to the checklist row "Traffic graphics" (green READ FROM
+  SIM / red WRONG IN SIM / amber NOT READ with the reason).
+- The sheet has two numbered parts: 1. Graphics - the two "MUST BE" lines,
+  which are struck through and followed by "GRAPHICS CONFIRMED hh:mm - READ
+  FROM THE SIM" when the file comes to agree, or by "!! GRAPHICS CHANGED"
+  when it stops agreeing; 2. Online - Traffic Type, a person's word as before.
+  The sheet prints whenever either part is wrong. `PrintLines()` is the
+  append-only feed every later message will use.
+- Preflight check `37-TrafficGraphics.ps1`: PASS/WARN with what was read and
+  when the sim last saved.
+- Rehearsed on the demo against a scratch copy of the file (Ultra -> Off ->
+  level 2), then the real sheet printed from the live file: Ultra/Ultra, needs
+  Off/Off for BATC.
+
 ## Next
 
 1. Flight-time confirmation (second stage of the strike-through): once a
@@ -160,4 +184,4 @@ read that; a byte diff around a profile switch may make it readable.
    sky), so it confirms after a minute or two at a real airport.
 2. Preflight rows per mode: the engine running or not, BATC up to date
    from its Player.log, densities sane.
-3. Words for the graphics levels - low value.
+3. Words for the graphics levels 0-2 - low value; -1 and 3 are measured.

@@ -53,6 +53,19 @@ internal sealed class AppConfig
     // the sim and could not be found (Mark, 2026-09-11).
     [JsonPropertyName("launcherBounds")]         public int[]  LauncherBounds         { get; set; } = null;
 
+    /// <summary>
+    /// The two Graphics > Traffic levels the chosen mode needs (measured
+    /// 2026-09-12 with Mark at the page: Off writes -1, Ultra writes 3).
+    /// BATC and FSLTL: both Off, so the sim injects nothing of its own.
+    /// MSFS: both Ultra, Mark's choice for Asobo's engine. Null when no mode.
+    /// </summary>
+    public static (int aircraft, int parked)? GraphicsRequiredFor(string mode) => mode switch
+    {
+        "BATC" or "FSLTL" => (-1, -1),
+        "MSFS" => (3, 3),
+        _ => null
+    };
+
     /// <summary>What MSFS's Traffic Type must be for the chosen mode; null when no mode is chosen.</summary>
     public static string TrafficTypeRequiredFor(string mode) => mode switch
     {

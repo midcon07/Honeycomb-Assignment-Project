@@ -73,12 +73,31 @@ internal sealed class TrafficReminderForm : Form
     /// <summary>Raised when the person has moved or resized the sheet, so the place can be remembered.</summary>
     public event Action<Rectangle> BoundsSettled;
 
-    public TrafficReminderForm(string mode, string required, string recorded, string recordedBy, string recordedUtc, string who, bool pinned = true, float pitch = 2.6f, Rectangle? remembered = null)
+    /// <summary>Everything the sheet prints from: the mode, what it needs, what is recorded, what the sim's file says.</summary>
+    public sealed class Facts
     {
+        public string Mode = "", RequiredType = "", RecordedType = "", RecordedBy = "", RecordedUtc = "", Who = "";
+        public int RequiredAircraft, RequiredParked;          // Graphics > Traffic levels the mode needs
+        public SimSettings.TrafficGraphics Sim;               // what the sim's settings file holds now; null if unreadable
+        public string SimProblem = "";                        // why, when Sim is null
+    }
+
+    // The graphics lines that are struck through once the sim's file agrees.
+    private readonly List<int> _gfxLines = new();
+    private readonly int _reqAircraft, _reqParked;
+    private bool _gfxOk;
+    private SimSettings.TrafficGraphics _pendingGfx;
+
+    public TrafficReminderForm(Facts f, bool pinned = true, float pitch = 2.6f, Rectangle? remembered = null)
+    {
+        string mode = f.Mode ?? "", required = f.RequiredType ?? "", recorded = f.RecordedType ?? "", recordedBy = f.RecordedBy ?? "", recordedUtc = f.RecordedUtc ?? "";
         Pinned = pinned;
         _pitch = pitch;
-        _resolved = !string.IsNullOrWhiteSpace(recorded) && string.Equals(recorded, required, StringComparison.OrdinalIgnoreCase);
-        _who = string.IsNullOrWhiteSpace(who) ? Environment.UserName : who;
+        _reqAircraft = f.RequiredAircraft; _reqParked = f.RequiredParked;
+        _gfxOk = f.Sim != null && f.Sim.Matches(_reqAircraft, _reqParked);
+        var typeResolved = !string.IsNullOrWhiteSpace(recorded) && string.Equals(recorded, required, StringComparison.OrdinalIgnoreCase);
+        _resolved = typeResolved && _gfxOk;
+        _who = string.IsNullOrWhiteSpace(f.Who) ? Environment.UserName : f.Who;
 
         FormBorderStyle = FormBorderStyle.None;
         TopMost = Pinned;
@@ -101,37 +120,54 @@ internal sealed class TrafficReminderForm : Form
             when = dt.ToLocalTime().ToString("dd MMM").ToUpperInvariant();
 
         Add("HONEYCOMB PREFLIGHT".PadRight(DefaultCols - 15) + DateTime.Now.ToString("dd MMM yy HH:mm").ToUpperInvariant());
-        Add(_resolved ? "*** TRAFFIC - AS RECORDED ***" : "*** ACTION REQUIRED IN THE SIMULATOR ***");
+        Add(_resolved ? "*** TRAFFIC - ALL AS IT SHOULD BE ***" : "*** ACTION REQUIRED IN THE SIMULATOR ***");
         Add("");
         Add("TRAFFIC MODE: " + mono);
-        Add("MSFS TRAFFIC TYPE MUST BE: " + required.ToUpperInvariant());
-        if (string.IsNullOrWhiteSpace(recorded)) Add("LAST RECORDED AS: NEVER RECORDED");
+        Add("");
+        // 1. The graphics levels: read from the sim's settings file, which the
+        //    sim rewrites the moment a setting changes, so this part confirms
+        //    itself (measured 2026-09-12).
+        string wa = SimSettings.LevelWord(_reqAircraft), wp = SimSettings.LevelWord(_reqParked);
+        Add("1. OPTIONS > GENERAL > GRAPHICS");
+        if (f.Sim == null)
+        {
+            Add("   COULD NOT READ THE SIM'S SETTINGS FILE:");
+            Add("   " + (f.SimProblem ?? "").ToUpperInvariant());
+            Add("   AIRCRAFT TRAFFIC MUST BE: " + wa);
+            Add("   PARKED AIRCRAFT MUST BE:  " + wp);
+        }
+        else if (_gfxOk)
+        {
+            Add("   AIRCRAFT TRAFFIC: " + wa + "   PARKED: " + wp);
+            Add("   RIGHT - READ FROM THE SIM'S SETTINGS FILE.");
+        }
         else
         {
-            Add("LAST RECORDED AS: " + recorded.ToUpperInvariant());
-            if (when != "") Add("                  (" + when + (string.IsNullOrWhiteSpace(recordedBy) ? "" : " BY " + recordedBy.ToUpperInvariant()) + ")");
+            _gfxLines.Add(_src.Count); Add("   AIRCRAFT TRAFFIC MUST BE: " + wa + " (NOW " + SimSettings.LevelWord(f.Sim.Aircraft) + ")");
+            _gfxLines.Add(_src.Count); Add("   PARKED AIRCRAFT MUST BE:  " + wp + " (NOW " + SimSettings.LevelWord(f.Sim.Parked) + ")");
+            Add("   SAVE, THEN BACK. THIS SHEET READS THE SIM'S");
+            Add("   SETTINGS FILE AND CONFIRMS IT BY ITSELF.");
         }
         Add("");
-        if (_resolved)
+        // 2. The Traffic Type: in the cloud profile, so a person's word.
+        Add("2. OPTIONS > GENERAL > ONLINE");
+        Add("   TRAFFIC TYPE MUST BE: " + required.ToUpperInvariant());
+        if (string.IsNullOrWhiteSpace(recorded)) Add("   LAST RECORDED AS: NEVER RECORDED");
+        else
         {
-            Add("NOTHING TO CHANGE. IF THE SIM SAYS OTHERWISE,");
-            Add("OPTIONS > GENERAL > ONLINE > TRAFFIC TYPE.");
-            Add("");
-            Add("(THE SIM KEEPS THIS SETTING WHERE NO PROGRAM");
-            Add(" CAN CHECK IT, SO THE RECORD IS SOMEONE'S WORD.)");
-            Add("");
+            Add("   LAST RECORDED AS: " + recorded.ToUpperInvariant());
+            if (when != "") Add("                     (" + when + (string.IsNullOrWhiteSpace(recordedBy) ? "" : " BY " + recordedBy.ToUpperInvariant()) + ")");
+        }
+        Add(typeResolved ? "   AS RECORDED - NOTHING TO CHANGE." : "   SAVE, THEN BACK.");
+        Add("   (THE SIM KEEPS THIS ONE WHERE NO PROGRAM");
+        Add("    CAN CHECK IT, SO YOUR WORD IS THE RECORD.)");
+        Add("");
+        if (typeResolved)
+        {
             Add("[ ] NOTED", Outcome.NotNow);
         }
         else
         {
-            Add("IN THE SIM:");
-            Add("  1. OPTIONS > GENERAL > ONLINE");
-            Add("  2. TRAFFIC TYPE: " + required.ToUpperInvariant());
-            Add("  3. SAVE, THEN BACK");
-            Add("");
-            Add("(THE SIM KEEPS THIS SETTING WHERE NO PROGRAM");
-            Add(" CAN CHECK IT, SO YOUR WORD IS THE RECORD.)");
-            Add("");
             Add("[ ] DONE - TRAFFIC TYPE IS NOW " + required.ToUpperInvariant(), Outcome.Done);
             Add("[ ] NOT NOW - REMIND ME NEXT TIME", Outcome.NotNow);
         }
@@ -515,6 +551,7 @@ internal sealed class TrafficReminderForm : Form
         _printing = false;
         _sounds.StopPrinting();
         _clock.Stop();
+        TryApplyGraphics();
     }
 
     /// <summary>Prints one more source line at printer speed, then calls back.</summary>
@@ -678,15 +715,93 @@ internal sealed class TrafficReminderForm : Form
         _src.Add(new Src { Text = "CLOSE THE PRINTOUT?" });
         int yes = _src.Count; _src.Add(new Src { Text = "[ ] YES - CLOSE IT", Click = Outcome.CloseYes });
         int no = _src.Count;  _src.Add(new Src { Text = "[ ] NO - KEEP IT", Click = Outcome.CloseNo });
-        // Room for three more rows, unless maximised or already tall enough.
-        int need = TopMargin + (int)(LineH * (_rows.Count + 3)) + BottomMargin;
-        if (!_maximised && ClientSize.Height < need) { var sc = Screen.FromControl(this).WorkingArea; Height = Math.Min(need, sc.Height); if (Bottom > sc.Bottom) Top = Math.Max(sc.Top, sc.Bottom - Height); }
+        EnsureRoom(3);
         _headSrc = Math.Max(_headSrc, yes - 2); _headChar = 0;   // the blank line above the question counts as printed
         Relayout();
         _printing = true;
         PrintSourceThen(yes - 1, "CLOSE THE PRINTOUT?", () =>
             PrintSourceThen(yes, "[ ] YES - CLOSE IT", () =>
                 PrintSourceThen(no, "[ ] NO - KEEP IT", () => { _headSrc = _src.Count; _headChar = 0; _printing = false; })));
+    }
+
+    /// <summary>Grows the window for more rows, unless maximised or already tall enough.</summary>
+    private void EnsureRoom(int extraRows)
+    {
+        int need = TopMargin + (int)(LineH * (_rows.Count + extraRows)) + BottomMargin;
+        if (!_maximised && ClientSize.Height < need) { var sc = Screen.FromControl(this).WorkingArea; Height = Math.Min(need, sc.Height); if (Bottom > sc.Bottom) Top = Math.Max(sc.Top, sc.Bottom - Height); }
+    }
+
+    // ---- lines that arrive after the sheet is printed (the feed) -------------------
+    /// <summary>
+    /// Appends lines to the foot of the sheet and prints them at printer speed:
+    /// a blank line, the lines, then a fresh blank for whatever comes next.
+    /// The caller checks that nothing else is printing.
+    /// </summary>
+    private void PrintLines(string[] lines, Action then = null)
+    {
+        // One blank line above, reusing the one already there if the sheet ends with it.
+        int blank = _src.Count - 1;
+        if (blank < 0 || _src[blank].Text != "") { blank = _src.Count; _src.Add(new Src { Text = "" }); }
+        int first = _src.Count;
+        foreach (var l in lines) _src.Add(new Src { Text = l });
+        _src.Add(new Src { Text = "" });
+        EnsureRoom(lines.Length + 2);
+        _headSrc = Math.Max(_headSrc, blank + 1); _headChar = 0;
+        Relayout();
+        _printing = true;
+        int i = 0;
+        Action next = null;
+        next = () =>
+        {
+            if (i < lines.Length) { int s = first + i; string t = lines[i]; i++; PrintSourceThen(s, t, next); return; }
+            _headSrc = _src.Count; _headChar = 0; _printing = false;
+            then?.Invoke();
+        };
+        next();
+    }
+
+    /// <summary>
+    /// The sim's graphics levels as read from its settings file just now. When
+    /// they come to agree with what the mode needs, the "must be" lines are
+    /// struck through and a confirmation prints - read from the sim, not
+    /// anyone's word. When they stop agreeing, that prints too.
+    /// </summary>
+    public void GraphicsNow(SimSettings.TrafficGraphics g)
+    {
+        if (g == null || IsDisposed) return;
+        if (g.Matches(_reqAircraft, _reqParked) == _gfxOk) return;      // nothing changed
+        _pendingGfx = g;
+        TryApplyGraphics();
+    }
+
+    private void TryApplyGraphics()
+    {
+        if (_pendingGfx == null || IsDisposed) return;
+        if (_printing || _busy || _askingClose)
+        {
+            var t = new System.Windows.Forms.Timer { Interval = 300 };
+            t.Tick += (_, __) => { t.Stop(); t.Dispose(); TryApplyGraphics(); };
+            t.Start();
+            return;
+        }
+        var g = _pendingGfx; _pendingGfx = null;
+        bool ok = g.Matches(_reqAircraft, _reqParked);
+        if (ok == _gfxOk) return;
+        _gfxOk = ok;
+        var stamp = DateTime.Now.ToString("HH:mm");
+        if (ok)
+        {
+            _sounds.StrikeNow();
+            foreach (var s in _gfxLines) _src[s].Struck = true;
+            using (var gr = Graphics.FromImage(_sheet)) { var rnd = new Random(42); for (int r = 0; r < _rows.Count; r++) if (_gfxLines.Contains(_rows[r].Src)) DrawStrike(gr, r, rnd); }
+            Invalidate();
+            PrintLines(new[] { "GRAPHICS CONFIRMED " + stamp + " - READ FROM THE SIM:", "   AIRCRAFT TRAFFIC " + SimSettings.LevelWord(g.Aircraft) + "   PARKED " + SimSettings.LevelWord(g.Parked) });
+        }
+        else
+        {
+            PrintLines(new[] { "!! GRAPHICS CHANGED " + stamp + " - THE SIM NOW SAYS:", "   AIRCRAFT TRAFFIC " + SimSettings.LevelWord(g.Aircraft) + "   PARKED " + SimSettings.LevelWord(g.Parked),
+                "   MUST BE " + SimSettings.LevelWord(_reqAircraft) + " AND " + SimSettings.LevelWord(_reqParked) + " - SET THEM AGAIN." });
+        }
     }
 
     /// <summary>The program replacing this sheet with a new one: no question asked.</summary>

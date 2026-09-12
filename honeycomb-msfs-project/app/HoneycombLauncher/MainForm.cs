@@ -272,7 +272,7 @@ internal sealed partial class MainForm : Form
             _slowPoll.Start();
             // Seen at start too, so it is read before the flight rather than
             // discovered over the runway; "not now" holds it until the sim starts.
-            try { ShowTrafficReminderIfNeeded("program started"); } catch (Exception ex) { Program.LogError("traffic reminder", ex); }
+            try { WatchSimSettings(); ShowTrafficReminderIfNeeded("program started"); } catch (Exception ex) { Program.LogError("traffic reminder", ex); }
         };
 
         var ui = Path.Combine(AppContext.BaseDirectory, "ui", "index.html");
@@ -645,6 +645,7 @@ internal sealed partial class MainForm : Form
             trafficRecorded = _cfg?.TrafficTypeRecorded ?? "",
             trafficRecordedBy = _cfg?.TrafficTypeRecordedBy ?? "",
             trafficRecordedUtc = _cfg?.TrafficTypeRecordedUtc ?? "",
+            trafficGfx = TrafficGraphicsForPage(),
             leversWrittenIds = levers,
             buttonsWritten = buttons,
             fleet,
@@ -1144,6 +1145,24 @@ internal sealed partial class MainForm : Form
         ShowTrafficReminderIfNeeded("simulator started");
     }
 
+    /// <summary>The Graphics > Traffic levels as the sim's file has them now, against what the mode needs.</summary>
+    private object TrafficGraphicsForPage()
+    {
+        var mode = _cfg?.TrafficMode ?? "";
+        var need = AppConfig.GraphicsRequiredFor(mode);
+        var gfx = SimSettings.ReadTrafficGraphics(out var problem);
+        return new
+        {
+            ok = gfx != null && need != null && gfx.Matches(need.Value.aircraft, need.Value.parked),
+            problem = problem ?? "",
+            aircraft = gfx == null ? "" : SimSettings.LevelWord(gfx.Aircraft),
+            parked = gfx == null ? "" : SimSettings.LevelWord(gfx.Parked),
+            needAircraft = need == null ? "" : SimSettings.LevelWord(need.Value.aircraft),
+            needParked = need == null ? "" : SimSettings.LevelWord(need.Value.parked),
+            writtenUtc = gfx == null ? "" : gfx.WrittenUtc.ToString("yyyy-MM-ddTHH:mm:ssZ")
+        };
+    }
+
     // ---- the traffic reminder ------------------------------------------------
 
     private TrafficReminderForm _trafficReminder;
@@ -1162,9 +1181,51 @@ internal sealed partial class MainForm : Form
         var required = AppConfig.TrafficTypeRequiredFor(mode);
         if (required == null) return;
         var recorded = _cfg?.TrafficTypeRecorded ?? "";
-        if (string.Equals(recorded, required, StringComparison.OrdinalIgnoreCase)) return;
+        var typeOk = string.Equals(recorded, required, StringComparison.OrdinalIgnoreCase);
+        // The graphics levels are read from the sim's settings file; unreadable
+        // counts as not right, and the sheet says why.
+        var gfx = SimSettings.ReadTrafficGraphics(out _);
+        var need = AppConfig.GraphicsRequiredFor(mode);
+        var gfxOk = gfx != null && need != null && gfx.Matches(need.Value.aircraft, need.Value.parked);
+        if (typeOk && gfxOk) return;
         if (_trafficReminderDismissed) return;
         PrintTrafficSheet(why);
+    }
+
+    // ---- the sim's settings file, watched ----------------------------------
+    // UserCfg.opt is rewritten by the sim within a second or two of any change
+    // in Options (measured 2026-09-07, 2026-09-12). Its last-write time is
+    // checked every two seconds; a change is read and goes to the sheet (which
+    // confirms or complains in print) and to the checklist row.
+    private readonly System.Windows.Forms.Timer _simCfgClock = new() { Interval = 2000 };
+    private DateTime _simCfgSeen;
+    private bool _simCfgWatching;
+
+    private void WatchSimSettings()
+    {
+        if (_simCfgWatching) return;
+        _simCfgWatching = true;
+        try { var p = SimSettings.FindUserCfg(); if (p != null) _simCfgSeen = File.GetLastWriteTimeUtc(p); } catch { }
+        _simCfgClock.Tick += async (_, __) =>
+        {
+            DateTime now;
+            try { var p = SimSettings.FindUserCfg(); if (p == null) return; now = File.GetLastWriteTimeUtc(p); } catch { return; }
+            if (now == _simCfgSeen) return;
+            _simCfgSeen = now;
+            var gfx = SimSettings.ReadTrafficGraphics(out var problem);
+            Program.Log(gfx == null ? "sim settings changed: " + problem
+                : $"sim settings changed: aircraft traffic {SimSettings.LevelWord(gfx.Aircraft)}, parked {SimSettings.LevelWord(gfx.Parked)}");
+            if (_trafficReminder != null && !_trafficReminder.IsDisposed) _trafficReminder.GraphicsNow(gfx);
+            else
+            {
+                // No sheet up: a change that makes the graphics wrong for the
+                // mode is a new occasion, even after NOT NOW.
+                var need = AppConfig.GraphicsRequiredFor(_cfg?.TrafficMode ?? "");
+                if (need != null && gfx != null && !gfx.Matches(need.Value.aircraft, need.Value.parked)) { _trafficReminderDismissed = false; ShowTrafficReminderIfNeeded("sim settings changed"); }
+            }
+            try { await PushConfigAsync(); } catch (Exception ex) { Program.LogError("push after sim settings change", ex); }
+        };
+        _simCfgClock.Start();
     }
 
     /// <summary>
@@ -1188,7 +1249,18 @@ internal sealed partial class MainForm : Form
         Rectangle? remembered = null;
         var pb = _cfg?.PrintoutBounds;
         if (pb != null && pb.Length == 4) remembered = new Rectangle(pb[0], pb[1], pb[2], pb[3]);
-        var f = new TrafficReminderForm(mode, required, recorded, _cfg?.TrafficTypeRecordedBy ?? "", _cfg?.TrafficTypeRecordedUtc ?? "", Environment.UserName, true, pitch, remembered);
+        var need = AppConfig.GraphicsRequiredFor(mode) ?? (-1, -1);
+        var facts = new TrafficReminderForm.Facts
+        {
+            Mode = mode, RequiredType = required, RecordedType = recorded,
+            RecordedBy = _cfg?.TrafficTypeRecordedBy ?? "", RecordedUtc = _cfg?.TrafficTypeRecordedUtc ?? "", Who = Environment.UserName,
+            RequiredAircraft = need.aircraft, RequiredParked = need.parked,
+            Sim = SimSettings.ReadTrafficGraphics(out var gfxProblem), SimProblem = gfxProblem ?? ""
+        };
+        Program.Log(facts.Sim == null ? "traffic sheet: sim settings unreadable - " + gfxProblem
+            : $"traffic sheet: sim graphics aircraft {SimSettings.LevelWord(facts.Sim.Aircraft)}, parked {SimSettings.LevelWord(facts.Sim.Parked)}; needs {SimSettings.LevelWord(need.aircraft)}, {SimSettings.LevelWord(need.parked)}");
+        WatchSimSettings();
+        var f = new TrafficReminderForm(facts, true, pitch, remembered);
         f.BoundsSettled += r =>
         {
             _cfg ??= new AppConfig();

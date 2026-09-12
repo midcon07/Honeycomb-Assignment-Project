@@ -1102,6 +1102,22 @@ function renderChecklist() {
                 note: ok
                   ? ("Traffic Type " + c.trafficRecorded + ", as " + (c.trafficRecordedBy || "someone") + " recorded it" + whenTxt + " (their word; the sim does not let this program check it).")
                   : ("The sim's Traffic Type must be " + c.trafficRequired + " for " + c.trafficMode + (c.trafficRecorded ? "; it was last recorded as " + c.trafficRecorded + "." : "; it has never been recorded.") + " A reminder sheet prints when the simulator starts.") });
+    /* The two graphics levels ARE readable: Graphics > Traffic in UserCfg.opt,
+       rewritten by the sim the moment a setting changes (measured 2026-09-12:
+       Off = -1, Ultra = 3). So this row is read from the sim, not anyone's word. */
+    var g = c.trafficGfx || {};
+    var gWhen = "";
+    if (g.writtenUtc) { var gd = new Date(g.writtenUtc); if (!isNaN(gd)) { gWhen = " (the sim last saved its settings " + gd.toLocaleString() + ")"; } }
+    if (g.problem) {
+      rows.push({ chal: "Traffic graphics", resp: "NOT READ", lamp: "a", tone: "a", row: "attn",
+                  note: "Could not read the sim's settings file: " + g.problem + ". " + c.trafficMode + " needs Aircraft Traffic " + g.needAircraft + " and Parked Aircraft " + g.needParked + "." });
+    } else {
+      rows.push({ chal: "Traffic graphics", resp: g.ok ? "READ FROM SIM" : "WRONG IN SIM",
+                  lamp: g.ok ? "g" : "r", tone: g.ok ? "g" : "r", row: g.ok ? "" : "attn",
+                  note: g.ok
+                    ? ("Aircraft Traffic " + g.aircraft + ", Parked Aircraft " + g.parked + " - right for " + c.trafficMode + ", read from the sim's settings file" + gWhen + ".")
+                    : ("The sim has Aircraft Traffic " + g.aircraft + " and Parked Aircraft " + g.parked + "; " + c.trafficMode + " needs " + g.needAircraft + " and " + g.needParked + ". Options > General > Graphics, then Save and back - the printout confirms it by itself" + gWhen + ".") });
+    }
   })();
 
   rows.push({ chal: "Aircraft", resp: a ? a.type : "NOT CHOSEN",
