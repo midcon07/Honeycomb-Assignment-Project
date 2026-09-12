@@ -1,3 +1,4 @@
+using System.Drawing;
 using System.Text;
 
 namespace HoneycombLauncher;
@@ -41,10 +42,30 @@ internal static class Program
             ApplicationConfiguration.Initialize();
             var mode = args.Length > 1 ? args[1] : "BATC";
             var required = AppConfig.TrafficTypeRequiredFor(mode) ?? "Off";
-            var demo = new TrafficReminderForm(mode, required, "Real-Time Online", "midcon07", "2026-09-07T04:43:00Z", Environment.UserName);
-            demo.Finished += o => Log("traffic sheet demo: " + o);
-            Application.Run(demo);
+            // The whole cycle, as in the launcher: print, pin or collapse to
+            // the icon, expand again. Closing the sheet from the taskbar ends it.
+            var ctx = new ApplicationContext();
+            var sheet = new TrafficReminderForm(mode, required, "Real-Time Online", "midcon07", "2026-09-07T04:43:00Z", Environment.UserName);
+            PrintoutIconForm icon = null;
+            sheet.PinChanged += p => Log("traffic sheet demo: " + (p ? "pinned" : "unpinned"));
+            sheet.Finished += o => Log("traffic sheet demo: " + o + (sheet.Pinned ? " (pinned)" : ""));
+            sheet.Collapsed += () =>
+            {
+                Log("traffic sheet demo: collapsed to icon");
+                if (icon == null || icon.IsDisposed)
+                {
+                    icon = new PrintoutIconForm(new Point(sheet.RestingLocation.X + sheet.Width, sheet.RestingLocation.Y));
+                    icon.Expand += () => sheet.Expand();
+                }
+                icon.Location = new Point(sheet.RestingLocation.X + sheet.Width - icon.Width, sheet.RestingLocation.Y);
+                icon.Show();
+            };
+            sheet.Expanded += () => { Log("traffic sheet demo: expanded"); icon?.Hide(); };
+            ctx.MainForm = sheet;
+            sheet.Show();
+            Application.Run(ctx);
             return;
+
         }
 
         // An exception on a background task or a UI callback was killing the

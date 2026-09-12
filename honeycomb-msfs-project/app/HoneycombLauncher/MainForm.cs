@@ -1115,6 +1115,7 @@ internal sealed partial class MainForm : Form
     // ---- the traffic reminder ------------------------------------------------
 
     private TrafficReminderForm _trafficReminder;
+    private PrintoutIconForm _trafficIcon;
     private bool _trafficReminderDismissed;
 
     /// <summary>
@@ -1131,10 +1132,28 @@ internal sealed partial class MainForm : Form
         var recorded = _cfg?.TrafficTypeRecorded ?? "";
         if (string.Equals(recorded, required, StringComparison.OrdinalIgnoreCase)) return;
         if (_trafficReminderDismissed) return;
-        if (_trafficReminder != null && !_trafficReminder.IsDisposed) { _trafficReminder.Activate(); return; }
+        PrintTrafficSheet(why);
+    }
 
-        Program.Log($"traffic reminder shown ({why}): mode {mode} needs Traffic Type '{required}', recorded '{(recorded == "" ? "never" : recorded)}'");
-        var f = new TrafficReminderForm(mode, required, recorded, _cfg?.TrafficTypeRecordedBy ?? "", _cfg?.TrafficTypeRecordedUtc ?? "", Environment.UserName);
+    /// <summary>
+    /// Prints a fresh sheet for the current state. One printout window lives
+    /// for the session: pinned it stays on top; unpinned it collapses to an
+    /// icon after a choice, and the icon brings the same sheet back. A new
+    /// occasion prints a new sheet in place of the old one.
+    /// </summary>
+    private void PrintTrafficSheet(string why)
+    {
+        var mode = _cfg?.TrafficMode ?? "";
+        var required = AppConfig.TrafficTypeRequiredFor(mode);
+        if (required == null) return;
+        var recorded = _cfg?.TrafficTypeRecorded ?? "";
+        bool pinned = _trafficReminder != null && !_trafficReminder.IsDisposed && _trafficReminder.Pinned;
+        if (_trafficReminder != null && !_trafficReminder.IsDisposed) { try { _trafficReminder.Close(); } catch { } }
+        if (_trafficIcon != null && !_trafficIcon.IsDisposed) _trafficIcon.Hide();
+
+        Program.Log($"traffic sheet printed ({why}): mode {mode} needs Traffic Type '{required}', recorded '{(recorded == "" ? "never" : recorded)}'{(pinned ? ", pinned" : "")}");
+        var f = new TrafficReminderForm(mode, required, recorded, _cfg?.TrafficTypeRecordedBy ?? "", _cfg?.TrafficTypeRecordedUtc ?? "", Environment.UserName, pinned);
+        f.PinChanged += p => Program.Log("traffic sheet: " + (p ? "pinned" : "unpinned"));
         f.Finished += async outcome =>
         {
             if (outcome == TrafficReminderForm.Outcome.Done)
@@ -1150,9 +1169,20 @@ internal sealed partial class MainForm : Form
             else
             {
                 _trafficReminderDismissed = true;
-                Program.Log("traffic reminder: not now");
+                Program.Log("traffic sheet: not now / closed");
             }
         };
+        f.Collapsed += () =>
+        {
+            if (_trafficIcon == null || _trafficIcon.IsDisposed)
+            {
+                _trafficIcon = new PrintoutIconForm(new Point(f.RestingLocation.X + f.Width, f.RestingLocation.Y));
+                _trafficIcon.Expand += () => { if (_trafficReminder != null && !_trafficReminder.IsDisposed) _trafficReminder.Expand(); };
+            }
+            _trafficIcon.Location = new Point(f.RestingLocation.X + f.Width - _trafficIcon.Width, f.RestingLocation.Y);
+            _trafficIcon.Show(); _trafficIcon.BringToFront();
+        };
+        f.Expanded += () => { if (_trafficIcon != null && !_trafficIcon.IsDisposed) _trafficIcon.Hide(); };
         _trafficReminder = f;
         f.Show();
     }
