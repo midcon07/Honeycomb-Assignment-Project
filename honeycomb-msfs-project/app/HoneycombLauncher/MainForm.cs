@@ -1162,7 +1162,16 @@ internal sealed partial class MainForm : Form
         float pitch = _cfg?.PrintoutPitch ?? 2.6f;
         if (Array.IndexOf(TrafficReminderForm.Pitches, pitch) < 0) pitch = 2.6f;
         Program.Log($"traffic sheet printed ({why}): mode {mode} needs Traffic Type '{required}', recorded '{(recorded == "" ? "never" : recorded)}'");
-        var f = new TrafficReminderForm(mode, required, recorded, _cfg?.TrafficTypeRecordedBy ?? "", _cfg?.TrafficTypeRecordedUtc ?? "", Environment.UserName, true, pitch);
+        Rectangle? remembered = null;
+        var pb = _cfg?.PrintoutBounds;
+        if (pb != null && pb.Length == 4) remembered = new Rectangle(pb[0], pb[1], pb[2], pb[3]);
+        var f = new TrafficReminderForm(mode, required, recorded, _cfg?.TrafficTypeRecordedBy ?? "", _cfg?.TrafficTypeRecordedUtc ?? "", Environment.UserName, true, pitch, remembered);
+        f.BoundsSettled += r =>
+        {
+            _cfg ??= new AppConfig();
+            _cfg.PrintoutBounds = new[] { r.X, r.Y, r.Width, r.Height };
+            try { _cfg.Save(); } catch (Exception ex) { Program.LogError("save printout place", ex); }
+        };
         f.PinChanged += p => Program.Log("traffic sheet: " + (p ? "anchored on top" : "let loose"));
         f.PitchChanged += p =>
         {

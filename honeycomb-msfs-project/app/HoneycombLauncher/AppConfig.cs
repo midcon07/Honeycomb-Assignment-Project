@@ -44,6 +44,9 @@ internal sealed class AppConfig
     [JsonPropertyName("trafficTypeRecordedUtc")] public string TrafficTypeRecordedUtc { get; set; } = "";
     // The printout window's text size (dot pitch in px), from its A- / A+ buttons.
     [JsonPropertyName("printoutPitch")]          public float  PrintoutPitch          { get; set; } = 2.6f;
+    // Where the printout window was last left by hand (moved or resized):
+    // screen x, y and client width, height. Every sheet starts there.
+    [JsonPropertyName("printoutBounds")]         public int[]  PrintoutBounds         { get; set; } = null;
 
     /// <summary>What MSFS's Traffic Type must be for the chosen mode; null when no mode is chosen.</summary>
     public static string TrafficTypeRequiredFor(string mode) => mode switch

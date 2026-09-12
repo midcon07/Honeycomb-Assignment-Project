@@ -70,7 +70,10 @@ internal sealed class TrafficReminderForm : Form
     private readonly string _who;
     private readonly bool _resolved;
 
-    public TrafficReminderForm(string mode, string required, string recorded, string recordedBy, string recordedUtc, string who, bool pinned = true, float pitch = 2.6f)
+    /// <summary>Raised when the person has moved or resized the sheet, so the place can be remembered.</summary>
+    public event Action<Rectangle> BoundsSettled;
+
+    public TrafficReminderForm(string mode, string required, string recorded, string recordedBy, string recordedUtc, string who, bool pinned = true, float pitch = 2.6f, Rectangle? remembered = null)
     {
         Pinned = pinned;
         _pitch = pitch;
@@ -139,6 +142,14 @@ internal sealed class TrafficReminderForm : Form
         ClientSize = new Size(w, h);
         var scr = Screen.PrimaryScreen.WorkingArea;
         Location = new Point(scr.Right - w - 36, scr.Top + 36);
+        // Where it was last left, moved or resized by hand, wins - unless
+        // that place is off every screen now (a monitor unplugged).
+        if (remembered is Rectangle rb && rb.Width >= MinimumSize.Width && rb.Height >= MinimumSize.Height)
+        {
+            var onScreen = false;
+            foreach (var sc in Screen.AllScreens) if (sc.WorkingArea.IntersectsWith(rb)) { onScreen = true; break; }
+            if (onScreen) { Location = rb.Location; ClientSize = rb.Size; }
+        }
 
         _sounds = new DotMatrix.Sounds(CharMs);
         _clock.Tick += (_, __) => Step();
@@ -175,10 +186,12 @@ internal sealed class TrafficReminderForm : Form
             return;
         }
         base.WndProc(ref m);
-        if (m.Msg == WM_EXITSIZEMOVE && !Pinned && !_busy && !IsMinimised)
+        if (m.Msg == WM_EXITSIZEMOVE && !_busy && !IsMinimised)
         {
-            // Dropped somewhere on purpose: it stays there, on top (Mark, 2026-09-11).
-            SetPinned(true);
+            // Dropped or resized by hand: it stays there, on top, and the
+            // place is remembered for every sheet after this (Mark, 2026-09-11).
+            if (!Pinned) SetPinned(true);
+            if (!_maximised) BoundsSettled?.Invoke(new Rectangle(Location, ClientSize));
         }
     }
 
@@ -386,6 +399,7 @@ internal sealed class TrafficReminderForm : Form
             var scr = Screen.FromControl(this).WorkingArea;
             w = Math.Min(w, scr.Width); h = Math.Min(h, scr.Height);
             SetBounds(Math.Max(scr.Left, right - w), Top, w, h);
+            BoundsSettled?.Invoke(new Rectangle(Location, ClientSize));
         }
         Relayout();
         PitchChanged?.Invoke(_pitch);
@@ -583,6 +597,7 @@ internal sealed class TrafficReminderForm : Form
     protected override void OnMouseMove(MouseEventArgs e)
     {
         base.OnMouseMove(e);
+        MaybeStartDrag(e);
         bool onLamp = !_busy && LampRect.Contains(e.Location);
         var b = _busy ? null : BtnAt(e.Location);
         bool onChoice = !_printing && !_busy && IsChoice(SrcAt(e.Location));
@@ -601,13 +616,31 @@ internal sealed class TrafficReminderForm : Form
     // Dragging by the paper: Windows does the drag, so it moves and snaps like
     // any window and crosses monitors. Not from the lamp, the buttons, a choice
     // line, or the resize edges.
+    // A press on the paper is not yet a drag: a click with a pixel of hand
+    // movement in it used to nudge the sheet (Mark, 2026-09-11). The native
+    // drag begins only once the mouse has moved past the system drag size
+    // with the button held; a plain click leaves the sheet where it is.
+    private Point? _pressAt;
+
     protected override void OnMouseDown(MouseEventArgs e)
     {
         base.OnMouseDown(e);
+        _pressAt = null;
         if (e.Button != MouseButtons.Left || _busy || _maximised) return;
         if (LampRect.Contains(e.Location) || BtnAt(e.Location) != null) return;
         if (!_printing && IsChoice(SrcAt(e.Location))) return;
         if (e.X < Edge || e.Y < Edge || e.X >= Width - Edge || e.Y >= Height - Edge) return;
+        _pressAt = e.Location;
+    }
+
+    protected override void OnMouseUp(MouseEventArgs e) { base.OnMouseUp(e); _pressAt = null; }
+
+    private void MaybeStartDrag(MouseEventArgs e)
+    {
+        if (_pressAt is not Point p || e.Button != MouseButtons.Left) return;
+        var drag = SystemInformation.DragSize;
+        if (Math.Abs(e.X - p.X) < drag.Width && Math.Abs(e.Y - p.Y) < drag.Height) return;
+        _pressAt = null;
         ReleaseCapture();
         SendMessage(Handle, WM_NCLBUTTONDOWN, (IntPtr)HTCAPTION, IntPtr.Zero);
     }
