@@ -4,18 +4,21 @@ HONEYCOMB LAUNCHER
 What this is
   The program Mark has been building. It checks that everything needed for a
   flight is in place, shows your SimBrief plan, tells you which lever caps to
-  fit, sets up the throttle quadrant, and starts the simulator.
+  fit, sets up the throttle quadrant and the yoke, and starts the simulator.
 
 Installing it
-  1. Extract this whole folder somewhere you can find again - the Desktop is
-     fine. Keep all the files together; the program needs the tools and data
-     folders that came with it.
-  2. Double-click   HoneycombLauncher.exe
-  3. If Windows shows a blue box saying "Windows protected your PC", click
+  1. If an older copy of this program is on this computer, close it.
+  2. Extract this whole folder somewhere you can find again - the Desktop is
+     fine. Keep all the files together; the program needs the tools, data and
+     ui folders that came with it. Replacing an older copy is fine: your
+     settings are kept elsewhere and are not touched.
+  3. Double-click   HoneycombLauncher.exe
+  4. If Windows shows a blue box saying "Windows protected your PC", click
      "More info", then "Run anyway".
 
 Nothing else needs installing. The two things it depends on - the .NET 8
-desktop runtime and WebView2 - are already on this computer.
+desktop runtime and WebView2 - are already on this computer. It never fetches
+anything from the internet except your SimBrief plan and the weather.
 
 What it does when it starts
   It starts FSUIPC7 for you, then checks the computer over and shows what it
@@ -32,12 +35,38 @@ Setting up the throttle quadrant, once per aircraft
      and starts it again. It will tell you exactly what it wrote.
   4. In the simulator, under Options then Controls, make sure the Bravo
      Throttle Quadrant is using the profile called "Claude Empty". Then press
-     "MSFS is on the empty Bravo profile" in this program so it remembers.
+     "Empty Bravo profile set" in this program so it remembers.
+
+The Bravo buttons, once
+  Press "Set up Bravo buttons in FSUIPC". The autopilot buttons, the knob, the
+  gear, flaps and trim, and the switches are then all assigned. Switch 6 is
+  the parking brake.
+
+The yoke
+  If the program says the yoke is not centred, press "Recalibrate the Alpha".
+  A window opens and walks you through it step by step: hands off, then full
+  left and right, then full forward and back. It takes about a minute.
+
+Traffic
+  The box marked TRAFFIC at the top is which program feeds the other aircraft:
+     BATC  - BeyondATC
+     FSLTL - the FSLTL injector
+     MSFS  - the simulator's own traffic
+  When the simulator's settings do not match your choice, a printout appears -
+  a sheet of green-bar printer paper that prints what to change, with the
+  printer's sounds. Two of the settings it can read from the simulator, and it
+  ticks them off by itself the moment you change them. The third, Traffic
+  Type, it cannot read, so it asks you to click DONE once you have set it.
+  The printout stays on top of the simulator. Drag it by its paper to move
+  it; the light in its corner is green while it is anchored on top. The
+  PRINTOUT button on the main window winds it up into a small square and
+  brings it back.
 
 If something looks wrong
   The program keeps a note of what it did. Send Mark this file:
      %LOCALAPPDATA%\HoneycombAssignment\launcher.log
   Paste that line into the address bar of a File Explorer window to find it.
+  The file VERSION.txt in this folder says which build this is; mention it.
 
   It is written to be honest rather than reassuring. If it says something is
   not right, believe it - that is the whole point of it.
