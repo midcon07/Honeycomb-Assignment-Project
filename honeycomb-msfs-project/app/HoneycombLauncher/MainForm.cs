@@ -423,8 +423,17 @@ internal sealed partial class MainForm : Form
                 }
 
             case "showTrafficReminder":
+                // The Printout button: bring the sheet back if it is put away,
+                // otherwise print one for the current state - needed or not.
                 _trafficReminderDismissed = false;
-                ShowTrafficReminderIfNeeded("asked for");
+                if (_trafficReminder != null && !_trafficReminder.IsDisposed)
+                {
+                    if (_trafficReminder.IsMinimised) _trafficReminder.Restore();
+                    else _trafficReminder.Activate();
+                }
+                else if (string.IsNullOrWhiteSpace(_cfg?.TrafficMode))
+                    await Send(new { kind = "printout", message = "Choose a traffic mode first - BATC, FSLTL or MSFS - and the printout prints for it." });
+                else PrintTrafficSheet("asked for");
                 break;
 
             case "setPilotId":
