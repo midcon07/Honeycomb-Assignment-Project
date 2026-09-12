@@ -88,8 +88,7 @@ internal sealed class TrafficReminderForm : Form
         if (!string.IsNullOrWhiteSpace(recordedUtc) && DateTime.TryParse(recordedUtc, null, System.Globalization.DateTimeStyles.AdjustToUniversal | System.Globalization.DateTimeStyles.AssumeUniversal, out var dt))
             when = dt.ToLocalTime().ToString("dd MMM").ToUpperInvariant();
 
-        // The date ends six columns short of the edge: the pushpin lives in that corner.
-        _lines.Add(("HONEYCOMB PREFLIGHT".PadRight(Cols - 21) + DateTime.Now.ToString("dd MMM yy HH:mm").ToUpperInvariant()));
+        _lines.Add(("HONEYCOMB PREFLIGHT".PadRight(Cols - 15) + DateTime.Now.ToString("dd MMM yy HH:mm").ToUpperInvariant()));
         _lines.Add(_resolved ? "*** TRAFFIC - AS RECORDED ***" : "*** ACTION REQUIRED IN THE SIMULATOR ***");
         _lines.Add("");
         _lines.Add("TRAFFIC MODE: " + mono);
@@ -171,9 +170,10 @@ internal sealed class TrafficReminderForm : Form
 
     // ---- the pushpin -----------------------------------------------------------
     // Through the top-right corner of the paper, inside the sprocket strip.
-    // The top-right corner of the paper itself, over the first three lines
-    // and the sprocket strip: big enough to be seen from across the room.
-    private Rectangle PinRect => new(_sheet.Width - StripW - 74, 6, StripW + 70, 78);
+    // The anchor lamp: a small annunciator light in the top-left corner, over
+    // the sprocket strip. Green = anchored (pinned), red = loose. Its rect is
+    // the click target and the area redrawn when it changes.
+    private Rectangle PinRect => new(0, 0, StripW, 54);
     private bool _pinHover;
     public event Action<bool> PinChanged;
 
@@ -181,62 +181,29 @@ internal sealed class TrafficReminderForm : Form
     {
         var r = PinRect;
         g.SmoothingMode = SmoothingMode.AntiAlias;
-        // The paper under the pin is redrawn first - cream, the green bar
-        // that the first three lines sit on, the perforation and the sprocket
-        // holes - so toggling leaves no trace.
+        // The strip under the lamp is redrawn first - paper, the perforation
+        // line, the hole it sits beside - so a change leaves no trace.
         using (var paper = new SolidBrush(Paper)) g.FillRectangle(paper, r);
-        using (var bar = new SolidBrush(Bar))
-        {
-            float barTop = LineTop(0) - Pitch * 1.5f, barBottom = barTop + LineH * 3;
-            g.FillRectangle(bar, r.X, Math.Max(r.Y, barTop), Math.Min(r.Right, _sheet.Width - StripW) - r.X, Math.Min(r.Bottom, barBottom) - Math.Max(r.Y, barTop));
-        }
-        using (var perf = new Pen(Perf, 1) { DashStyle = DashStyle.Dot }) g.DrawLine(perf, _sheet.Width - StripW, r.Top, _sheet.Width - StripW, r.Bottom);
+        using (var perf = new Pen(Perf, 1) { DashStyle = DashStyle.Dot }) { g.DrawLine(perf, StripW, r.Top, StripW, r.Bottom); g.DrawLine(perf, r.Left, 6, r.Right, 6); }
         using (var hole = new SolidBrush(BackColor))
         using (var rim = new Pen(Color.FromArgb(120, 110, 100, 90), 1))
             for (float y = 14; y < r.Bottom + 6; y += LineH)
-                if (y >= r.Top - 6) { float hx = _sheet.Width - StripW / 2f; g.FillEllipse(hole, hx - 5, y - 5, 10, 10); g.DrawEllipse(rim, hx - 5, y - 5, 10, 10); }
+                if (y > 30) { float hx = StripW / 2f; g.FillEllipse(hole, hx - 5, y - 5, 10, 10); g.DrawEllipse(rim, hx - 5, y - 5, 10, 10); }
 
-        // The pin itself, over the paper's corner, with its word printed under it.
-        float cx = r.X + 36, cy = r.Y + 30;
-        var red = _pinHover ? Color.FromArgb(240, 70, 58) : Color.FromArgb(205, 36, 30);
-        var rnd = new Random(3);
-        if (Pinned)
+        // The lamp: a small lens with a wide soft bloom, brighter under the mouse.
+        float cx = StripW / 2f, cy = 22;
+        Color on = Pinned ? Color.FromArgb(70, 220, 90) : Color.FromArgb(240, 60, 50);
+        if (_pinHover) on = Pinned ? Color.FromArgb(120, 255, 130) : Color.FromArgb(255, 110, 95);
+        for (int i = 8; i >= 1; i--)
         {
-            // Pushed in: the head flat on the paper, a tight shadow, the needle gone.
-            using var shadow = new SolidBrush(Color.FromArgb(85, 0, 0, 0));
-            g.FillEllipse(shadow, cx - 15, cy - 11, 32, 30);
-            using var head = new SolidBrush(red);
-            g.FillEllipse(head, cx - 16, cy - 16, 32, 32);
-            using var rimDark = new Pen(Color.FromArgb(150, 70, 12, 10), 1.4f);
-            g.DrawEllipse(rimDark, cx - 16, cy - 16, 32, 32);
-            using var hi = new SolidBrush(Color.FromArgb(170, 255, 255, 255));
-            g.FillEllipse(hi, cx - 9, cy - 11, 11, 8);
-            float tx = r.X + 4;
-            foreach (var c in "PINNED") { DotMatrix.DrawChar(g, c, tx, r.Y + 54, 1.9f, Ink, rnd); tx += 1.9f * 6; }
+            float rad = 5 + i * 2.2f;
+            int a = (int)(6 + (8 - i) * 6);
+            using var bloom = new SolidBrush(Color.FromArgb(a, on));
+            g.FillEllipse(bloom, cx - rad, cy - rad, rad * 2, rad * 2);
         }
-        else
-        {
-            // Out: the pin leans over the paper, needle down to a dotted ring
-            // where it goes; the head lifted, catching the light.
-            using var ring = new Pen(Color.FromArgb(210, 140, 130, 110), 1.6f) { DashStyle = DashStyle.Dot };
-            g.DrawEllipse(ring, cx - 6, cy + 10, 12, 12);
-            using var needleShadow = new Pen(Color.FromArgb(70, 0, 0, 0), 4f);
-            g.DrawLine(needleShadow, cx + 6, cy - 4, cx + 2, cy + 16);
-            using var needle = new Pen(Color.FromArgb(175, 175, 180), 3f);
-            g.DrawLine(needle, cx + 5, cy - 6, cx + 1, cy + 15);
-            using var glint = new Pen(Color.FromArgb(235, 255, 255, 255), 1f);
-            g.DrawLine(glint, cx + 4, cy - 5, cx + 0.5f, cy + 12);
-            using var shadow = new SolidBrush(Color.FromArgb(50, 0, 0, 0));
-            g.FillEllipse(shadow, cx - 8, cy - 14, 32, 30);
-            using var head = new SolidBrush(red);
-            g.FillEllipse(head, cx - 10, cy - 30, 30, 30);
-            using var rimDark = new Pen(Color.FromArgb(150, 70, 12, 10), 1.4f);
-            g.DrawEllipse(rimDark, cx - 10, cy - 30, 30, 30);
-            using var hi = new SolidBrush(Color.FromArgb(180, 255, 255, 255));
-            g.FillEllipse(hi, cx - 4, cy - 26, 11, 8);
-            float tx = r.X + 4;
-            foreach (var c in "^ PIN") { DotMatrix.DrawChar(g, c, tx, r.Y + 54, 1.9f, Ink, rnd); tx += 1.9f * 6; }
-        }
+        using (var bezel = new SolidBrush(Color.FromArgb(60, 58, 55))) g.FillEllipse(bezel, cx - 7, cy - 7, 14, 14);
+        using (var lens = new SolidBrush(on)) g.FillEllipse(lens, cx - 5, cy - 5, 10, 10);
+        using (var core = new SolidBrush(Color.FromArgb(200, 255, 255, 255))) g.FillEllipse(core, cx - 2.2f, cy - 2.8f, 3.6f, 3.2f);
     }
 
     private void RedrawPin()
