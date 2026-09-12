@@ -446,13 +446,16 @@ internal sealed partial class MainForm : Form
                 }
 
             case "showTrafficReminder":
-                // The Printout button: bring the sheet back if it is put away,
-                // otherwise print one for the current state - needed or not.
+                // The Printout button toggles: a sheet that is put away winds
+                // back down; an open sheet winds up into its square at the
+                // anchor (Mark, 2026-09-12: "hitting it again should take it
+                // back to the dock"). No sheet yet: print one for the current
+                // state, needed or not.
                 _trafficReminderDismissed = false;
                 if (_trafficReminder != null && !_trafficReminder.IsDisposed)
                 {
                     if (_trafficReminder.IsMinimised) _trafficReminder.Restore();
-                    else _trafficReminder.Activate();
+                    else _trafficReminder.Minimise();
                 }
                 else if (string.IsNullOrWhiteSpace(_cfg?.TrafficMode))
                     await Send(new { kind = "printout", message = "Choose a traffic mode first - BATC, FSLTL or MSFS - and the printout prints for it." });
