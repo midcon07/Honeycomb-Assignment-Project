@@ -32,6 +32,25 @@ internal sealed class AppConfig
     // one created for this program. Named so the gate can say which to pick.
     [JsonPropertyName("msfsBravoProfileName")]         public string MsfsBravoProfileName         { get; set; } = "";
 
+    // AI traffic. The MODE is which engine feeds traffic: BATC, FSLTL or MSFS
+    // (Mark, 2026-09-11). BATC and FSLTL need MSFS's Traffic Type set to
+    // "Off" in Options > General > Online; MSFS needs "Real-Time Online".
+    // That setting lives only in Microsoft's cloud profile (measured
+    // 2026-09-11: three saves byte-compared, no trace on disk), so what is
+    // recorded here is a person's word - who said it was set, to what, when.
+    [JsonPropertyName("trafficMode")]            public string TrafficMode            { get; set; } = "";
+    [JsonPropertyName("trafficTypeRecorded")]    public string TrafficTypeRecorded    { get; set; } = "";
+    [JsonPropertyName("trafficTypeRecordedBy")]  public string TrafficTypeRecordedBy  { get; set; } = "";
+    [JsonPropertyName("trafficTypeRecordedUtc")] public string TrafficTypeRecordedUtc { get; set; } = "";
+
+    /// <summary>What MSFS's Traffic Type must be for the chosen mode; null when no mode is chosen.</summary>
+    public static string TrafficTypeRequiredFor(string mode) => mode switch
+    {
+        "BATC" or "FSLTL" => "Off",
+        "MSFS" => "Real-Time Online",
+        _ => null
+    };
+
     public static string Path { get; } = System.IO.Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "HoneycombAssignment", "config.json");

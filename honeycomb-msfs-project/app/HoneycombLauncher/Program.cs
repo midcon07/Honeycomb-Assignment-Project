@@ -31,8 +31,22 @@ internal static class Program
     }
 
     [STAThread]
-    private static void Main()
+    private static void Main(string[] args)
     {
+        // "--traffic-sheet [mode]" prints the reminder sheet on its own, with
+        // sample values, and records nothing: for seeing and hearing it
+        // without a simulator, and for testing it.
+        if (args.Length > 0 && args[0] == "--traffic-sheet")
+        {
+            ApplicationConfiguration.Initialize();
+            var mode = args.Length > 1 ? args[1] : "BATC";
+            var required = AppConfig.TrafficTypeRequiredFor(mode) ?? "Off";
+            var demo = new TrafficReminderForm(mode, required, "Real-Time Online", "midcon07", "2026-09-07T04:43:00Z", Environment.UserName);
+            demo.Finished += o => Log("traffic sheet demo: " + o);
+            Application.Run(demo);
+            return;
+        }
+
         // An exception on a background task or a UI callback was killing the
         // process with nothing shown and nothing written down. Catch everything
         // at the edges, write it, and say so rather than vanishing.

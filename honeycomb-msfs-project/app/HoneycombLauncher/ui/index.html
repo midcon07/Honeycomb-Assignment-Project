@@ -333,6 +333,15 @@
     box-shadow: inset 0 2px 5px rgba(0,0,0,.8);
   }
   #acSelect:focus-visible { outline: 2px solid var(--cyan); outline-offset: 1px; }
+  #trafficSelect {
+    flex: 0 0 auto; min-width: 8.5em;
+    font-family: var(--f-placard); font-size: 16px; font-weight: 600; letter-spacing: .05em;
+    color: var(--placard); background: #11161A;
+    border: 1px solid #000; border-radius: 2px; padding: 10px 12px;
+    box-shadow: inset 0 2px 5px rgba(0,0,0,.8);
+  }
+  #trafficSelect:focus-visible { outline: 2px solid var(--cyan); outline-offset: 1px; }
+  #trafficSelect option { color: var(--placard); background: #11161A; font-weight: 500; }
   #acSelect optgroup { font-style: normal; color: var(--placard-faint); background: #0D1114; }
   #acSelect option { color: var(--placard); background: #11161A; font-weight: 500; }
 
@@ -665,6 +674,13 @@
       <button class="pbtn" id="depWx"  type="button" disabled>Departure Wx</button>
       <button class="pbtn" id="destWx" type="button" disabled>Destination Wx</button>
       <button class="pbtn" id="addAcBtn" type="button">Add aircraft</button>
+      <label class="acbar-label" for="trafficSelect" title="Which engine feeds AI traffic. BATC and FSLTL need MSFS's Traffic Type set to Off in the sim; MSFS needs Real-Time Online.">Traffic</label>
+      <select id="trafficSelect">
+        <option value="">choose…</option>
+        <option value="BATC">BATC</option>
+        <option value="FSLTL">FSLTL</option>
+        <option value="MSFS">MSFS</option>
+      </select>
     </div>
 
     <div class="meter hidden" id="meter" role="status" aria-live="polite">
@@ -829,6 +845,8 @@ window.APP = {
         S.config = msg;
         if (msg.fleet) { FLEET = msg.fleet; }
         if (msg.layouts) { setLayouts(msg.layouts, msg.capLabels); }
+        var ts = byId("trafficSelect");
+        if (ts && ts.value !== (msg.trafficMode || "")) { ts.value = msg.trafficMode || ""; }
         // Prefill the Pilot ID box, but never overwrite what someone is typing.
         if (document.activeElement !== byId("pilotIdInput")) { byId("pilotIdInput").value = msg.pilotId || ""; }
         if (!S.selectedId && msg.lastAircraftId) { S.selectedId = msg.lastAircraftId; }
@@ -1052,6 +1070,26 @@ function renderChecklist() {
          });
        });
   }
+
+  /* AI traffic: the mode is chosen here; the sim's Traffic Type is set by a
+     person inside the sim and recorded as their word - the sim keeps it where
+     no program can read it. */
+  (function () {
+    var c = S.config || {};
+    if (!c.trafficMode) {
+      rows.push({ chal: "Traffic", resp: "NOT CHOSEN", lamp: "a", tone: "a", row: "attn",
+                  note: "Choose BATC, FSLTL or MSFS at the top. BATC and FSLTL need the sim's Traffic Type set to Off; MSFS needs Real-Time Online." });
+      return;
+    }
+    var ok = c.trafficRecorded && c.trafficRequired && c.trafficRecorded.toLowerCase() === c.trafficRequired.toLowerCase();
+    var whenTxt = "";
+    if (c.trafficRecordedUtc) { var d = new Date(c.trafficRecordedUtc); if (!isNaN(d)) { whenTxt = " on " + d.toLocaleDateString(); } }
+    rows.push({ chal: "Traffic: " + c.trafficMode, resp: ok ? "SET IN SIM" : "SET IN SIM?",
+                lamp: ok ? "g" : "a", tone: ok ? "g" : "a", row: ok ? "" : "attn",
+                note: ok
+                  ? ("Traffic Type " + c.trafficRecorded + ", as " + (c.trafficRecordedBy || "someone") + " recorded it" + whenTxt + " (their word; the sim does not let this program check it).")
+                  : ("The sim's Traffic Type must be " + c.trafficRequired + " for " + c.trafficMode + (c.trafficRecorded ? "; it was last recorded as " + c.trafficRecorded + "." : "; it has never been recorded.") + " A reminder sheet prints when the simulator starts.") });
+  })();
 
   rows.push({ chal: "Aircraft", resp: a ? a.type : "NOT CHOSEN",
               lamp: a ? "g" : "a", tone: a ? "g" : "a", row: a ? "" : "attn",
@@ -1412,6 +1450,8 @@ byId("sbLink").addEventListener("click", function (e) {
 /* Confirming the caps is a deliberate act - it is the one step no software can
    verify, so it must not be something that happens by itself. */
 (function addConfirm() {
+  var trafficSel = byId("trafficSelect");
+  if (trafficSel) { trafficSel.addEventListener("change", function () { post({ action: "setTrafficMode", mode: trafficSel.value }); }); }
   var bar = document.querySelector(".acbar");
   var b = el("button", "pbtn", "Lever caps are set");
   b.type = "button";

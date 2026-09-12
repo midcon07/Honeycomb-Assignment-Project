@@ -258,6 +258,9 @@ internal sealed partial class MainForm : Form
             try { await RefreshAllAsync(); }
             catch (Exception ex) { Program.LogError("RefreshAll", ex); }
             _slowPoll.Start();
+            // Seen at start too, so it is read before the flight rather than
+            // discovered over the runway; "not now" holds it until the sim starts.
+            try { ShowTrafficReminderIfNeeded("program started"); } catch (Exception ex) { Program.LogError("traffic reminder", ex); }
         };
 
         var ui = Path.Combine(AppContext.BaseDirectory, "ui", "index.html");
@@ -404,6 +407,25 @@ internal sealed partial class MainForm : Form
                     }
                     break;
                 }
+
+            case "setTrafficMode":
+                {
+                    var mode = msg.TryGetProperty("mode", out var mv) ? (mv.GetString() ?? "") : "";
+                    if (mode != "BATC" && mode != "FSLTL" && mode != "MSFS") mode = "";
+                    _cfg ??= new AppConfig();
+                    _cfg.TrafficMode = mode;
+                    _cfg.Save();
+                    Program.Log("traffic mode: " + (mode == "" ? "(none)" : mode));
+                    await PushConfigAsync();
+                    _trafficReminderDismissed = false;   // a new choice deserves a fresh reminder
+                    ShowTrafficReminderIfNeeded("mode chosen");
+                    break;
+                }
+
+            case "showTrafficReminder":
+                _trafficReminderDismissed = false;
+                ShowTrafficReminderIfNeeded("asked for");
+                break;
 
             case "setPilotId":
                 {
@@ -586,6 +608,11 @@ internal sealed partial class MainForm : Form
             capsSetForLayout = _cfg?.CapsSetForLayout ?? "",
             aircraftUse = _cfg?.AircraftUse ?? new Dictionary<string, int>(),
             bravoProfileConfirmed = !string.IsNullOrWhiteSpace(_cfg?.MsfsBravoProfileConfirmedUtc),
+            trafficMode = _cfg?.TrafficMode ?? "",
+            trafficRequired = AppConfig.TrafficTypeRequiredFor(_cfg?.TrafficMode ?? "") ?? "",
+            trafficRecorded = _cfg?.TrafficTypeRecorded ?? "",
+            trafficRecordedBy = _cfg?.TrafficTypeRecordedBy ?? "",
+            trafficRecordedUtc = _cfg?.TrafficTypeRecordedUtc ?? "",
             leversWrittenIds = levers,
             buttonsWritten = buttons,
             fleet,
@@ -1079,6 +1106,55 @@ internal sealed partial class MainForm : Form
 
         Runner.LaunchSimulator();
         await Send(new { kind = "launched" });
+        // The one setting only a person can change, and only inside the sim:
+        // the reminder goes up now, on top of the sim, so it is seen there.
+        _trafficReminderDismissed = false;
+        ShowTrafficReminderIfNeeded("simulator started");
+    }
+
+    // ---- the traffic reminder ------------------------------------------------
+
+    private TrafficReminderForm _trafficReminder;
+    private bool _trafficReminderDismissed;
+
+    /// <summary>
+    /// Puts the tractor-feed sheet up when the chosen traffic mode needs a
+    /// different MSFS Traffic Type from the one last recorded. Once per
+    /// occasion: "not now" holds it until the next occasion (mode change,
+    /// simulator start, program start), never for good.
+    /// </summary>
+    private void ShowTrafficReminderIfNeeded(string why)
+    {
+        var mode = _cfg?.TrafficMode ?? "";
+        var required = AppConfig.TrafficTypeRequiredFor(mode);
+        if (required == null) return;
+        var recorded = _cfg?.TrafficTypeRecorded ?? "";
+        if (string.Equals(recorded, required, StringComparison.OrdinalIgnoreCase)) return;
+        if (_trafficReminderDismissed) return;
+        if (_trafficReminder != null && !_trafficReminder.IsDisposed) { _trafficReminder.Activate(); return; }
+
+        Program.Log($"traffic reminder shown ({why}): mode {mode} needs Traffic Type '{required}', recorded '{(recorded == "" ? "never" : recorded)}'");
+        var f = new TrafficReminderForm(mode, required, recorded, _cfg?.TrafficTypeRecordedBy ?? "", _cfg?.TrafficTypeRecordedUtc ?? "", Environment.UserName);
+        f.Finished += async outcome =>
+        {
+            if (outcome == TrafficReminderForm.Outcome.Done)
+            {
+                _cfg ??= new AppConfig();
+                _cfg.TrafficTypeRecorded = required;
+                _cfg.TrafficTypeRecordedBy = Environment.UserName;
+                _cfg.TrafficTypeRecordedUtc = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
+                _cfg.Save();
+                Program.Log($"traffic type recorded as '{required}' by {Environment.UserName} (their word)");
+                try { await PushConfigAsync(); } catch (Exception ex) { Program.LogError("push after traffic record", ex); }
+            }
+            else
+            {
+                _trafficReminderDismissed = true;
+                Program.Log("traffic reminder: not now");
+            }
+        };
+        _trafficReminder = f;
+        f.Show();
     }
 
     // ---- plumbing ----------------------------------------------------------

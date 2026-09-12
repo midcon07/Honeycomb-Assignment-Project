@@ -113,14 +113,38 @@ read that; a byte diff around a profile switch may make it readable.
   the person chose and, if the container diff works, reads back what the
   sim actually has. Otherwise the person's word, like the Bravo profile.
 
+## Built 2026-09-11: the mode choice and the tractor-feed reminder
+
+- **Mode choice** in the launcher's top bar (`Traffic` select: BATC / FSLTL /
+  MSFS) -> `config.json` `trafficMode`. The checklist row "Traffic: <mode>"
+  is amber until the sim's Traffic Type has been recorded as what the mode
+  needs, green after, and its note says whose word it is and when.
+- **The reminder** (`TrafficReminderForm.cs`, `DotMatrix.cs`): a sheet of
+  green-bar tractor-feed paper, always on top, that prints - one character
+  at a time in a 5x7 dot font, with the printer's sounds synthesised in
+  memory (print-head loop, line-feed zip, strike, tear-off; written once to
+  `%LOCALAPPDATA%\HoneycombAssignment\sounds\`) - what to set in the sim:
+  Options > General > Online > Traffic Type, then Save and back. It appears
+  when the chosen mode needs a different Traffic Type from the one last
+  recorded: at program start, on a mode change, and when Start Simulator
+  is pressed (on top of the sim). Two printed lines are clickable (Enter /
+  Escape too): DONE prints an X, strikes the line through, prints
+  "RECORDED hh:mm BY <user>", tears off, and writes
+  `trafficTypeRecorded/By/Utc` to config.json - **a person's word, and the
+  sheet says so in print**. NOT NOW tears off and holds until the next
+  occasion. The sheet never claims to have verified anything.
+- `HoneycombLauncher.exe --traffic-sheet [BATC|FSLTL|MSFS]` prints the
+  sheet on its own with sample values and records nothing: for hearing and
+  seeing it without a sim.
+
 ## Next
 
-1. Words for the graphics levels (2 and 3 as the sim shows them) - one
-   look at Graphics > Traffic. Low value; the numbers are enough to verify.
-2. What the FSLTL injector and BATC each EXPECT (docs/config), so the check
-   can say "BATC is running but MSFS Traffic Type is not Off" - which it can
-   only say from the recorded mode, not from disk.
-3. The mode choice in the launcher (BATC / FSLTL / MSFS), stored in
-   config.json with who and when, and preflight rows per mode: the engine
-   running or not, BATC up to date, densities sane, and the reminder of
-   what Traffic Type must be set to for the chosen mode.
+1. Flight-time confirmation (second stage of the strike-through): once a
+   flight is loaded, count AI aircraft whose titles are not FSLTL/BATC
+   models; Asobo traffic present while the mode says Off is a certain
+   "wrong". Needs one measured flight to learn which titles belong to whom
+   (FSUIPC TCAS tables or SimConnect). Proving "right" is weaker (an empty
+   sky), so it confirms after a minute or two at a real airport.
+2. Preflight rows per mode: the engine running or not, BATC up to date
+   from its Player.log, densities sane.
+3. Words for the graphics levels - low value.
