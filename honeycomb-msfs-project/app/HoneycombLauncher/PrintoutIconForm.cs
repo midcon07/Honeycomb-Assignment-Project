@@ -29,6 +29,10 @@ internal sealed class PrintoutIconForm : Form
         Text = "Honeycomb Preflight - printout (minimised)";
         DoubleBuffered = true;
         BackColor = Color.FromArgb(24, 24, 24);
+        // Windows imposes a minimum width on any window unless told the
+        // minimum is smaller: without this the square came out 136 wide.
+        MinimumSize = new Size(56, 56);
+        MaximumSize = new Size(56, 56);
         ClientSize = new Size(56, 56);
         Location = topLeft;
         Cursor = Cursors.Hand;

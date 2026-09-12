@@ -1183,10 +1183,11 @@ internal sealed partial class MainForm : Form
         {
             if (_trafficIcon == null || _trafficIcon.IsDisposed)
             {
-                _trafficIcon = new PrintoutIconForm(f.RestingLocation);
+                _trafficIcon = new PrintoutIconForm(new Point(f.RestingLocation.X + f.Width, f.RestingLocation.Y));
                 _trafficIcon.Restore += () => { if (_trafficReminder != null && !_trafficReminder.IsDisposed) _trafficReminder.Restore(); };
             }
-            _trafficIcon.Location = f.RestingLocation;
+            // The square sits at the sheet's top-RIGHT corner (Mark, 2026-09-11).
+            _trafficIcon.Location = new Point(f.RestingLocation.X + f.Width - _trafficIcon.Width, f.RestingLocation.Y);
             _trafficIcon.Show(); _trafficIcon.BringToFront();
         };
         f.Restored += () => { if (_trafficIcon != null && !_trafficIcon.IsDisposed) _trafficIcon.Hide(); };

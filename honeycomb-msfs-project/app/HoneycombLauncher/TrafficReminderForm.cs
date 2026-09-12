@@ -134,7 +134,7 @@ internal sealed class TrafficReminderForm : Form
         }
         Add("");
 
-        int w = StripW * 2 + (int)(CharW * DefaultCols) + 24;
+        int w = StripW * 2 + (int)Math.Ceiling(CharW * DefaultCols) + 25;
         int h = TopMargin + (int)(LineH * (_src.Count + 2)) + BottomMargin;
         ClientSize = new Size(w, h);
         var scr = Screen.PrimaryScreen.WorkingArea;
@@ -191,7 +191,7 @@ internal sealed class TrafficReminderForm : Form
     // ---- layout: wrap the source lines to the paper's width ------------------------
     private void Relayout()
     {
-        _cols = Math.Max(20, (int)((ClientSize.Width - 2 * StripW - 24) / CharW));
+        _cols = Math.Max(20, (int)Math.Floor((ClientSize.Width - 2 * StripW - 24) / CharW + 0.01f));
         _rows.Clear();
         for (int s = 0; s < _src.Count; s++)
         {
@@ -381,7 +381,7 @@ internal sealed class TrafficReminderForm : Form
         {
             // The window grows or shrinks with the text, keeping its top-right corner.
             int right = Right;
-            int w = StripW * 2 + (int)(CharW * DefaultCols) + 24;
+            int w = StripW * 2 + (int)Math.Ceiling(CharW * DefaultCols) + 25;
             int h = TopMargin + (int)(LineH * (_src.Count + 2)) + BottomMargin;
             var scr = Screen.FromControl(this).WorkingArea;
             w = Math.Min(w, scr.Width); h = Math.Min(h, scr.Height);

@@ -54,7 +54,7 @@ internal static class Program
             {
                 Log("traffic sheet demo: minimised");
                 if (icon == null || icon.IsDisposed) { icon = new PrintoutIconForm(sheet.RestingLocation); icon.Restore += () => sheet.Restore(); }
-                icon.Location = sheet.RestingLocation;
+                icon.Location = new Point(sheet.RestingLocation.X + sheet.Width - icon.Width, sheet.RestingLocation.Y);
                 icon.Show();
             };
             sheet.Restored += () => { Log("traffic sheet demo: restored"); icon?.Hide(); };
