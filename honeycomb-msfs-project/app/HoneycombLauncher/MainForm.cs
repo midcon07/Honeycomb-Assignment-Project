@@ -431,6 +431,16 @@ internal sealed partial class MainForm : Form
                     break;
                 }
 
+            case "setEra":
+                {
+                    var era = msg.TryGetProperty("era", out var eraEl) ? (eraEl.GetString() ?? "") : "";
+                    _cfg ??= new AppConfig();
+                    _cfg.UiEra = era == "modern" ? "modern" : "80s";
+                    try { _cfg.Save(); } catch (Exception ex) { Program.LogError("save era", ex); }
+                    Program.Log("window face: " + _cfg.UiEra);
+                    break;
+                }
+
             case "setTrafficMode":
                 {
                     var mode = msg.TryGetProperty("mode", out var mv) ? (mv.GetString() ?? "") : "";
@@ -649,6 +659,7 @@ internal sealed partial class MainForm : Form
             trafficRecordedBy = _cfg?.TrafficTypeRecordedBy ?? "",
             trafficRecordedUtc = _cfg?.TrafficTypeRecordedUtc ?? "",
             trafficGfx = TrafficGraphicsForPage(),
+            uiEra = string.IsNullOrWhiteSpace(_cfg?.UiEra) ? "80s" : _cfg.UiEra,
             leversWrittenIds = levers,
             buttonsWritten = buttons,
             fleet,

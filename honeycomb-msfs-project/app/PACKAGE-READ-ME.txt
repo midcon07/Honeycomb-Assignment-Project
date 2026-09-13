@@ -79,6 +79,8 @@ The main window
   It is drawn as the airline ops terminal of 1989: a colour text screen.
   Green is fine, amber needs attention, red means do not fly yet. Buttons
   are the words in brackets; click them as before.
+  The button at the top marked "Modern" switches to the flight-deck look
+  it had before; it then reads "1989" to switch back. Either is fine.
 
 The Start Simulator button
   It says "Simulator Running" while the simulator is up and offers to start
