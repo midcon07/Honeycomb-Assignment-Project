@@ -1032,8 +1032,8 @@ internal sealed class TrafficReminderForm : Form
 
     protected override void OnPaint(PaintEventArgs e)
     {
-        if (_sheet == null) return;
-        e.Graphics.DrawImageUnscaled(_sheet, 0, 0);
+        if (_sheet == null || IsDisposed) return;
+        try { e.Graphics.DrawImageUnscaled(_sheet, 0, 0); } catch (ArgumentException) { return; }   // a bitmap replaced mid-paint: the next paint has the new one
         if (IsLaser && _reveal < _rows.Count + 1)
         {
             float y = TopMargin + _reveal * LineH;
@@ -1265,11 +1265,14 @@ internal sealed class TrafficReminderForm : Form
     {
         base.OnFormClosed(e);
         _clock.Stop(); _clock.Dispose();
+        _laserTimer?.Stop(); _laserTimer?.Dispose(); _laserTimer = null;
         _sounds.Dispose();
-        _sheet?.Dispose();
+        // A paint can still arrive after this (measured 2026-09-12: closing
+        // with YES, then one more WM_PAINT drew a disposed bitmap and the
+        // launcher put up its crash box). Null, so OnPaint draws nothing.
+        _sheet?.Dispose(); _sheet = null;
         _menu?.Dispose();
-        _laserFont?.Dispose();
-        _laserTimer?.Dispose();
+        _laserFont?.Dispose(); _laserFont = null;
     }
 
     // Keyboard: Enter = DONE, Escape = NOT NOW, same as the printed lines.
