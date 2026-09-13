@@ -78,6 +78,8 @@ internal sealed class TrafficReminderForm : Form
         public int Printer;               // 0 the dot matrix, 1 the LaserWriter (Mark, 2026-09-12)
         public string Face = "Helvetica"; // the LaserWriter's face, by its PostScript name
         public bool Ambience = true;      // the airport under the printer (Mark, 2026-09-12)
+        public int PrinterVolume = 2;     // 0 off, 1 quiet, 2 as built, 3 loud
+        public int AmbienceVolume = 2;    // the same steps for the airport
         public Options Clone() => (Options)MemberwiseClone();
     }
     private bool IsLaser => Opts.Printer == 1;
@@ -127,6 +129,9 @@ internal sealed class TrafficReminderForm : Form
     private static readonly int[] TonerAlpha = { 165, 215, 240, 255 };
     private Color Ink => IsLaser ? Color.FromArgb(TonerAlpha[Math.Max(0, Math.Min(3, Opts.Ink))], 18, 18, 18) : InkByWeight[Math.Max(0, Math.Min(3, Opts.Ink))];
     private double CharMs => SpeedMs[Math.Max(0, Math.Min(2, Opts.Speed))];
+    private static readonly float[] Levels = { 0f, 0.35f, 1f, 1.6f };
+    private float PrinterLevel => Levels[Math.Max(0, Math.Min(3, Opts.PrinterVolume))];
+    private float AmbienceLevel => Levels[Math.Max(0, Math.Min(3, Opts.AmbienceVolume))] * 0.55f;
 
     // ---- paper geometry ------------------------------------------------------
     public static readonly float[] Pitches = { 2.0f, 2.3f, 2.6f, 3.0f, 3.4f, 3.9f, 4.4f };
@@ -312,7 +317,7 @@ internal sealed class TrafficReminderForm : Form
             if (onScreen) { Location = rb.Location; ClientSize = rb.Size; }
         }
 
-        _sounds = new DotMatrix.Sounds(CharMs, LaserPhase);
+        _sounds = new DotMatrix.Sounds(CharMs, LaserPhase) { Volume = PrinterLevel };
         _clock.Interval = (int)CharMs;
         _clock.Tick += (_, __) => Step();
         BuildMenu();
@@ -681,8 +686,20 @@ internal sealed class TrafficReminderForm : Form
             it.Click += (_, __) => { Opts.Face = name; ApplyOptions(); };
             face.DropDownItems.Add(it);
         }
-        var amb = new ToolStripMenuItem("Airport ambience") { Checked = Opts.Ambience, CheckOnClick = true };
-        amb.Click += (_, __) => { Opts.Ambience = amb.Checked; ApplyOptions(); };
+        var pvol = new ToolStripMenuItem("Printer sound");
+        foreach (var (label, v) in new[] { ("Off", 0), ("Quiet", 1), ("Normal", 2), ("Loud", 3) })
+        {
+            var it = new ToolStripMenuItem(label) { Checked = Opts.PrinterVolume == v, Tag = v };
+            it.Click += (_, __) => { Opts.PrinterVolume = v; ApplyOptions(); };
+            pvol.DropDownItems.Add(it);
+        }
+        var amb = new ToolStripMenuItem("Airport");
+        foreach (var (label, v) in new[] { ("Off", 0), ("Quiet", 1), ("Normal", 2), ("Loud", 3) })
+        {
+            var it = new ToolStripMenuItem(label) { Checked = Opts.AmbienceVolume == v, Tag = v };
+            it.Click += (_, __) => { Opts.AmbienceVolume = v; Opts.Ambience = v > 0; ApplyOptions(); };
+            amb.DropDownItems.Add(it);
+        }
         var bidi = new ToolStripMenuItem("Print in both directions") { Checked = Opts.Bidirectional, CheckOnClick = true };
         bidi.Click += (_, __) => { Opts.Bidirectional = bidi.Checked; ApplyOptions(); };
         var mixed = new ToolStripMenuItem("Upper and lower case") { Checked = Opts.MixedCase, CheckOnClick = true };
@@ -696,10 +713,12 @@ internal sealed class TrafficReminderForm : Form
         _menu.Items.Add(bidi);
         _menu.Items.Add(mixed);
         _menu.Items.Add(new ToolStripSeparator());
+        _menu.Items.Add(pvol);
         _menu.Items.Add(amb);
         _menu.Opening += (_, __) =>
         {
-            amb.Checked = Opts.Ambience;
+            foreach (ToolStripMenuItem it in pvol.DropDownItems) it.Checked = (int)it.Tag == Opts.PrinterVolume;
+            foreach (ToolStripMenuItem it in amb.DropDownItems) it.Checked = (int)it.Tag == Opts.AmbienceVolume;
             foreach (ToolStripMenuItem it in printer.DropDownItems) it.Checked = (int)it.Tag == Opts.Printer;
             foreach (ToolStripMenuItem it in face.DropDownItems) it.Checked = (string)it.Tag == Opts.Face;
             face.Enabled = IsLaser; bidi.Enabled = !IsLaser;
@@ -715,7 +734,7 @@ internal sealed class TrafficReminderForm : Form
         _clock.Interval = (int)CharMs;
         bool wasPrinting = _printing && _clock.Enabled && !IsLaser;
         try { _sounds.StopPrinting(); _sounds.LaserStop(); _sounds.Dispose(); } catch { }
-        _sounds = new DotMatrix.Sounds(CharMs, LaserPhase);
+        _sounds = new DotMatrix.Sounds(CharMs, LaserPhase) { Volume = PrinterLevel };
         if (wasPrinting && _lineFeedPause == 0) _sounds.StartPrinting();
         // A change of printer while the dot matrix was mid-line: the rest
         // appears on the new page at once, and the head is at the foot.
@@ -723,7 +742,7 @@ internal sealed class TrafficReminderForm : Form
         if (!IsLaser && _laserTimer != null) { _laserTimer.Stop(); _laserTimer.Dispose(); _laserTimer = null; _reveal = float.MaxValue; _printing = false; }
         Relayout();
         if (!_printing) Flush();
-        SetAmbience(Opts.Ambience);
+        SetAmbience(Opts.Ambience && Opts.AmbienceVolume > 0);
         OptionsChanged?.Invoke(Opts.Clone());
     }
 
@@ -802,6 +821,7 @@ internal sealed class TrafficReminderForm : Form
         if (on && !IsDisposed)
         {
             if (_ambience == null) { _ambience = new Ambience(this); _ambience.Start(); }
+            _ambience.Volume = AmbienceLevel;
         }
         else if (_ambience != null) { _ambience.Dispose(); _ambience = null; }
     }
@@ -809,7 +829,7 @@ internal sealed class TrafficReminderForm : Form
     protected override void OnShown(EventArgs e)
     {
         base.OnShown(e);
-        SetAmbience(Opts.Ambience);
+        SetAmbience(Opts.Ambience && Opts.AmbienceVolume > 0);
         if (IsLaser) { _headSrc = _src.Count; _headChar = 0; LaserPrint(null); return; }
         _printing = true;
         _sounds.StartPrinting();

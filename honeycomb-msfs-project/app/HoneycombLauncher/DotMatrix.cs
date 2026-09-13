@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.IO;
-using System.Media;
+
+using NAudio.Wave;
+using NAudio.Wave.SampleProviders;
 
 namespace HoneycombLauncher;
 
@@ -264,13 +266,15 @@ internal static class DotMatrix
             // left is the paper: the sheet drawn off the stack, the rollers
             // carrying it through, and the drop into the tray.
             double v = 0;
-            // the rollers turning the sheet through: about nine turns a second
+            // the rollers carrying the sheet through: one low, steady buzz
+            // (Mark, 2026-09-12: the turning modulation read as da-da-da)
             if (t >= tPick && t < tDrop + down)
             {
-                double fade = t < tDrop ? 1 : Math.Max(0, 1 - (t - tDrop) / down);
-                double turn = 0.5 + 0.5 * Math.Sin(2 * Math.PI * 9 * t);
-                v += 0.035 * fade * lp3 * turn;
-                v += 0.014 * fade * hiss * (0.6 + 0.4 * Math.Sin(2 * Math.PI * 9 * t + 1.1));
+                double fade = t < tDrop ? Math.Min(1, (t - tPick) / 0.08) : Math.Max(0, 1 - (t - tDrop) / down);
+                double buzz = Math.Sin(2 * Math.PI * 47 * t) + 0.5 * Math.Sin(2 * Math.PI * 94 * t) + 0.25 * Math.Sin(2 * Math.PI * 141 * t);
+                v += 0.03 * fade * buzz;
+                v += 0.02 * fade * lp3;
+                v += 0.008 * fade * hiss;
             }
             // the relay
             double r = t - tRelay; if (r >= 0 && r < 0.012) v += 0.4 * white * Math.Exp(-r / 0.003);
@@ -329,39 +333,98 @@ internal static class DotMatrix
     /// </summary>
     public sealed class Sounds : IDisposable
     {
-        private readonly SoundPlayer _loop, _feed, _strike, _tear, _laser;
+        // Every sound is a WAV kept in memory and played through NAudio, so
+        // several can sound at once (the loop under a line feed, the airport
+        // under everything) and so they have a level (Mark, 2026-09-12: "make
+        // those sounds as well as airport sound settable"). SoundPlayer,
+        // which played them until then, could do neither.
+        private readonly byte[] _loop, _feed, _strike, _tear, _laser;
+        private WaveOutEvent _loopOut, _laserOut;
+        private readonly List<WaveOutEvent> _shots = new();
         public bool Muted { get; set; }
+        /// <summary>The printer's level: 0 silent, 1 as built, above 1 louder.</summary>
+        public float Volume { get; set; } = 1f;
 
         /// <param name="laser">LaserWriter phase lengths (think, spin, feed, down) in seconds; null for the defaults.</param>
         public Sounds(double charMs, double[] laser = null)
         {
             laser ??= new[] { 0.9, 1.1, 2.2, 0.7 };
-            var dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "HoneycombAssignment", "sounds");
-            Directory.CreateDirectory(dir);
-            SoundPlayer Make(string name, byte[] wav)
-            {
-                var p = Path.Combine(dir, name);
-                try { File.WriteAllBytes(p, wav); } catch { }
-                var sp = new SoundPlayer(p);
-                try { sp.Load(); } catch { }
-                return sp;
-            }
-            _loop = Make("dotmatrix-print.wav", PrintLoop(charMs));
-            _feed = Make("dotmatrix-linefeed.wav", LineFeed());
-            _strike = Make("dotmatrix-strike.wav", Strike());
-            _tear = Make("dotmatrix-tear.wav", Tear());
-            _laser = Make("laserwriter-page.wav", LaserPage(laser[0], laser[1], laser[2], laser[3]));
+            _loop = PrintLoop(charMs);
+            _feed = LineFeed();
+            _strike = Strike();
+            _tear = Tear();
+            _laser = LaserPage(laser[0], laser[1], laser[2], laser[3]);
         }
 
-        public void LaserPageNow() => Try(() => _laser.Play());
-        public void LaserStop() => Try(() => _laser.Stop());
+        private bool Off => Muted || Volume <= 0;
 
-        private void Try(Action a) { if (Muted) return; try { a(); } catch { } }
-        public void StartPrinting() => Try(() => _loop.PlayLooping());
-        public void StopPrinting() => Try(() => _loop.Stop());
-        public void LineFeedNow() => Try(() => _feed.Play());
-        public void StrikeNow() => Try(() => _strike.Play());
-        public void TearNow() => Try(() => _tear.Play());
-        public void Dispose() { foreach (var p in new[] { _loop, _feed, _strike, _tear, _laser }) { try { p.Stop(); p.Dispose(); } catch { } } }
+        private WaveOutEvent Make(byte[] wav, bool loop)
+        {
+            var reader = new WaveFileReader(new MemoryStream(wav));
+            ISampleProvider src = loop ? new LoopingRawStream(ReadPcm(reader), reader.WaveFormat).ToSampleProvider() : reader.ToSampleProvider();
+            var vol = new VolumeSampleProvider(src) { Volume = Volume };
+            var o = new WaveOutEvent { DesiredLatency = 70, NumberOfBuffers = 3 };
+            o.Init(vol);
+            return o;
+        }
+
+        private static byte[] ReadPcm(WaveFileReader r) { var b = new byte[r.Length]; int n = 0; while (n < b.Length) { int k = r.Read(b, n, b.Length - n); if (k <= 0) break; n += k; } return b; }
+
+        private void Shot(byte[] wav)
+        {
+            if (Off) return;
+            try
+            {
+                var o = Make(wav, false);
+                lock (_shots) { _shots.Add(o); }
+                o.PlaybackStopped += (_, __) => { lock (_shots) { _shots.Remove(o); } try { o.Dispose(); } catch { } };
+                o.Play();
+            }
+            catch { }
+        }
+
+        public void StartPrinting()
+        {
+            if (Off) return;
+            try { if (_loopOut == null) { _loopOut = Make(_loop, true); } _loopOut.Play(); } catch { }
+        }
+        public void StopPrinting() { try { _loopOut?.Pause(); } catch { } }
+        public void LineFeedNow() => Shot(_feed);
+        public void StrikeNow() => Shot(_strike);
+        public void TearNow() => Shot(_tear);
+        public void LaserPageNow()
+        {
+            if (Off) return;
+            try { LaserStop(); _laserOut = Make(_laser, false); _laserOut.Play(); } catch { }
+        }
+        public void LaserStop() { try { _laserOut?.Stop(); _laserOut?.Dispose(); } catch { } _laserOut = null; }
+        public void Dispose()
+        {
+            try { _loopOut?.Stop(); _loopOut?.Dispose(); } catch { }
+            LaserStop();
+            lock (_shots) { foreach (var o in _shots) { try { o.Stop(); o.Dispose(); } catch { } } _shots.Clear(); }
+        }
+    }
+
+    /// <summary>Raw PCM played round and round.</summary>
+    internal sealed class LoopingRawStream : WaveStream
+    {
+        private readonly byte[] _data; private readonly WaveFormat _fmt; private long _pos;
+        public LoopingRawStream(byte[] data, WaveFormat fmt) { _data = data; _fmt = fmt; }
+        public override WaveFormat WaveFormat => _fmt;
+        public override long Length => long.MaxValue;
+        public override long Position { get => _pos; set => _pos = value; }
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            int done = 0;
+            while (done < count)
+            {
+                int at = (int)(_pos % _data.Length);
+                int chunk = Math.Min(count - done, _data.Length - at);
+                Buffer.BlockCopy(_data, at, buffer, offset + done, chunk);
+                done += chunk; _pos += chunk;
+            }
+            return done;
+        }
     }
 }

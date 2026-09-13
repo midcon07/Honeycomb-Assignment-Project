@@ -66,7 +66,8 @@ internal static class Program
             if (po.Length >= 4) { opts.Ink = int.Parse(po[0]); opts.Bidirectional = po[1] == "1"; opts.MixedCase = po[2] == "1"; opts.Speed = int.Parse(po[3]); }
             if (po.Length >= 5) opts.Printer = int.Parse(po[4]);
             if (po.Length >= 6) opts.Face = po[5];
-            if (po.Length >= 7) opts.Ambience = po[6] == "1";
+            if (po.Length >= 7) { opts.Ambience = po[6] != "0"; opts.AmbienceVolume = int.TryParse(po[6], out var av) ? av : 2; }
+            if (po.Length >= 8) opts.PrinterVolume = int.Parse(po[7]);
             var sheet = new TrafficReminderForm(facts, opts);
             sheet.OptionsChanged += o => Log($"traffic sheet demo: options {(o.Printer == 1 ? "LaserWriter, " + o.Face : "dot matrix")}, ink {o.Ink}, both directions {o.Bidirectional}, mixed case {o.MixedCase}, speed {o.Speed}");
             sheet.EngineStartRequested += () =>
