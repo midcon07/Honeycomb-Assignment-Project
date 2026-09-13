@@ -226,6 +226,33 @@ did not pop when the sim came up again.
   LaserWriter, Helvetica, black, fast.
 - **Standing direction (Mark, 2026-09-12): "80s - 90s vibe is our ultimate
   visual UI goal."** Period hardware, paper and real machine sounds.
+- **The launcher's page, same evening: the ops terminal, 1989.** The
+  `<style>` block of `ui/index.html` was replaced whole (the DOM and the
+  JS untouched): the sixteen VGA colours and nothing else, IBM Plex Mono
+  for everything (Barlow kept only for the caps diagram's function
+  labels), a reverse-video menu bar with bracketed `[ A- ]` buttons, the
+  annunciators as reverse-video blocks (red ones blink), buttons as
+  bracketed words that reverse on hover, panels as double-line boxes with
+  the title let into the top edge, a reverse-video status line at the
+  foot with a blinking block cursor, scanlines and a corner vignette over
+  the whole tube (`body::before/::after`, pointer-events none). The old
+  variable names (`--placard`, `--amber`...) are mapped to VGA colours so
+  nothing the JS sets goes unstyled. `.hidden` had lived in the old block:
+  restored (the meter drew as an empty box without it).
+- **The airport under the printer** (`Ambience.cs`, NAudio 2.2.1 for
+  mixing, System.Speech 8.0.0 for the voice): nothing continuous (Mark:
+  "the wind sound... drop it"). Every 30-90 s a faint jet at a distance
+  (a low-passed roar shaped as a swell, easing down in pitch, no whine),
+  three in ten a turboprop (a 95 Hz buzz with harmonics, beating, dropping
+  a few percent through the pass); every 25-60 s a gate announcement -
+  Windows' own voice (a woman's if installed), through a PA: two-tone
+  chime, 300 Hz-2.5 kHz band, overdrive, two echoes. Twelve templates
+  with the airlines and cities of the era (TWA, Pan Am, Eastern, Braniff,
+  Piedmont...; the white zone line). Option "Airport ambience" on the
+  sheet's menu, `printoutAmbience`, default on; lives with the sheet.
+  The LaserWriter's fan and motor are gone from its page sound ("sounds
+  like a jet engine"); what is left is the paper: drawn off the stack,
+  rollers, the drop.
 - **6**: `TrafficEngines.cs` - BeyondATC found via a running copy, the
   uninstall registry (Inno Setup), or `<drive>\BeyondATC\BeyondATC.exe`,
   then remembered as `batcPath`; the FSLTL injector at

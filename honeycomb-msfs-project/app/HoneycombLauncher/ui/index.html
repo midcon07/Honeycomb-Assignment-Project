@@ -6,7 +6,9 @@
      Google on every start: an outbound connection a cockpit tool has no
      business making, and a silent fall to Arial Narrow and Consolas
      whenever it failed (audit 2026-09-05, finding 4). Latin subsets only;
-     nothing on this page is written in anything else. */
+     nothing on this page is written in anything else. Barlow is kept for
+     the caps diagram's function labels; everything else is the terminal's
+     one face. */
   @font-face { font-family: "Barlow Semi Condensed"; font-style: normal; font-weight: 400; font-display: swap; src: url("fonts/barlow-semi-condensed-400.woff2") format("woff2"); }
   @font-face { font-family: "Barlow Semi Condensed"; font-style: normal; font-weight: 500; font-display: swap; src: url("fonts/barlow-semi-condensed-500.woff2") format("woff2"); }
   @font-face { font-family: "Barlow Semi Condensed"; font-style: normal; font-weight: 600; font-display: swap; src: url("fonts/barlow-semi-condensed-600.woff2") format("woff2"); }
@@ -16,641 +18,529 @@
   @font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 600; font-display: swap; src: url("fonts/ibm-plex-mono-600.woff2") format("woff2"); }
 
   /* ------------------------------------------------------------------
-     737-200 flight deck. Single committed visual world, so no theme
-     switching - every colour is painted explicitly and the page holds on
-     either host ground.
+     The ops terminal, 1989 (Mark, 2026-09-12: "80s - 90s vibe is our
+     ultimate visual UI goal"). A colour text-mode screen on a CRT: the
+     sixteen VGA colours and nothing else, one monospace face, double-line
+     boxes for panels, reverse video for the bar and the buttons, a status
+     line at the foot, scanlines and a soft phosphor bloom over all of it.
+     The first face of this page was a 737-200 flight deck in brushed metal;
+     the structure is unchanged - every element sits where it did - only
+     the screen it is drawn on is forty years older.
 
-     Structure is carried over from CommPanel and ClaudeSoundtrack: a metal
-     chassis, recessed plates, visible screws, engraved labels sitting on a
-     dark shadow, lamps with bloom, monospace readouts. Only the palette
-     changes - Boeing cockpit grey and annunciator amber in place of brass.
+     Readability rules everything: the person it is for is 84. Lamps are
+     still green, amber and red; the words still say what is wrong.
      ------------------------------------------------------------------ */
   :root {
-    /* chassis */
-    --chassis-hi:   #6E7478;
-    --chassis:      #565C60;
-    --chassis-lo:   #41464A;
-    --recess:       #22262A;
-    --recess-deep:  #191D20;
-    --bezel:        #131618;
-    --glass:        #0D1012;
-    --edge-hi:      #7E858A;
-    --edge-sh:      #0B0D0E;
-    --screw:        #8C9296;
-    --screw-lo:     #4A4F53;
+    /* the VGA sixteen */
+    --v-black:   #000000;
+    --v-blue:    #0000AA;
+    --v-green:   #00AA00;
+    --v-cyan:    #00AAAA;
+    --v-red:     #AA0000;
+    --v-magenta: #AA00AA;
+    --v-brown:   #AA5500;
+    --v-lgray:   #AAAAAA;
+    --v-dgray:   #555555;
+    --v-lblue:   #5555FF;
+    --v-lgreen:  #55FF55;
+    --v-lcyan:   #55FFFF;
+    --v-lred:    #FF5555;
+    --v-lmag:    #FF55FF;
+    --v-yellow:  #FFFF55;
+    --v-white:   #FFFFFF;
 
-    /* placard text - aged white, never pure */
-    --placard:      #E4E2DA;
-    --placard-dim:  #98A0A4;
-    --placard-faint:#697276;
-    --engrave:      #0B0D0E;
+    /* the phosphor: not quite black, a hint of blue in the glass */
+    --screen:    #050608;
+    --glow-y:    rgba(255,255,85,.45);
+    --glow-g:    rgba(85,255,85,.45);
+    --glow-r:    rgba(255,85,85,.55);
+    --glow-c:    rgba(85,255,255,.40);
+    --glow-w:    rgba(255,255,255,.35);
 
-    /* annunciators and lamps */
-    --amber:        #F0A81E;
-    --amber-bright: #FFC44D;
-    --amber-dim:    #6B4C10;
-    --green:        #4FD964;
-    --green-dim:    #1C4423;
-    --red:          #FF543E;
-    --red-dim:      #4E1912;
-    --cyan:         #5AC8FF;
-    --cyan-dim:     #14384A;
+    /* names the old rules used, mapped so nothing goes unstyled */
+    --placard:       var(--v-lgray);
+    --placard-dim:   #8A8A8A;
+    --placard-faint: var(--v-dgray);
+    --amber:         var(--v-yellow);
+    --amber-bright:  var(--v-yellow);
+    --green:         var(--v-lgreen);
+    --red:           var(--v-lred);
+    --cyan:          var(--v-lcyan);
+    --chart-ground:  #000000;
+    --chart-grid:    #1A1A1A;
+    --chart-route:   var(--v-yellow);
+    --chart-fix:     var(--v-lgray);
+    --recess-deep:   #000000;
 
-    /* chart */
-    --chart-ground: #0E1315;
-    --chart-grid:   #1E2A2E;
-    --chart-route:  #F0A81E;
-    --chart-fix:    #C8D2D6;
-
-    --f-placard: "Barlow Semi Condensed", "Arial Narrow", sans-serif;
+    --f-placard: "IBM Plex Mono", ui-monospace, Consolas, monospace;
     --f-readout: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+    --f-caps:    "Barlow Semi Condensed", "Arial Narrow", sans-serif;
   }
 
   * { box-sizing: border-box; }
+  .hidden { display: none !important; }
 
   body {
     margin: 0;
-    /* Text size. The panel was drawn at readout-instrument sizes (8-16px)
-       and the person it is for is 84. zoom scales everything - text, caps
-       diagram, spacing - in proportion, so the layout keeps its shape.
-       Default is a third larger; A- / A+ in the title bar adjust it and the
-       choice is remembered on this computer. */
+    /* Text size. A- / A+ in the bar adjust zoom and the choice is
+       remembered on this computer; the default is a third larger than
+       drawn, for the person it is for. */
     zoom: 1.33;
-    background: #0A0C0D;
-    color: var(--placard);
-    font-family: var(--f-placard);
+    background: var(--screen);
+    color: var(--v-lgray);
+    font-family: var(--f-readout);
+    font-size: 13px;
+    line-height: 1.35;
     -webkit-font-smoothing: antialiased;
+    text-shadow: 0 0 2px rgba(170,170,170,.25);
   }
-
-  /* Borderless window: the page draws its own chrome, so nothing
-     Windows-shaped sits above the panel. Text selection is off everywhere
-     except real inputs - dragging a panel should move the window, not
-     highlight a label. */
   html, body { height: 100%; overflow: hidden; }
   body { user-select: none; -webkit-user-select: none; }
   input, textarea { user-select: text; -webkit-user-select: text; }
+
+  /* The tube: scanlines, and the glass darker towards the corners. Fixed
+     over everything, never in the way of the mouse. */
+  body::before {
+    content: ""; position: fixed; inset: 0; z-index: 90; pointer-events: none;
+    background: repeating-linear-gradient(0deg, rgba(0,0,0,.20) 0 1px, transparent 1px 3px);
+  }
+  body::after {
+    content: ""; position: fixed; inset: 0; z-index: 91; pointer-events: none;
+    background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,.40) 100%);
+  }
 
   .deck {
     height: 100%;
     max-width: 1400px;
     margin: 0 auto;
-    padding: clamp(8px, 1.4vw, 16px);
+    padding: 6px 8px 8px;
     display: flex; flex-direction: column;
   }
-  .chassis { flex: 1 1 auto; overflow-y: auto; overflow-x: hidden; }
+  .chassis { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; }
+  .chassis::-webkit-scrollbar { width: 12px; }
+  .chassis::-webkit-scrollbar-track { background: #000; border-left: 1px solid var(--v-dgray); }
+  .chassis::-webkit-scrollbar-thumb { background: var(--v-lgray); }
+  .chassis::-webkit-scrollbar:horizontal { height: 0; }
+  .chassis { overflow-x: hidden; }
 
-  /* ---- title strip ------------------------------------------------- */
+  /* ---- the bar across the top: reverse video, as a menu bar was ---- */
   .titlebar {
-    display: flex; align-items: center; gap: 12px;
-    padding: 7px 10px 7px 14px;
-    margin-bottom: 8px;
-    border-radius: 4px;
-    background: linear-gradient(180deg, var(--chassis-hi) 0%, var(--chassis) 45%, var(--chassis-lo) 100%);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.22), 0 2px 6px rgba(0,0,0,.55);
+    display: flex; align-items: center; gap: 6px;
+    padding: 2px 6px 2px 10px;
+    margin-bottom: 6px;
+    background: var(--v-lgray);
+    color: #000;
     -webkit-app-region: drag;
     cursor: default;
+    text-shadow: none;
   }
   .titlebar .name {
-    font-weight: 700; letter-spacing: .22em; text-transform: uppercase;
-    font-size: 12px; color: var(--placard);
-    text-shadow: 0 -1px 0 var(--engrave), 0 1px 0 rgba(255,255,255,.10);
+    font-weight: 600; letter-spacing: .18em; text-transform: uppercase;
+    font-size: 13px; color: #000;
   }
+  .titlebar .name::before { content: "\2588\00A0"; color: var(--v-black); }
   .titlebar .spacer { flex: 1 1 auto; }
-  #printoutBtn { width: auto; padding: 0 10px; letter-spacing: .08em; text-transform: uppercase; font-size: 11px; }
+  #printoutBtn { width: auto; padding: 0 8px; letter-spacing: .1em; text-transform: uppercase; }
   .winbtn {
-    width: 34px; height: 24px; cursor: pointer;
-    display: grid; place-items: center;
-    font-family: var(--f-readout); font-size: 13px; line-height: 1;
-    color: var(--placard-dim);
-    background: linear-gradient(180deg, #3E4448, #2A2F32);
-    border: 1px solid #0A0C0D; border-radius: 2px;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.10);
+    -webkit-app-region: no-drag;
+    height: 22px; min-width: 30px; padding: 0 6px; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; white-space: nowrap;
+    font-family: var(--f-readout); font-size: 12px; line-height: 1; font-weight: 600;
+    color: #000; background: transparent; border: 0; border-radius: 0;
+    text-shadow: none;
   }
-  .winbtn:hover { color: var(--placard); }
-  .winbtn.close:hover { color: #fff; background: linear-gradient(180deg, #C0392B, #8E241A); }
-  .winbtn:focus-visible { outline: 2px solid var(--cyan); outline-offset: 1px; }
+  .winbtn::before { content: "["; margin-right: 3px; }
+  .winbtn::after  { content: "]"; margin-left: 3px; }
+  .winbtn:hover { background: #000; color: var(--v-lgray); }
+  .winbtn.close:hover { background: var(--v-red); color: var(--v-white); }
+  .winbtn:focus-visible { outline: 2px solid var(--v-lcyan); outline-offset: -2px; }
 
   /* Bottom-right grip, since there is no frame to drag. */
   .grip {
-    position: fixed; right: 2px; bottom: 2px; width: 18px; height: 18px;
-    cursor: nwse-resize; opacity: .5;
+    position: fixed; right: 3px; bottom: 3px; width: 14px; height: 14px;
+    cursor: nwse-resize; opacity: .7; z-index: 95;
     background:
-      linear-gradient(135deg, transparent 45%, var(--placard-faint) 45%, var(--placard-faint) 55%, transparent 55%),
-      linear-gradient(135deg, transparent 70%, var(--placard-faint) 70%, var(--placard-faint) 80%, transparent 80%);
+      linear-gradient(135deg, transparent 45%, var(--v-dgray) 45%, var(--v-dgray) 55%, transparent 55%),
+      linear-gradient(135deg, transparent 70%, var(--v-dgray) 70%, var(--v-dgray) 80%, transparent 80%);
   }
   .grip:hover { opacity: 1; }
 
-  /* ---- chassis ---------------------------------------------------- */
-  .chassis {
-    background: linear-gradient(180deg, var(--chassis-hi) 0%, var(--chassis) 14%, var(--chassis-lo) 100%);
-    border-radius: 5px;
-    padding: clamp(10px, 1.6vw, 18px);
-    box-shadow:
-      inset 0 1px 0 rgba(255,255,255,.22),
-      inset 0 -2px 6px rgba(0,0,0,.55),
-      0 18px 44px rgba(0,0,0,.6);
-    position: relative;
-  }
-  /* brushed-metal grain, cheap and subtle */
-  .chassis::before {
-    content: ""; position: absolute; inset: 0; border-radius: 5px; pointer-events: none;
-    background: repeating-linear-gradient(90deg,
-      rgba(255,255,255,.020) 0 1px, rgba(0,0,0,.020) 1px 3px);
-    mix-blend-mode: overlay;
-  }
+  /* ---- the screen ------------------------------------------------- */
+  .chassis { background: transparent; padding: 0 2px; position: relative; }
+  .screw { display: none; }
 
-  .screw {
-    position: absolute; width: 13px; height: 13px; border-radius: 50%;
-    background: radial-gradient(circle at 34% 30%, var(--screw), var(--screw-lo) 68%, #2C3033 100%);
-    box-shadow: 0 1px 2px rgba(0,0,0,.75), inset 0 0 0 1px rgba(0,0,0,.45);
-  }
-  .screw::after {
-    content: ""; position: absolute; left: 50%; top: 50%;
-    width: 8px; height: 1.6px; background: rgba(0,0,0,.72);
-    transform: translate(-50%,-50%) rotate(var(--slot, 28deg));
-    border-radius: 1px;
-  }
-  .screw.tl { top: 7px;    left: 7px;  --slot: 22deg; }
-  .screw.tr { top: 7px;    right: 7px; --slot: -46deg; }
-  .screw.bl { bottom: 7px; left: 7px;  --slot: 71deg; }
-  .screw.br { bottom: 7px; right: 7px; --slot: 12deg; }
-
-  /* ---- annunciator strip ------------------------------------------ */
+  /* ---- annunciator line: reverse-video blocks ---------------------- */
   .annun {
-    display: flex; flex-wrap: wrap; align-items: stretch; gap: 4px;
-    background: var(--recess-deep);
-    border-radius: 3px;
-    padding: 5px;
-    box-shadow: inset 0 2px 6px rgba(0,0,0,.85), 0 1px 0 rgba(255,255,255,.14);
-    margin-bottom: clamp(10px, 1.6vw, 16px);
+    display: flex; flex-wrap: wrap; align-items: stretch; gap: 6px;
+    padding: 0 0 8px;
+    margin-bottom: 8px;
+    border-bottom: 1px solid var(--v-dgray);
   }
   .ann {
     flex: 1 1 auto; min-width: 104px;
     text-align: center;
-    font-weight: 700; letter-spacing: .1em; font-size: 12px;
+    font-weight: 600; letter-spacing: .12em; font-size: 12px;
     text-transform: uppercase;
-    padding: 9px 8px 7px;
-    border-radius: 2px;
-    border: 1px solid #000;
-    background: #101416;
-    color: #2C3236;
-    text-shadow: 0 1px 0 rgba(0,0,0,.9);
+    padding: 6px 8px 5px;
+    border: 1px solid var(--v-dgray);
+    background: #000;
+    color: var(--v-dgray);
     line-height: 1.1;
+    text-shadow: none;
   }
-  .ann.lit-amber {
-    background: linear-gradient(180deg, #4A3408, #2E2007);
-    color: var(--amber-bright);
-    text-shadow: 0 0 9px rgba(240,168,30,.85), 0 1px 0 #000;
-    box-shadow: inset 0 0 14px rgba(240,168,30,.30);
-  }
-  .ann.lit-red {
-    background: linear-gradient(180deg, #4A1611, #2C0D0A);
-    color: #FF8B79;
-    text-shadow: 0 0 9px rgba(255,84,62,.9), 0 1px 0 #000;
-    box-shadow: inset 0 0 14px rgba(255,84,62,.30);
-  }
-  .ann.lit-green {
-    background: linear-gradient(180deg, #113D1B, #0A2411);
-    color: #8CF39B;
-    text-shadow: 0 0 9px rgba(79,217,100,.8), 0 1px 0 #000;
-    box-shadow: inset 0 0 14px rgba(79,217,100,.26);
-  }
+  .ann.lit-amber { background: var(--v-yellow); color: #000; border-color: var(--v-yellow); box-shadow: 0 0 12px var(--glow-y); }
+  .ann.lit-red   { background: var(--v-red); color: var(--v-white); border-color: var(--v-lred); box-shadow: 0 0 12px var(--glow-r); animation: caution 1.1s steps(1) infinite; }
+  .ann.lit-green { background: var(--v-green); color: #000; border-color: var(--v-lgreen); box-shadow: 0 0 12px var(--glow-g); }
+  @keyframes caution { 0%, 60% { background: var(--v-red); color: var(--v-white); } 61%, 100% { background: #000; color: var(--v-lred); } }
 
-  /* ---- aircraft selector bar --------------------------------------- */
-  .acbar-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; width: 100%; }
+  /* ---- the choices and the buttons --------------------------------- */
+  .acbar-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; width: 100%; }
   .acbar-choices #trafficSelect { flex: 0 0 auto; }
   .acbar {
-    display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px;
-    background: linear-gradient(180deg, var(--recess) 0%, var(--recess-deep) 100%);
-    border-radius: 4px; padding: 12px 14px;
-    margin-bottom: clamp(10px, 1.6vw, 16px);
-    box-shadow:
-      inset 0 2px 7px rgba(0,0,0,.8),
-      inset 0 -1px 0 rgba(255,255,255,.07),
-      0 1px 0 rgba(255,255,255,.15);
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px;
+    padding: 8px 10px;
+    margin-bottom: 8px;
+    border: 1px solid var(--v-dgray);
+    background: #000;
   }
-  /* Progress of a setup action, under the aircraft bar. Shown only while
-     something is running; the outcome goes to a pop-up window, not here. */
+  .acbar-label {
+    font-weight: 600; letter-spacing: .18em; font-size: 12px;
+    text-transform: uppercase; color: var(--v-lcyan);
+    white-space: nowrap;
+  }
+  .acbar-label::after { content: ":"; }
+
+  /* Progress of a setup action, under the choices. */
   .meter {
     display: flex; align-items: center; gap: 12px;
-    margin: -6px 0 clamp(10px, 1.6vw, 16px) 0; padding: 8px 14px;
-    background: var(--recess-deep); border-radius: 4px;
-    box-shadow: inset 0 1px 4px rgba(0,0,0,.6);
+    margin: -2px 0 8px 0; padding: 6px 10px;
+    background: #000; border: 1px solid var(--v-dgray);
   }
-  .meter .track { flex: 1; height: 10px; background: #0A0C0D; border-radius: 5px; overflow: hidden; }
-  .meter .fill  { height: 100%; width: 0; background: linear-gradient(90deg, #C99A2E, #F0C85A); transition: width .4s ease; }
-  .meter .txt   { font-family: var(--f-placard); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--placard); white-space: nowrap; }
+  .meter .track { flex: 1; height: 12px; background: #000; border: 1px solid var(--v-lgray); overflow: hidden; }
+  .meter .fill  { height: 100%; width: 0; background: repeating-linear-gradient(90deg, var(--v-lgray) 0 7px, #000 7px 9px); transition: width .4s ease; }
+  .meter .txt   { font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--v-lgray); white-space: nowrap; }
 
-  /* The pop-up: outcome of a setup action. */
+  /* The pop-up: a dialog box with the solid offset shadow every DOS box had. */
   .modal-back {
     position: fixed; inset: 0; z-index: 50;
-    background: rgba(0,0,0,.62); display: flex; align-items: center; justify-content: center;
+    background: rgba(0,0,0,.55); display: flex; align-items: center; justify-content: center;
   }
   .modal {
     width: min(560px, 90vw); max-height: 80vh; overflow: auto;
-    background: linear-gradient(180deg, #3E4448, #2A2F32); border: 1px solid #0A0C0D; border-radius: 4px;
-    box-shadow: 0 12px 40px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.10);
-    padding: 18px 20px;
+    background: #000; border: 3px double var(--v-lgray);
+    box-shadow: 10px 10px 0 rgba(0,0,0,.85);
+    padding: 14px 18px;
+    color: var(--v-lgray);
   }
-  .modal h2 { margin: 0 0 10px; font-family: var(--f-placard); font-size: 16px; letter-spacing: .14em; text-transform: uppercase; }
-  .modal.ok  h2 { color: #8CF39B; }
-  .modal.bad h2 { color: #F09A90; }
-  .modal p { margin: 0 0 12px; font-size: 14px; line-height: 1.5; color: var(--placard); }
-  .modal .path { font-family: var(--f-readout); font-size: 13px; color: var(--amber-bright); word-break: break-all; }
+  .modal h2 { margin: 0 0 10px; font-size: 14px; letter-spacing: .16em; text-transform: uppercase; font-weight: 600; }
+  .modal.ok  h2 { color: var(--v-lgreen); text-shadow: 0 0 8px var(--glow-g); }
+  .modal.bad h2 { color: var(--v-lred); text-shadow: 0 0 8px var(--glow-r); }
+  .modal p { margin: 0 0 10px; font-size: 13px; line-height: 1.5; color: var(--v-lgray); }
+  .modal .path { color: var(--v-yellow); word-break: break-all; }
   .modal pre {
-    display: none; margin: 0 0 12px; padding: 10px; max-height: 40vh; overflow: auto;
-    background: #0E1113; border-radius: 3px; font-size: 12px; line-height: 1.4; color: #C9D0D4; white-space: pre-wrap;
+    display: none; margin: 0 0 12px; padding: 8px; max-height: 40vh; overflow: auto;
+    background: #000; border: 1px solid var(--v-dgray); font-size: 12px; line-height: 1.4; color: var(--v-lgray); white-space: pre-wrap;
   }
   .modal.open-details pre { display: block; }
   .modal .row { display: flex; gap: 8px; justify-content: flex-end; }
   .modal .form-row { display: flex; align-items: center; gap: 10px; margin: 8px 0; flex-wrap: wrap; }
-  .modal .form-row label { font-family: var(--f-placard); font-weight: 700; letter-spacing: .1em; text-transform: uppercase; font-size: 11px; color: var(--placard); min-width: 12em; }
+  .modal .form-row label { font-weight: 600; letter-spacing: .1em; text-transform: uppercase; font-size: 11px; color: var(--v-lcyan); min-width: 12em; }
   .modal .pid-input.wide { width: 18em; }
   .modal select.pid-input { width: auto; min-width: 8em; }
-  .modal .hint { font-size: 12px; color: #9AA3A8; line-height: 1.4; margin: 4px 0; }
-  .modal .err { color: #F09A90; font-size: 13px; min-height: 1.2em; margin: 6px 0; }
-  .title-list { max-height: 30vh; overflow: auto; background: #0E1113; border-radius: 3px; padding: 6px 10px; margin: 6px 0; }
-  .title-opt { display: flex; gap: 8px; align-items: center; padding: 5px 0; font-family: var(--f-readout); font-size: 14px; color: var(--amber-bright); cursor: pointer; }
+  .modal .hint { font-size: 12px; color: var(--placard-dim); line-height: 1.4; margin: 4px 0; }
+  .modal .err { color: var(--v-lred); font-size: 13px; min-height: 1.2em; margin: 6px 0; }
+  .title-list { max-height: 30vh; overflow: auto; background: #000; border: 1px solid var(--v-dgray); padding: 6px 10px; margin: 6px 0; }
+  .title-opt { display: flex; gap: 8px; align-items: center; padding: 4px 0; font-size: 13px; color: var(--v-yellow); cursor: pointer; }
+  .title-opt:hover { background: var(--v-blue); color: var(--v-white); }
 
-  /* Button states: amber until the step is done and confirmed, green after.
-     Grey is for buttons that carry no state (refresh) or cannot be pressed. */
-  .pbtn.todo { color: #1A1300; background: linear-gradient(180deg, #F0C85A, #C99A2E); text-shadow: 0 1px 0 rgba(255,255,255,.25); }
-  .pbtn.todo:hover { color: #1A1300; filter: brightness(1.08); }
-  .pbtn.done { color: #07110A; background: linear-gradient(180deg, #7BE08C, #3FA451); text-shadow: 0 1px 0 rgba(255,255,255,.25); }
-  .pbtn.done:hover { color: #07110A; filter: brightness(1.08); }
-  .pbtn:disabled { color: #6B7276; background: linear-gradient(180deg, #3E4448, #2A2F32); cursor: not-allowed; text-shadow: 0 -1px 0 rgba(0,0,0,.8); filter: none; }
+  /* Buttons are bracketed words. Hover is reverse video. Amber until the
+     step is done and confirmed, green after; grey cannot be pressed. */
+  .pbtn {
+    font-family: var(--f-readout); font-weight: 600;
+    letter-spacing: .1em; text-transform: uppercase; font-size: 12px;
+    padding: 6px 8px; cursor: pointer; white-space: nowrap;
+    color: var(--v-lgray);
+    background: #000;
+    border: 1px solid var(--v-lgray); border-radius: 0;
+    text-decoration: none; display: inline-block;
+    text-shadow: none;
+  }
+  .pbtn::before { content: "[ "; }
+  .pbtn::after  { content: " ]"; }
+  .pbtn:hover { background: var(--v-lgray); color: #000; }
+  .pbtn:focus-visible { outline: 2px solid var(--v-lcyan); outline-offset: 2px; }
+  .pbtn.go   { color: #000; background: var(--v-lgreen); border-color: var(--v-lgreen); box-shadow: 0 0 10px var(--glow-g); }
+  .pbtn.go:hover { background: var(--v-white); }
+  .pbtn.todo { color: #000; background: var(--v-yellow); border-color: var(--v-yellow); box-shadow: 0 0 10px var(--glow-y); }
+  .pbtn.todo:hover { background: var(--v-white); color: #000; }
+  .pbtn.done { color: #000; background: var(--v-lgreen); border-color: var(--v-lgreen); box-shadow: 0 0 10px var(--glow-g); }
+  .pbtn.done:hover { background: var(--v-white); color: #000; }
+  .pbtn:disabled { color: var(--v-dgray); background: #000; border-color: var(--v-dgray); cursor: not-allowed; box-shadow: none; }
 
   /* Bottom bar: the test lives here, below everything it tests. */
   .bottombar {
-    display: flex; justify-content: center; margin-top: clamp(10px, 1.6vw, 16px);
-    padding: 12px 14px; border-radius: 4px;
-    background: linear-gradient(180deg, var(--recess) 0%, var(--recess-deep) 100%);
-    box-shadow: inset 0 2px 7px rgba(0,0,0,.8), inset 0 -1px 0 rgba(255,255,255,.07), 0 1px 0 rgba(255,255,255,.15);
+    display: flex; justify-content: center; margin-top: 8px;
+    padding: 8px 10px; border: 1px solid var(--v-dgray); background: #000;
   }
 
-  /* Test mode: a checklist laid over the map. The map container becomes the
-     positioning context only while testing, so nothing else moves. Steps the
-     app can check tick themselves; steps only a person can judge are clicked. */
+  /* Test mode: a checklist laid over the map. */
   .map-wrap.testing { position: relative; }
   .test-overlay {
     position: absolute; inset: 0; overflow: auto;
-    background: rgba(8,10,12,.94); color: var(--placard);
-    padding: 12px 14px; font-size: 13px; line-height: 1.4;
-    box-shadow: inset 0 0 0 1px #000;
+    background: rgba(0,0,0,.96); color: var(--v-lgray);
+    padding: 10px 12px; font-size: 13px; line-height: 1.4;
+    border: 1px solid var(--v-lgray);
   }
   .test-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
-  .test-head .ttl { font-weight: 700; letter-spacing: .16em; text-transform: uppercase; font-size: 12px; color: var(--placard); }
+  .test-head .ttl { font-weight: 600; letter-spacing: .16em; text-transform: uppercase; font-size: 12px; color: var(--v-lcyan); }
   .test-head .spacer { flex: 1 1 auto; }
-  .test-err { color: #f0b9b3; margin: 6px 0; }
-  .tstep { display: grid; grid-template-columns: 26px 1fr; gap: 4px 10px; padding: 7px 6px; border-radius: 3px; }
-  .tstep + .tstep { border-top: 1px solid rgba(255,255,255,.06); }
-  .tstep .box { font-size: 18px; line-height: 1; text-align: center; color: var(--placard-dim); }
-  .tstep.done .box { color: #8CF39B; }
+  .test-err { color: var(--v-lred); margin: 6px 0; }
+  .tstep { display: grid; grid-template-columns: 26px 1fr; gap: 3px 10px; padding: 6px 6px; }
+  .tstep + .tstep { border-top: 1px solid #1A1A1A; }
+  .tstep .box { font-size: 16px; line-height: 1; text-align: center; color: var(--v-lgray); }
+  .tstep.done .box { color: var(--v-lgreen); }
   .tstep.manual { cursor: pointer; }
-  .tstep.manual:hover { background: rgba(255,255,255,.04); }
+  .tstep.manual:hover { background: var(--v-blue); color: var(--v-white); }
   .tstep .lbl { font-weight: 600; }
-  .tstep.done .lbl { color: #b7e3bd; }
+  .tstep.done .lbl { color: var(--v-lgreen); }
   .tstep .exp { grid-column: 2; color: var(--placard-dim); font-size: 12px; }
-  .tstep .why { grid-column: 2; font-size: 12px; color: #f0c98a; }
-  .tstep.done .why { color: #9bd3a3; }
-  .tstep .kind { grid-column: 2; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--placard-faint); }
+  .tstep .why { grid-column: 2; font-size: 12px; color: var(--v-yellow); }
+  .tstep.done .why { color: var(--v-lgreen); }
+  .tstep .kind { grid-column: 2; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--v-dgray); }
   .test-actions { display: flex; gap: 10px; margin: 10px 0 4px; flex-wrap: wrap; }
-  .acbar-label {
-    font-weight: 700; letter-spacing: .2em; font-size: 12px;
-    text-transform: uppercase; color: var(--placard);
-    text-shadow: 0 -1px 0 var(--engrave);
-    white-space: nowrap;
-  }
 
-  /* A native select on purpose. It behaves the way every other program on his
-     computer behaves, works with the keyboard, and cannot be got wrong. A
-     hand-built dropdown would look more like the panel and be worse to use. */
-  #acSelect {
-    flex: 1 1 260px; min-width: 220px;
-    font-family: var(--f-placard); font-size: 16px; font-weight: 600;
-    letter-spacing: .05em;
-    color: var(--placard);
-    background: #11161A;
-    border: 1px solid #000; border-radius: 2px;
-    padding: 10px 12px;
-    box-shadow: inset 0 2px 5px rgba(0,0,0,.8);
+  /* A native select on purpose: it behaves like every other program on his
+     computer and works with the keyboard. Dressed as a field on the screen. */
+  #acSelect, #trafficSelect {
+    font-family: var(--f-readout); font-size: 15px; font-weight: 500;
+    color: var(--v-white);
+    background: #000;
+    border: 1px solid var(--v-lcyan); border-radius: 0;
+    padding: 6px 10px;
   }
-  #acSelect:focus-visible { outline: 2px solid var(--cyan); outline-offset: 1px; }
-  #trafficSelect {
-    flex: 0 0 auto; min-width: 8.5em;
-    font-family: var(--f-placard); font-size: 16px; font-weight: 600; letter-spacing: .05em;
-    color: var(--placard); background: #11161A;
-    border: 1px solid #000; border-radius: 2px; padding: 10px 12px;
-    box-shadow: inset 0 2px 5px rgba(0,0,0,.8);
-  }
-  #trafficSelect:focus-visible { outline: 2px solid var(--cyan); outline-offset: 1px; }
-  #trafficSelect option { color: var(--placard); background: #11161A; font-weight: 500; }
-  #acSelect optgroup { font-style: normal; color: var(--placard-faint); background: #0D1114; }
-  #acSelect option { color: var(--placard); background: #11161A; font-weight: 500; }
+  #acSelect { flex: 1 1 260px; min-width: 220px; }
+  #trafficSelect { flex: 0 0 auto; min-width: 8.5em; }
+  #acSelect:focus-visible, #trafficSelect:focus-visible { outline: 2px solid var(--v-lcyan); outline-offset: 1px; }
+  #acSelect optgroup { font-style: normal; color: var(--v-lcyan); background: #000; }
+  #acSelect option, #trafficSelect option { color: var(--v-lgray); background: #000; font-weight: 500; }
 
-  .pbtn {
-    font-family: var(--f-placard); font-weight: 700;
-    letter-spacing: .12em; text-transform: uppercase; font-size: 12px;
-    padding: 11px 16px; cursor: pointer; white-space: nowrap;
-    color: var(--placard);
-    background: linear-gradient(180deg, #3E4448, #2A2F32);
-    border: 1px solid #0A0C0D; border-radius: 2px;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.10), 0 2px 3px rgba(0,0,0,.5);
-    text-shadow: 0 -1px 0 rgba(0,0,0,.8);
-    text-decoration: none; display: inline-block;
-  }
-  .pbtn:hover { color: var(--amber-bright); }
-  .pbtn:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
-  .pbtn.go {
-    color: #07110A;
-    background: linear-gradient(180deg, #7BE08C, #3FA451);
-    text-shadow: 0 1px 0 rgba(255,255,255,.25);
-  }
-  .pbtn.go:hover { color: #07110A; filter: brightness(1.08); }
-
-  /* ---- mismatch / plan alert --------------------------------------- */
+  /* ---- the alert: a box of its own ---------------------------------- */
   .alert {
     display: flex; align-items: flex-start; gap: 12px;
-    border-radius: 3px; padding: 13px 15px;
-    margin-bottom: clamp(10px, 1.6vw, 16px);
-    border: 1px solid;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    border: 3px double;
+    background: #000;
   }
   .alert.hidden { display: none; }
-  .alert.warn { background: rgba(240,168,30,.10); border-color: var(--amber-dim); }
-  .alert.ok   { background: rgba(79,217,100,.08); border-color: var(--green-dim); }
-  /* Neutral: a state that is fine and needs nothing - flying without a plan
-     is a choice, not a fault, and amber every launch teaches people to
-     ignore amber. */
-  .alert.info { background: rgba(120,140,160,.08); border-color: #4A555F; }
+  .alert.warn { border-color: var(--v-yellow); }
+  .alert.ok   { border-color: var(--v-lgreen); }
+  .alert.info { border-color: var(--v-dgray); }
   .alert-mark {
-    flex: none; width: 26px; height: 26px; border-radius: 50%;
+    flex: none; width: 24px; height: 24px;
     display: grid; place-items: center;
-    border: 2px solid currentColor;
-    font-weight: 700; font-size: 16px; line-height: 1;
+    border: 1px solid currentColor;
+    font-weight: 600; font-size: 15px; line-height: 1;
   }
-  .alert.warn .alert-mark { color: var(--amber); }
-  .alert.ok   .alert-mark { color: var(--green); }
+  .alert.warn .alert-mark { color: var(--v-yellow); }
+  .alert.ok   .alert-mark { color: var(--v-lgreen); }
   .alert.info .alert-mark { color: var(--placard-dim); }
   .alert-body { min-width: 0; flex: 1 1 auto; }
-  .alert-head {
-    font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
-    font-size: 15px; margin: 0 0 3px;
-  }
-  .alert.warn .alert-head { color: var(--amber-bright); }
-  .alert.ok   .alert-head { color: #8CF39B; }
-  .alert.info .alert-head { color: var(--placard); }
-  .alert-text {
-    margin: 0; font-family: var(--f-readout); font-size: 11.5px;
-    line-height: 1.6; color: var(--placard-dim);
-  }
-  .alert-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-  /* SimBrief Pilot ID entry. Lives in the alert actions because the alert is
-     where the page says "enter your Pilot ID" - a promise the page used to
-     make with no box to type into. */
+  .alert-head { font-weight: 600; letter-spacing: .08em; text-transform: uppercase; font-size: 13px; margin: 0 0 3px; }
+  .alert.warn .alert-head { color: var(--v-yellow); text-shadow: 0 0 8px var(--glow-y); }
+  .alert.ok   .alert-head { color: var(--v-lgreen); text-shadow: 0 0 8px var(--glow-g); }
+  .alert.info .alert-head { color: var(--v-lgray); }
+  .alert-text { margin: 0; font-size: 12px; line-height: 1.55; color: var(--v-lgray); }
+  .alert-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; align-items: center; }
   .pid-row { display: flex; align-items: center; gap: 8px; }
-  .pid-row label { font-family: var(--f-placard); font-weight: 700; letter-spacing: .12em; text-transform: uppercase; font-size: 12px; color: var(--placard); white-space: nowrap; }
-  .pid-input { font-family: var(--f-mono, monospace); font-size: 15px; width: 9em; padding: 8px 10px; color: var(--amber-bright, #ffb84d); background: #0E1113; border: 1px solid #0A0C0D; border-radius: 2px; box-shadow: inset 0 2px 4px rgba(0,0,0,.6); }
-  .pid-input:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+  .pid-row label { font-weight: 600; letter-spacing: .12em; text-transform: uppercase; font-size: 12px; color: var(--v-lcyan); white-space: nowrap; }
+  .pid-row label::after { content: ":"; }
+  .pid-input { font-family: var(--f-readout); font-size: 14px; width: 9em; padding: 5px 8px; color: var(--v-white); background: #000; border: 1px solid var(--v-lcyan); border-radius: 0; caret-color: var(--v-white); }
+  .pid-input:focus-visible { outline: 2px solid var(--v-lcyan); outline-offset: 2px; }
 
-  /* ---- two-pane layout -------------------------------------------- */
+  /* ---- two panes ------------------------------------------------- */
   .panes {
     display: grid;
     grid-template-columns: minmax(320px, 400px) 1fr;
-    gap: clamp(10px, 1.6vw, 16px);
+    gap: 10px;
     align-items: start;
   }
   @media (max-width: 900px) { .panes { grid-template-columns: 1fr; } }
 
-  /* ---- recessed plate --------------------------------------------- */
+  /* ---- a panel: a double-line box with its title let into the top edge ---- */
   .plate {
     position: relative;
-    background: linear-gradient(180deg, var(--recess) 0%, var(--recess-deep) 100%);
-    border-radius: 4px;
-    padding: 14px 14px 16px;
-    box-shadow:
-      inset 0 2px 7px rgba(0,0,0,.8),
-      inset 0 -1px 0 rgba(255,255,255,.07),
-      0 1px 0 rgba(255,255,255,.15);
+    background: #000;
+    border: 3px double var(--v-lgray);
+    padding: 16px 12px 12px;
+    margin-top: 8px;
   }
   .plate-title {
-    font-weight: 700; letter-spacing: .22em; font-size: 12px;
-    text-transform: uppercase; color: var(--placard);
-    text-shadow: 0 -1px 0 var(--engrave), 0 1px 0 rgba(255,255,255,.10);
-    padding-bottom: 8px; margin-bottom: 12px;
-    border-bottom: 1px solid rgba(0,0,0,.6);
-    box-shadow: 0 1px 0 rgba(255,255,255,.07);
+    position: absolute; top: -10px; left: 10px; right: 10px;
     display: flex; justify-content: space-between; align-items: baseline; gap: 10px;
+    pointer-events: none;
+  }
+  .plate-title > span:first-child {
+    background: #000; padding: 0 6px; white-space: nowrap; flex: 0 0 auto;
+    font-weight: 600; letter-spacing: .2em; font-size: 12px;
+    text-transform: uppercase; color: var(--v-lcyan);
+    text-shadow: 0 0 6px var(--glow-c);
   }
   .plate-title .sub {
-    font-family: var(--f-readout); font-size: 10px; letter-spacing: .08em;
-    color: var(--placard-faint); font-weight: 400;
+    background: #000; padding: 0 6px; white-space: nowrap; flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis;
+    font-size: 10px; letter-spacing: .08em; color: var(--placard-dim); font-weight: 400;
   }
+  .capsblock .plate-title { position: static; margin: 0 0 8px; padding: 0; }
+  .capsblock .plate-title > span:first-child { padding: 0; }
+  .capsblock .plate-title .sub { padding: 0; }
+  .capsblock { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--v-dgray); }
 
-  /* ---- checklist --------------------------------------------------- */
-  /* Boeing normal-procedures format: CHALLENGE .... RESPONSE, leader dots
-     between, response set apart. The dot leader is what makes it read as a
-     checklist rather than a list of settings. */
-  .cl { display: flex; flex-direction: column; gap: 1px; }
-
-  .cl-row {
-    display: flex; align-items: baseline; gap: 7px;
-    padding: 7px 6px;
-    border-radius: 2px;
-  }
-  .cl-row + .cl-row { border-top: 1px solid rgba(0,0,0,.35); }
-  .cl-row.attn { background: rgba(240,168,30,.07); }
-  .cl-row.stop { background: rgba(255,84,62,.09); }
+  /* ---- checklist: CHALLENGE .... RESPONSE, as the printed card ---- */
+  .cl { display: flex; flex-direction: column; gap: 0; }
+  .cl-row { display: flex; align-items: baseline; gap: 7px; padding: 5px 4px; }
+  .cl-row.attn { background: #1A1A00; }
+  .cl-row.stop { background: #1A0000; }
 
   .lamp {
-    flex: none; width: 11px; height: 11px; border-radius: 50%;
-    background: #0C0F10;
-    box-shadow: inset 0 0 0 1px rgba(0,0,0,.9), inset 0 1px 2px rgba(0,0,0,.8);
+    flex: none; width: 10px; height: 10px; border-radius: 0;
+    background: #000; border: 1px solid var(--v-dgray);
     position: relative; top: -1px;
   }
-  .lamp.g { background: var(--green);  box-shadow: 0 0 8px rgba(79,217,100,.85),  inset 0 0 0 1px rgba(0,0,0,.5); }
-  .lamp.a { background: var(--amber);  box-shadow: 0 0 8px rgba(240,168,30,.85),  inset 0 0 0 1px rgba(0,0,0,.5); }
-  .lamp.r { background: var(--red);    box-shadow: 0 0 9px rgba(255,84,62,.9),    inset 0 0 0 1px rgba(0,0,0,.5); }
-  .lamp.c { background: var(--cyan);   box-shadow: 0 0 8px rgba(90,200,255,.8),   inset 0 0 0 1px rgba(0,0,0,.5); }
-  .lamp.off { background: #171B1D; }
+  .lamp.g { background: var(--v-lgreen); border-color: var(--v-lgreen); box-shadow: 0 0 8px var(--glow-g); }
+  .lamp.a { background: var(--v-yellow); border-color: var(--v-yellow); box-shadow: 0 0 8px var(--glow-y); }
+  .lamp.r { background: var(--v-lred);   border-color: var(--v-lred);   box-shadow: 0 0 9px var(--glow-r); }
+  .lamp.c { background: var(--v-lcyan);  border-color: var(--v-lcyan);  box-shadow: 0 0 8px var(--glow-c); }
+  .lamp.off { background: #000; }
 
   .cl-chal {
-    font-weight: 600; letter-spacing: .085em; font-size: 14px;
-    text-transform: uppercase; color: var(--placard);
-    text-shadow: 0 -1px 0 var(--engrave);
+    font-weight: 600; letter-spacing: .06em; font-size: 13px;
+    text-transform: uppercase; color: var(--v-lgray);
     white-space: nowrap;
   }
-  /* The leader dots are what make this read as a checklist rather than a list
-     of settings, so they have to be clearly visible, not a hairline. */
+  /* The leader dots are what make this read as a checklist rather than a
+     list of settings: typed periods, not a hairline. */
   .cl-lead {
     flex: 1 1 auto; min-width: 14px;
     align-self: center;
     height: 5px;
     background-image: radial-gradient(circle, var(--placard-dim) 1px, transparent 1.2px);
-    background-size: 5px 5px;
+    background-size: 6px 5px;
     background-position: center;
     background-repeat: repeat-x;
-    opacity: .85;
+    opacity: .9;
   }
-  .cl-resp {
-    font-family: var(--f-readout); font-size: 12.5px; font-weight: 500;
-    letter-spacing: .04em; white-space: nowrap;
-    color: var(--placard);
-  }
-  .cl-resp.g { color: #8CF39B; }
-  .cl-resp.a { color: var(--amber-bright); }
-  .cl-resp.r { color: #FF8B79; }
-  .cl-resp.d { color: var(--placard-faint); }
+  .cl-resp { font-size: 12.5px; font-weight: 600; letter-spacing: .04em; white-space: nowrap; color: var(--v-white); }
+  .cl-resp.g { color: var(--v-lgreen); text-shadow: 0 0 6px var(--glow-g); }
+  .cl-resp.a { color: var(--v-yellow); text-shadow: 0 0 6px var(--glow-y); }
+  .cl-resp.r { color: var(--v-lred);   text-shadow: 0 0 6px var(--glow-r); }
+  .cl-resp.d { color: var(--v-dgray); }
 
-  .cl-note {
-    font-family: var(--f-readout); font-size: 10.5px; line-height: 1.5;
-    color: var(--placard-dim);
-    padding: 0 6px 8px 25px;
-    margin-top: -2px;
-  }
-  .cl-note.warn { color: var(--amber); }
-  .cl-note.bad  { color: #FF8B79; }
+  .cl-note { font-size: 11px; line-height: 1.5; color: var(--placard-dim); padding: 0 6px 6px 23px; margin-top: -2px; }
+  .cl-note.warn { color: var(--v-yellow); }
+  .cl-note.bad  { color: var(--v-lred); }
 
   .cl-complete {
-    margin-top: 14px; padding-top: 11px;
-    border-top: 1px solid rgba(0,0,0,.6);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.07);
+    margin-top: 12px; padding-top: 9px;
+    border-top: 1px solid var(--v-dgray);
     text-align: center;
-    font-weight: 700; letter-spacing: .2em; font-size: 12px;
-    text-transform: uppercase;
+    font-weight: 600; letter-spacing: .2em; font-size: 12px;
+    text-transform: uppercase; color: var(--v-lgreen);
   }
-  .cl-complete.hold { color: #FF8B79; text-shadow: 0 0 10px rgba(255,84,62,.5); }
+  .cl-complete.hold { color: var(--v-lred); text-shadow: 0 0 8px var(--glow-r); }
 
-  /* ---- start button ------------------------------------------------ */
+  /* ---- the start button: the one big key ----------------------------- */
   .start {
-    margin-top: 12px; width: 100%;
-    font-family: var(--f-placard); font-weight: 700;
-    letter-spacing: .18em; text-transform: uppercase; font-size: 15px;
-    padding: 14px; border-radius: 3px; cursor: not-allowed;
-    color: #6B7276;
-    background: linear-gradient(180deg, #3E4448, #2A2F32);
-    border: 1px solid #0A0C0D;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.10), 0 2px 4px rgba(0,0,0,.5);
-    text-shadow: 0 -1px 0 rgba(0,0,0,.8);
+    margin-top: 10px; width: 100%;
+    font-family: var(--f-readout); font-weight: 600;
+    letter-spacing: .2em; text-transform: uppercase; font-size: 14px;
+    padding: 10px; cursor: not-allowed;
+    color: var(--v-dgray);
+    background: #000;
+    border: 1px solid var(--v-dgray); border-radius: 0;
+    text-shadow: none;
   }
-  .start:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+  .start::before { content: "[ "; }
+  .start::after  { content: " ]"; }
+  .start:focus-visible { outline: 2px solid var(--v-lcyan); outline-offset: 2px; }
 
-  /* ---- map --------------------------------------------------------- */
-  /* Drawn chart only. Real FAA underlays were built and then dropped -
-     SimBrief's own app already does charts well, and carrying tile services
-     meant a licence question, a US-only coverage limit and another thing to
-     fail when the internet is down. See notes/chart_underlays.md. */
-  .map-wrap {
-    background: var(--chart-ground);
-    border-radius: 3px;
-    box-shadow: inset 0 0 0 1px #000, inset 0 3px 12px rgba(0,0,0,.9);
-    overflow: hidden;
-  }
+  /* ---- the chart: a vector screen ---------------------------------- */
+  .map-wrap { background: #000; border: 1px solid var(--v-dgray); overflow: hidden; }
   svg { display: block; width: 100%; height: auto; }
 
-  .rt-line   { stroke: var(--chart-route); stroke-width: 1.6; fill: none; }
-  .rt-glow   { stroke: var(--chart-route); stroke-width: 5; fill: none; opacity: .13; }
-  .fix-sym   { stroke: var(--chart-fix); stroke-width: 1.2; fill: none; }
-  .fix-apt   { stroke: #8CF39B; stroke-width: 1.6; fill: none; }
-  .fix-lbl {
-    font-family: "IBM Plex Mono", monospace; font-size: 8.5px;
-    fill: var(--chart-fix); letter-spacing: .04em;
-  }
-  .fix-lbl.apt { fill: #8CF39B; font-weight: 600; font-size: 10px; }
-  .fix-lbl.tp  { fill: var(--amber); }
-  .grid-line { stroke: var(--chart-grid); stroke-width: .6; }
-  .awy-lbl {
-    font-family: "IBM Plex Mono", monospace; font-size: 8px;
-    fill: var(--amber); letter-spacing: .1em;
-  }
+  .rt-line   { stroke: var(--v-yellow); stroke-width: 1.6; fill: none; }
+  .rt-glow   { stroke: var(--v-yellow); stroke-width: 5; fill: none; opacity: .16; }
+  .fix-sym   { stroke: var(--v-lgray); stroke-width: 1.2; fill: none; }
+  .fix-apt   { stroke: var(--v-lgreen); stroke-width: 1.6; fill: none; }
+  .fix-lbl   { font-family: "IBM Plex Mono", monospace; font-size: 8.5px; fill: var(--v-lgray); letter-spacing: .04em; }
+  .fix-lbl.apt { fill: var(--v-lgreen); font-weight: 600; font-size: 10px; }
+  .fix-lbl.tp  { fill: var(--v-yellow); }
+  .grid-line { stroke: #1A1A1A; stroke-width: .6; }
+  .awy-lbl   { font-family: "IBM Plex Mono", monospace; font-size: 8px; fill: var(--v-yellow); letter-spacing: .1em; }
 
   /* ---- profile ----------------------------------------------------- */
-  .prof-fill { fill: rgba(240,168,30,.12); }
-  .prof-line { stroke: var(--amber); stroke-width: 1.4; fill: none; }
-  .prof-axis { stroke: var(--chart-grid); stroke-width: .6; }
-  .prof-lbl {
-    font-family: "IBM Plex Mono", monospace; font-size: 8px;
-    fill: var(--placard-faint);
-  }
+  .prof-fill { fill: rgba(255,255,85,.10); }
+  .prof-line { stroke: var(--v-yellow); stroke-width: 1.4; fill: none; }
+  .prof-axis { stroke: #1A1A1A; stroke-width: .6; }
+  .prof-lbl  { font-family: "IBM Plex Mono", monospace; font-size: 8px; fill: var(--v-dgray); }
 
   /* ---- lever caps diagram ------------------------------------------ */
-  /* Handle silhouettes follow the real parts: the black throttle is a tall
-     flat block, the blue prop head a ribbed barrel, the red mixture head
-     domed, the jet throttle waisted, SPEED BRAKE a tall blade and FLAP a
-     squat block. Shape carries the same information as colour, which matters
-     because on jets every handle is white. */
-  .capsblock { margin-top: 12px; }
-  .capsblock .plate-title { margin-bottom: 10px; }
+  /* The handles are the real parts, drawn flat as a screen of the period
+     would: the black throttle a tall block, the blue prop head a ribbed
+     barrel, the red mixture head domed, the jet throttle waisted, SPEED
+     BRAKE a blade and FLAP a squat block. Shape carries the same
+     information as colour, because on jets every handle is white. */
   .quadrant {
     display: grid; grid-template-columns: repeat(6, 1fr);
-    gap: 6px; padding: 10px 4px 4px;
-    background: var(--recess-deep); border-radius: 3px;
-    box-shadow: inset 0 2px 7px rgba(0,0,0,.8);
+    gap: 6px; padding: 8px 4px 4px;
+    background: #000; border: 1px solid var(--v-dgray);
     overflow-x: auto;
   }
-  .lever { display: flex; flex-direction: column; align-items: center;
-           padding: 4px 2px 8px; border-radius: 2px; }
+  .lever { display: flex; flex-direction: column; align-items: center; padding: 4px 2px 8px; }
   .lever.is-empty { opacity: .55; }
-  .cap-slot { position: relative; height: 46px;
-              display: flex; align-items: flex-end; justify-content: center; }
+  .cap-slot { position: relative; height: 46px; display: flex; align-items: flex-end; justify-content: center; }
   .cap { border: 2px solid; }
-  .cap[data-cap="black"] { width: 48px; height: 38px; border-radius: 4px 4px 3px 3px;
-    background: #12151A; border-color: #767F8B;
-    background-image: linear-gradient(180deg, rgba(255,255,255,.16), transparent 42%); }
-  .cap[data-cap="blue"] { width: 40px; height: 30px; border-radius: 5px;
-    background-color: #3B85E8; border-color: #7FB2F2;
-    background-image: repeating-linear-gradient(90deg, rgba(0,0,0,.26) 0 2px, rgba(255,255,255,.10) 2px 6px); }
-  .cap[data-cap="red"] { width: 38px; height: 30px; border-radius: 11px 11px 8px 8px;
-    background-color: #E14848; border-color: #F08A8A;
-    background-image: radial-gradient(120% 90% at 35% 22%, rgba(255,255,255,.30), transparent 58%); }
-  .cap[data-cap="jet"] { width: 44px; height: 36px; background: #F2F5F8; border: none;
-    clip-path: polygon(0 0, 100% 0, 70% 33%, 70% 67%, 100% 100%, 0 100%, 30% 67%, 30% 33%);
-    filter: drop-shadow(1.5px 0 0 #AEB7C2) drop-shadow(-1.5px 0 0 #AEB7C2)
-            drop-shadow(0 1.5px 0 #AEB7C2) drop-shadow(0 -1.5px 0 #AEB7C2); }
-  .cap[data-cap="sb"]   { width: 18px; height: 44px; border-radius: 3px;
-    background: #F2F5F8; border-color: #AEB7C2; }
-  .cap[data-cap="flap"] { width: 46px; height: 26px; border-radius: 3px;
-    background: #F2F5F8; border-color: #AEB7C2; }
-  .cap[data-cap="none"] { width: 38px; height: 22px; border-radius: 4px;
-    background: transparent; border-color: #565E69; border-style: dashed; }
-  .stem { width: 7px; height: 22px;
-          background: linear-gradient(90deg, var(--plate-slot), var(--rule-strong) 45%, var(--plate-slot)); }
+  .cap[data-cap="black"] { width: 48px; height: 38px; border-radius: 4px 4px 3px 3px; background: #111; border-color: var(--v-lgray); }
+  .cap[data-cap="blue"]  { width: 40px; height: 30px; border-radius: 5px; background-color: var(--v-lblue); border-color: var(--v-white);
+    background-image: repeating-linear-gradient(90deg, rgba(0,0,0,.35) 0 2px, transparent 2px 6px); }
+  .cap[data-cap="red"]   { width: 38px; height: 30px; border-radius: 11px 11px 8px 8px; background-color: var(--v-lred); border-color: var(--v-white); }
+  .cap[data-cap="jet"]   { width: 44px; height: 36px; background: var(--v-white); border: none;
+    clip-path: polygon(0 0, 100% 0, 70% 33%, 70% 67%, 100% 100%, 0 100%, 30% 67%, 30% 33%); }
+  .cap[data-cap="sb"]    { width: 18px; height: 44px; border-radius: 3px; background: var(--v-white); border-color: var(--v-lgray); }
+  .cap[data-cap="flap"]  { width: 46px; height: 26px; border-radius: 3px; background: var(--v-white); border-color: var(--v-lgray); }
+  .cap[data-cap="none"]  { width: 38px; height: 22px; border-radius: 4px; background: transparent; border-color: var(--v-dgray); border-style: dashed; }
+  .stem { width: 7px; height: 22px; background: var(--v-dgray); }
   .lever.is-empty .stem { opacity: .35; }
-  .plate-bar { width: 100%; height: 12px; background: var(--plate); border-radius: 2px;
-               display: grid; place-items: center; }
-  .plate-bar span { display: block; width: 18px; height: 4px;
-                    background: var(--plate-slot); border-radius: 3px; }
-  .lv-pos { font-family: var(--f-readout); font-size: 10px; letter-spacing: .1em;
-            color: var(--placard-faint); margin-top: 8px; }
-  .lv-cap { font-weight: 700; text-transform: uppercase; letter-spacing: .08em;
-            font-size: 12px; color: var(--placard-dim); margin-top: 2px; text-align: center; }
-  .lv-fn  { font-weight: 700; font-size: 14px; line-height: 1.1; margin-top: 4px;
-            text-align: center; color: var(--placard); text-wrap: balance; }
-  .lever.is-empty .lv-fn, .lever.is-empty .lv-cap { color: var(--placard-faint); font-weight: 500; }
+  .plate-bar { width: 100%; height: 12px; background: var(--v-dgray); display: grid; place-items: center; }
+  .plate-bar span { display: block; width: 18px; height: 4px; background: #000; }
+  .lv-pos { font-size: 10px; letter-spacing: .1em; color: var(--v-dgray); margin-top: 8px; }
+  .lv-cap { font-weight: 600; text-transform: uppercase; letter-spacing: .08em; font-size: 11px; color: var(--placard-dim); margin-top: 2px; text-align: center; }
+  .lv-fn  { font-family: var(--f-caps); font-weight: 700; font-size: 14px; line-height: 1.1; margin-top: 4px; text-align: center; color: var(--v-lgray); text-wrap: balance; }
+  .lever.is-empty .lv-fn, .lever.is-empty .lv-cap { color: var(--v-dgray); font-weight: 500; }
 
-  /* ---- data strip -------------------------------------------------- */
+  /* ---- data strip: fields on the screen ------------------------------ */
   .strip {
     display: grid; grid-template-columns: repeat(auto-fit, minmax(94px, 1fr));
-    gap: 1px; margin-top: 12px;
-    background: rgba(0,0,0,.5); border-radius: 2px; overflow: hidden;
+    gap: 0; margin-top: 10px;
+    border: 1px solid var(--v-dgray);
   }
-  .cell { background: var(--recess-deep); padding: 8px 9px; }
-  .cell .k {
-    font-size: 9.5px; letter-spacing: .14em; text-transform: uppercase;
-    color: var(--placard-faint); font-weight: 600;
-  }
-  .cell .v {
-    font-family: var(--f-readout); font-size: 14px; font-weight: 500;
-    color: var(--amber-bright); margin-top: 2px;
-    text-shadow: 0 0 7px rgba(240,168,30,.35);
-  }
-  .cell .v.plain { color: var(--placard); text-shadow: none; }
+  .cell { background: #000; padding: 6px 8px; border-right: 1px solid var(--v-dgray); }
+  .cell:last-child { border-right: 0; }
+  .cell .k { font-size: 9.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--v-lcyan); font-weight: 600; }
+  .cell .v { font-size: 14px; font-weight: 600; color: var(--v-yellow); margin-top: 2px; text-shadow: 0 0 7px var(--glow-y); }
+  .cell .v.plain { color: var(--v-white); text-shadow: none; }
 
+  /* ---- the status line at the foot: reverse video, with the cursor ---- */
   .footnote {
-    margin-top: 14px; text-align: center;
-    font-family: var(--f-readout); font-size: 10px; line-height: 1.6;
-    color: #5C6367;
+    margin: 6px 0 0; padding: 1px 10px;
+    text-align: left; flex: 0 0 auto;
+    font-size: 11px; line-height: 1.6;
+    background: var(--v-lgray); color: #000; text-shadow: none;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
+  .footnote::after { content: "\2588"; margin-left: 6px; animation: cursor 1s steps(1) infinite; }
+  @keyframes cursor { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
 </style>
+
 
 <div class="deck">
 

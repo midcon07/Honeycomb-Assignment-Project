@@ -77,6 +77,7 @@ internal sealed class TrafficReminderForm : Form
         public int Speed;                 // 0 normal, 1 fast, 2 fastest
         public int Printer;               // 0 the dot matrix, 1 the LaserWriter (Mark, 2026-09-12)
         public string Face = "Helvetica"; // the LaserWriter's face, by its PostScript name
+        public bool Ambience = true;      // the airport under the printer (Mark, 2026-09-12)
         public Options Clone() => (Options)MemberwiseClone();
     }
     private bool IsLaser => Opts.Printer == 1;
@@ -680,6 +681,8 @@ internal sealed class TrafficReminderForm : Form
             it.Click += (_, __) => { Opts.Face = name; ApplyOptions(); };
             face.DropDownItems.Add(it);
         }
+        var amb = new ToolStripMenuItem("Airport ambience") { Checked = Opts.Ambience, CheckOnClick = true };
+        amb.Click += (_, __) => { Opts.Ambience = amb.Checked; ApplyOptions(); };
         var bidi = new ToolStripMenuItem("Print in both directions") { Checked = Opts.Bidirectional, CheckOnClick = true };
         bidi.Click += (_, __) => { Opts.Bidirectional = bidi.Checked; ApplyOptions(); };
         var mixed = new ToolStripMenuItem("Upper and lower case") { Checked = Opts.MixedCase, CheckOnClick = true };
@@ -692,8 +695,11 @@ internal sealed class TrafficReminderForm : Form
         _menu.Items.Add(new ToolStripSeparator());
         _menu.Items.Add(bidi);
         _menu.Items.Add(mixed);
+        _menu.Items.Add(new ToolStripSeparator());
+        _menu.Items.Add(amb);
         _menu.Opening += (_, __) =>
         {
+            amb.Checked = Opts.Ambience;
             foreach (ToolStripMenuItem it in printer.DropDownItems) it.Checked = (int)it.Tag == Opts.Printer;
             foreach (ToolStripMenuItem it in face.DropDownItems) it.Checked = (string)it.Tag == Opts.Face;
             face.Enabled = IsLaser; bidi.Enabled = !IsLaser;
@@ -717,6 +723,7 @@ internal sealed class TrafficReminderForm : Form
         if (!IsLaser && _laserTimer != null) { _laserTimer.Stop(); _laserTimer.Dispose(); _laserTimer = null; _reveal = float.MaxValue; _printing = false; }
         Relayout();
         if (!_printing) Flush();
+        SetAmbience(Opts.Ambience);
         OptionsChanged?.Invoke(Opts.Clone());
     }
 
@@ -787,9 +794,22 @@ internal sealed class TrafficReminderForm : Form
     }
 
     // ---- the print head ----------------------------------------------------------------
+    // ---- the airport under the printer ---------------------------------------------
+    private Ambience _ambience;
+
+    private void SetAmbience(bool on)
+    {
+        if (on && !IsDisposed)
+        {
+            if (_ambience == null) { _ambience = new Ambience(this); _ambience.Start(); }
+        }
+        else if (_ambience != null) { _ambience.Dispose(); _ambience = null; }
+    }
+
     protected override void OnShown(EventArgs e)
     {
         base.OnShown(e);
+        SetAmbience(Opts.Ambience);
         if (IsLaser) { _headSrc = _src.Count; _headChar = 0; LaserPrint(null); return; }
         _printing = true;
         _sounds.StartPrinting();
@@ -1266,6 +1286,7 @@ internal sealed class TrafficReminderForm : Form
         base.OnFormClosed(e);
         _clock.Stop(); _clock.Dispose();
         _laserTimer?.Stop(); _laserTimer?.Dispose(); _laserTimer = null;
+        _ambience?.Dispose(); _ambience = null;
         _sounds.Dispose();
         // A paint can still arrive after this (measured 2026-09-12: closing
         // with YES, then one more WM_PAINT drew a disposed bitmap and the

@@ -1345,14 +1345,15 @@ internal sealed partial class MainForm : Form
         {
             Ink = _cfg?.PrintoutInk ?? 1, Bidirectional = _cfg?.PrintoutBidirectional ?? false,
             MixedCase = _cfg?.PrintoutMixedCase ?? false, Speed = _cfg?.PrintoutSpeed ?? 0,
-            Printer = _cfg?.PrintoutPrinter ?? 0, Face = string.IsNullOrWhiteSpace(_cfg?.PrintoutFace) ? "Helvetica" : _cfg.PrintoutFace
+            Printer = _cfg?.PrintoutPrinter ?? 0, Face = string.IsNullOrWhiteSpace(_cfg?.PrintoutFace) ? "Helvetica" : _cfg.PrintoutFace,
+            Ambience = _cfg?.PrintoutAmbience ?? true
         };
         var f = new TrafficReminderForm(facts, opts, true, pitch, remembered);
         f.OptionsChanged += o =>
         {
             _cfg ??= new AppConfig();
             _cfg.PrintoutInk = o.Ink; _cfg.PrintoutBidirectional = o.Bidirectional; _cfg.PrintoutMixedCase = o.MixedCase; _cfg.PrintoutSpeed = o.Speed;
-            _cfg.PrintoutPrinter = o.Printer; _cfg.PrintoutFace = o.Face;
+            _cfg.PrintoutPrinter = o.Printer; _cfg.PrintoutFace = o.Face; _cfg.PrintoutAmbience = o.Ambience;
             try { _cfg.Save(); } catch (Exception ex) { Program.LogError("save printout options", ex); }
             Program.Log($"printout options: {(o.Printer == 1 ? "LaserWriter, " + o.Face : "dot matrix")}, ink {o.Ink}, both directions {o.Bidirectional}, mixed case {o.MixedCase}, speed {o.Speed}");
         };
