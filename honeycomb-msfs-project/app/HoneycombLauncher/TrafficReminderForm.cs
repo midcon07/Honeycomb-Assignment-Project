@@ -8,25 +8,34 @@ using System.Windows.Forms;
 namespace HoneycombLauncher;
 
 /// <summary>
-/// The printout: a sheet of tractor-feed paper that prints - character by
-/// character, with the printer's sounds - what a person has to do in the
-/// sim's own options. Exists because MSFS keeps its Traffic Type setting
-/// where no program can read or write it (measured 2026-09-11).
+/// The printout: a sheet of green-bar tractor-feed paper, always on top, that
+/// prints - one character at a time, with the printer's sounds - what a person
+/// has to do in the simulator for the chosen traffic mode, and what the program
+/// has found out for itself. Mark, 2026-09-11: "I want to push more information
+/// through this during the flight" - so this is a feed: lines are appended to
+/// the foot of the sheet as things happen, never rewritten.
 ///
-/// A window in its own right (Mark, 2026-09-11): opens pinned on top and
-/// stays open; an anchor lamp top-left (green = on top, red = an ordinary
-/// window); minimise, maximise and close, and text smaller/larger, drawn in
-/// the printer's style top-right; resizable by its edges, the text reflowing
-/// to the width; draggable by its paper to any monitor. Minimise puts it
-/// away as a small square that brings it back. Nothing collapses on its own.
+/// Three parts print for a mode. 1. The two Graphics > Traffic levels, read
+/// from the sim's settings file: the sheet strikes its own "must be" lines and
+/// prints a confirmation the moment the file agrees (measured, not anyone's
+/// word). 2. The Traffic Type on the Online page, which lives where no program
+/// can read it: a person clicks DONE and the sheet prints who and when, and
+/// says in print that it is their word. 3. The traffic engine (BeyondATC, the
+/// FSLTL injector): once the graphics are right, a line offers to start it,
+/// and the sheet confirms from the process list when it is up.
 ///
-/// Two printed lines are clickable. "DONE" strikes the line through and prints
-/// who and when: that is the person's word, recorded as such. "NOT NOW" leaves
-/// it for the next occasion. The sheet never claims to have verified anything.
+/// One printout window lives for the session. It opens pinned (on top), and
+/// stays open. An anchor lamp top-left: green = on top of everything, red = an
+/// ordinary window; dropping it after a drag anchors it. Printed chrome
+/// top-right: A- A+ (text size), minimise (winds up into a small square that
+/// brings it back), maximise, close (which asks first, in print). Resizable by
+/// its edges - the text reflows to the width, wrapped at spaces. Right-click
+/// the paper for the printer options (Mark, 2026-09-12): ink weight, printing
+/// in both directions, upper and lower case, speed.
 /// </summary>
 internal sealed class TrafficReminderForm : Form
 {
-    public enum Outcome { None, Done, NotNow, CloseYes, CloseNo }
+    public enum Outcome { None, Done, NotNow, CloseYes, CloseNo, StartEngine }
     public Outcome Result { get; private set; } = Outcome.None;
     /// <summary>A choice was made (DONE or NOT NOW). The sheet stays up.</summary>
     public event Action<Outcome> Finished;
@@ -34,9 +43,48 @@ internal sealed class TrafficReminderForm : Form
     public event Action Minimised, Restored;
     public event Action<bool> PinChanged;
     public event Action<float> PitchChanged;
+    /// <summary>The person asked, on the sheet, for the traffic engine to be started.</summary>
+    public event Action EngineStartRequested;
+    /// <summary>A printer option was changed from the right-click menu.</summary>
+    public event Action<Options> OptionsChanged;
+    /// <summary>Raised when the person has moved or resized the sheet, so the place can be remembered.</summary>
+    public event Action<Rectangle> BoundsSettled;
     public bool IsMinimised { get; private set; }
     /// <summary>Anchored: kept on top of everything, the simulator included.</summary>
     public bool Pinned { get; private set; }
+    /// <summary>True until every part of the sheet is right: something is still wanted of the person.</summary>
+    public bool Unresolved => !_resolved;
+
+    /// <summary>Everything the sheet prints from: the mode, what it needs, what is recorded, what the sim's file says, the engine.</summary>
+    public sealed class Facts
+    {
+        public string Mode = "", RequiredType = "", RecordedType = "", RecordedBy = "", RecordedUtc = "", Who = "";
+        public int RequiredAircraft, RequiredParked;          // Graphics > Traffic levels the mode needs
+        public SimSettings.TrafficGraphics Sim;               // what the sim's settings file holds now; null if unreadable
+        public string SimProblem = "";                        // why, when Sim is null
+        public string EngineName;                             // BeyondATC / FSLTL injector; null when the mode is MSFS
+        public bool EngineFound;                              // its exe was found, so the sheet can offer to start it
+        public bool EngineRunning;                            // its process is up now
+        public string[] ForeignEnginesRunning = Array.Empty<string>();   // engines running that the mode does not want
+    }
+
+    /// <summary>The printer options, from the right-click menu; saved by the launcher.</summary>
+    public sealed class Options
+    {
+        public int Ink = 1;               // 0 light, 1 normal, 2 dark, 3 black
+        public bool Bidirectional;        // the head prints alternate lines right to left, as a real one did
+        public bool MixedCase;            // upper and lower case; off = the all-capitals original
+        public int Speed;                 // 0 normal, 1 fast, 2 fastest
+        public Options Clone() => (Options)MemberwiseClone();
+    }
+    public Options Opts { get; private set; }
+    private static readonly double[] SpeedMs = { 17, 9, 4 };
+    private static readonly Color[] InkByWeight =
+    {
+        Color.FromArgb(28, 34, 66), Color.FromArgb(28, 34, 66), Color.FromArgb(18, 22, 48), Color.FromArgb(6, 8, 22)
+    };
+    private Color Ink => InkByWeight[Math.Max(0, Math.Min(3, Opts.Ink))];
+    private double CharMs => SpeedMs[Math.Max(0, Math.Min(2, Opts.Speed))];
 
     // ---- paper geometry ------------------------------------------------------
     public static readonly float[] Pitches = { 2.0f, 2.3f, 2.6f, 3.0f, 3.4f, 3.9f, 4.4f };
@@ -45,58 +93,51 @@ internal sealed class TrafficReminderForm : Form
     private float LineH => _pitch * 10;               // 7 dots + 3 gap
     private const int StripW = 42;                    // sprocket strip each side
     private const int TopMargin = 38, BottomMargin = 26, Edge = 7;
-    private const double CharMs = 17;                 // print speed
     private const int DefaultCols = 46;
     private int _cols = DefaultCols;
 
     private static readonly Color Paper = Color.FromArgb(244, 241, 228);
     private static readonly Color Bar = Color.FromArgb(214, 232, 208);
-    private static readonly Color Ink = Color.FromArgb(28, 34, 66);
     private static readonly Color Perf = Color.FromArgb(200, 196, 180);
 
     // ---- what is printed -------------------------------------------------------
+    // Source lines are kept in sentence case; Disp() gives what is printed.
     private sealed class Src { public string Text = ""; public Outcome Click = Outcome.None; public bool Struck; }
     private sealed class Row { public int Src; public string Text = ""; public int Start; }   // Start = index of this row's first char within the source text
     private readonly List<Src> _src = new();
     private readonly List<Row> _rows = new();
     private Bitmap _sheet;
     private readonly Random _ribbon = new(42);
-    private readonly DotMatrix.Sounds _sounds;
-    private readonly System.Windows.Forms.Timer _clock = new() { Interval = (int)CharMs };
-    // Print head: how many source lines are fully printed, and how far into the current one.
+    private DotMatrix.Sounds _sounds;
+    private readonly System.Windows.Forms.Timer _clock = new();
+    // Print head: how many source lines are fully printed, and how many characters of the current one.
     private int _headSrc, _headChar;
     private bool _printing, _busy;
     private int _lineFeedPause;
     private readonly string _who;
-    private readonly bool _resolved;
-
-    /// <summary>Raised when the person has moved or resized the sheet, so the place can be remembered.</summary>
-    public event Action<Rectangle> BoundsSettled;
-
-    /// <summary>Everything the sheet prints from: the mode, what it needs, what is recorded, what the sim's file says.</summary>
-    public sealed class Facts
-    {
-        public string Mode = "", RequiredType = "", RecordedType = "", RecordedBy = "", RecordedUtc = "", Who = "";
-        public int RequiredAircraft, RequiredParked;          // Graphics > Traffic levels the mode needs
-        public SimSettings.TrafficGraphics Sim;               // what the sim's settings file holds now; null if unreadable
-        public string SimProblem = "";                        // why, when Sim is null
-    }
+    private bool _resolved;
 
     // The graphics lines that are struck through once the sim's file agrees.
     private readonly List<int> _gfxLines = new();
     private readonly int _reqAircraft, _reqParked;
     private bool _gfxOk;
-    private SimSettings.TrafficGraphics _pendingGfx;
+    // The engine: its START line, and whether it is up.
+    private readonly string _engineName;
+    private readonly bool _engineFound;
+    private bool _engineRunning, _engineStartAsked, _engineLineDue;
 
-    public TrafficReminderForm(Facts f, bool pinned = true, float pitch = 2.6f, Rectangle? remembered = null)
+    public TrafficReminderForm(Facts f, Options opts = null, bool pinned = true, float pitch = 2.6f, Rectangle? remembered = null)
     {
+        Opts = (opts ?? new Options()).Clone();
         string mode = f.Mode ?? "", required = f.RequiredType ?? "", recorded = f.RecordedType ?? "", recordedBy = f.RecordedBy ?? "", recordedUtc = f.RecordedUtc ?? "";
         Pinned = pinned;
         _pitch = pitch;
         _reqAircraft = f.RequiredAircraft; _reqParked = f.RequiredParked;
         _gfxOk = f.Sim != null && f.Sim.Matches(_reqAircraft, _reqParked);
+        _engineName = f.EngineName; _engineFound = f.EngineFound; _engineRunning = f.EngineRunning;
         var typeResolved = !string.IsNullOrWhiteSpace(recorded) && string.Equals(recorded, required, StringComparison.OrdinalIgnoreCase);
-        _resolved = typeResolved && _gfxOk;
+        var engineOk = _engineName == null ? f.ForeignEnginesRunning.Length == 0 : _engineRunning;
+        _resolved = typeResolved && _gfxOk && engineOk;
         _who = string.IsNullOrWhiteSpace(f.Who) ? Environment.UserName : f.Who;
 
         FormBorderStyle = FormBorderStyle.None;
@@ -110,66 +151,106 @@ internal sealed class TrafficReminderForm : Form
 
         var mono = mode switch
         {
-            "BATC"  => "BATC - BEYONDATC DRIVES THE TRAFFIC",
-            "FSLTL" => "FSLTL - THE INJECTOR DRIVES THE TRAFFIC",
-            "MSFS"  => "MSFS - ASOBO'S OWN TRAFFIC ENGINE",
+            "BATC"  => "BATC - BeyondATC drives the traffic",
+            "FSLTL" => "FSLTL - the injector drives the traffic",
+            "MSFS"  => "MSFS - Asobo's own traffic engine",
             _       => mode
         };
         string when = "";
         if (!string.IsNullOrWhiteSpace(recordedUtc) && DateTime.TryParse(recordedUtc, null, System.Globalization.DateTimeStyles.AdjustToUniversal | System.Globalization.DateTimeStyles.AssumeUniversal, out var dt))
-            when = dt.ToLocalTime().ToString("dd MMM").ToUpperInvariant();
+            when = dt.ToLocalTime().ToString("dd MMM");
 
-        Add("HONEYCOMB PREFLIGHT".PadRight(DefaultCols - 15) + DateTime.Now.ToString("dd MMM yy HH:mm").ToUpperInvariant());
-        Add(_resolved ? "*** TRAFFIC - ALL AS IT SHOULD BE ***" : "*** ACTION REQUIRED IN THE SIMULATOR ***");
+        Add("Honeycomb Preflight".PadRight(DefaultCols - 15) + DateTime.Now.ToString("dd MMM yy HH:mm"));
+        Add(_resolved ? "*** Traffic - all as it should be ***" : "*** Action required in the simulator ***");
         Add("");
-        Add("TRAFFIC MODE: " + mono);
+        Add("Traffic mode: " + mono);
         Add("");
+
         // 1. The graphics levels: read from the sim's settings file, which the
         //    sim rewrites the moment a setting changes, so this part confirms
         //    itself (measured 2026-09-12).
-        string wa = SimSettings.LevelWord(_reqAircraft), wp = SimSettings.LevelWord(_reqParked);
-        Add("1. OPTIONS > GENERAL > GRAPHICS");
+        string wa = Word(_reqAircraft), wp = Word(_reqParked);
+        Add("1. Options > General > Graphics");
         if (f.Sim == null)
         {
-            Add("   COULD NOT READ THE SIM'S SETTINGS FILE:");
-            Add("   " + (f.SimProblem ?? "").ToUpperInvariant());
-            Add("   AIRCRAFT TRAFFIC MUST BE: " + wa);
-            Add("   PARKED AIRCRAFT MUST BE:  " + wp);
+            Add("   Could not read the sim's settings file:");
+            Add("   " + (f.SimProblem ?? ""));
+            Add("   Aircraft Traffic must be: " + wa);
+            Add("   Parked Aircraft must be:  " + wp);
         }
         else if (_gfxOk)
         {
-            Add("   AIRCRAFT TRAFFIC: " + wa + "   PARKED: " + wp);
-            Add("   RIGHT - READ FROM THE SIM'S SETTINGS FILE.");
+            Add("   Aircraft Traffic: " + wa + "   Parked: " + wp);
+            Add("   Right - read from the sim's settings file.");
         }
         else
         {
-            _gfxLines.Add(_src.Count); Add("   AIRCRAFT TRAFFIC MUST BE: " + wa + " (NOW " + SimSettings.LevelWord(f.Sim.Aircraft) + ")");
-            _gfxLines.Add(_src.Count); Add("   PARKED AIRCRAFT MUST BE:  " + wp + " (NOW " + SimSettings.LevelWord(f.Sim.Parked) + ")");
-            Add("   SAVE, THEN BACK. THIS SHEET READS THE SIM'S");
-            Add("   SETTINGS FILE AND CONFIRMS IT BY ITSELF.");
+            _gfxLines.Add(_src.Count); Add("   Aircraft Traffic must be: " + wa + " (now " + Word(f.Sim.Aircraft) + ")");
+            _gfxLines.Add(_src.Count); Add("   Parked Aircraft must be:  " + wp + " (now " + Word(f.Sim.Parked) + ")");
+            Add("   Save, then back. This sheet reads the sim's");
+            Add("   settings file and confirms it by itself.");
+        }
+        if (_reqAircraft == -1)
+        {
+            // Turning the two levels off takes the page's overall preset off
+            // its word (measured 2026-09-12: Ultra -> Custom). Said here so
+            // nobody "fixes" it back (Mark's item 0, 2026-09-12).
+            Add("   Global Rendering Quality will say Custom -");
+            Add("   that is right; leave it.");
         }
         Add("");
+
         // 2. The Traffic Type: in the cloud profile, so a person's word.
-        Add("2. OPTIONS > GENERAL > ONLINE");
-        Add("   TRAFFIC TYPE MUST BE: " + required.ToUpperInvariant());
-        if (string.IsNullOrWhiteSpace(recorded)) Add("   LAST RECORDED AS: NEVER RECORDED");
+        Add("2. Options > General > Online");
+        Add("   Traffic Type must be: " + required);
+        if (string.IsNullOrWhiteSpace(recorded)) Add("   Last recorded as: never recorded");
         else
         {
-            Add("   LAST RECORDED AS: " + recorded.ToUpperInvariant());
-            if (when != "") Add("                     (" + when + (string.IsNullOrWhiteSpace(recordedBy) ? "" : " BY " + recordedBy.ToUpperInvariant()) + ")");
+            Add("   Last recorded as: " + recorded);
+            if (when != "") Add("                     (" + when + (string.IsNullOrWhiteSpace(recordedBy) ? "" : " by " + recordedBy) + ")");
         }
-        Add(typeResolved ? "   AS RECORDED - NOTHING TO CHANGE." : "   SAVE, THEN BACK.");
-        Add("   (THE SIM KEEPS THIS ONE WHERE NO PROGRAM");
-        Add("    CAN CHECK IT, SO YOUR WORD IS THE RECORD.)");
+        Add(typeResolved ? "   As recorded - nothing to change." : "   Save, then back.");
+        Add("   (The sim keeps this one where no program");
+        Add("    can check it, so your word is the record.)");
         Add("");
+
+        // 3. The engine that feeds the traffic (Mark's item 6, 2026-09-12).
+        if (_engineName != null)
+        {
+            Add("3. Traffic engine: " + _engineName);
+            if (_engineRunning) Add("   Running - its process was seen " + DateTime.Now.ToString("HH:mm") + ".");
+            else
+            {
+                Add("   Not running.");
+                if (!_engineFound)
+                {
+                    Add("   Not found on this computer - start it");
+                    Add("   yourself. This sheet confirms it by itself.");
+                }
+                else if (_gfxOk) Add("[ ] Start " + _engineName + " now", Outcome.StartEngine);
+                else { _engineLineDue = true; Add("   (Offered here once the graphics are right.)"); }
+            }
+        }
+        else
+        {
+            Add("3. Traffic engine: the simulator's own");
+            Add("   Nothing to start.");
+            foreach (var e in f.ForeignEnginesRunning)
+            {
+                Add("   !! " + e + " is running - close it, or");
+                Add("   the traffic doubles.");
+            }
+        }
+        Add("");
+
         if (typeResolved)
         {
-            Add("[ ] NOTED", Outcome.NotNow);
+            Add("[ ] Noted", Outcome.NotNow);
         }
         else
         {
-            Add("[ ] DONE - TRAFFIC TYPE IS NOW " + required.ToUpperInvariant(), Outcome.Done);
-            Add("[ ] NOT NOW - REMIND ME NEXT TIME", Outcome.NotNow);
+            Add("[ ] Done - Traffic Type is now " + required, Outcome.Done);
+            Add("[ ] Not now - remind me next time", Outcome.NotNow);
         }
         Add("");
 
@@ -188,11 +269,23 @@ internal sealed class TrafficReminderForm : Form
         }
 
         _sounds = new DotMatrix.Sounds(CharMs);
+        _clock.Interval = (int)CharMs;
         _clock.Tick += (_, __) => Step();
+        BuildMenu();
         Relayout();
     }
 
+    private static string Word(int level) => SimSettings.LevelWord(level) switch
+    {
+        "OFF" => "Off",
+        "ULTRA" => "Ultra",
+        var s => s.ToLowerInvariant()
+    };
+
     private void Add(string text, Outcome click = Outcome.None) => _src.Add(new Src { Text = text, Click = click });
+
+    /// <summary>What a source line looks like on the paper: the original is all capitals; mixed case is the option.</summary>
+    private string Disp(string text) => Opts.MixedCase ? text : text.ToUpperInvariant();
 
     // ---- a real, resizable window with no frame ----------------------------------
     private const int WS_THICKFRAME = 0x00040000, WM_NCCALCSIZE = 0x0083, WM_NCHITTEST = 0x0084, WM_EXITSIZEMOVE = 0x0232, WM_NCLBUTTONDOWN = 0x00A1;
@@ -244,7 +337,7 @@ internal sealed class TrafficReminderForm : Form
         _rows.Clear();
         for (int s = 0; s < _src.Count; s++)
         {
-            var text = _src[s].Text;
+            var text = Disp(_src[s].Text);
             int start = 0;
             while (true)
             {
@@ -264,6 +357,12 @@ internal sealed class TrafficReminderForm : Form
     private float TextLeft => StripW + 12;
     private float RowTop(int row) => TopMargin + row * LineH;
     private int RowAt(float y) => (int)Math.Floor((y - TopMargin) / LineH);
+
+    /// <summary>Whether a row prints left to right. With the bidirectional option, every other row runs back.</summary>
+    private bool Forward(int row) => !Opts.Bidirectional || row % 2 == 0;
+
+    /// <summary>The column printed k-th on a row, in the row's direction.</summary>
+    private int ColForStep(int row, int k) => Forward(row) ? k : _rows[row].Text.Length - 1 - k;
 
     /// <summary>The whole sheet from scratch: paper, chrome, everything printed so far, strikes.</summary>
     private void RedrawAll()
@@ -295,12 +394,14 @@ internal sealed class TrafficReminderForm : Form
         for (int r = 0; r < _rows.Count; r++)
         {
             var row = _rows[r];
-            int printedInSrc = row.Src < _headSrc ? int.MaxValue : (row.Src == _headSrc ? _headChar : -1);
-            if (printedInSrc < 0) continue;
-            for (int c = 0; c < row.Text.Length; c++)
+            int len = row.Text.Length;
+            // How many characters of this row are on the paper.
+            int k = row.Src < _headSrc ? len : (row.Src == _headSrc ? Math.Max(0, Math.Min(len, _headChar - row.Start)) : 0);
+            if (k == 0) continue;
+            for (int c = 0; c < len; c++)
             {
-                if (row.Start + c >= printedInSrc) break;
-                if (row.Text[c] != ' ') DotMatrix.DrawChar(g, row.Text[c], TextLeft + c * CharW, RowTop(r), _pitch, Ink, rnd);
+                bool printed = Forward(r) ? c < k : c >= len - k;
+                if (printed && row.Text[c] != ' ') DotMatrix.DrawChar(g, row.Text[c], TextLeft + c * CharW, RowTop(r), _pitch, Ink, rnd, Opts.Ink);
             }
             if (_src[row.Src].Struck && row.Src < _headSrc) DrawStrike(g, r, rnd);
         }
@@ -312,7 +413,7 @@ internal sealed class TrafficReminderForm : Form
     {
         using var g = Graphics.FromImage(_sheet);
         g.SmoothingMode = SmoothingMode.AntiAlias;
-        DotMatrix.DrawChar(g, c, TextLeft + col * CharW, RowTop(row), _pitch, Ink, _ribbon);
+        DotMatrix.DrawChar(g, c, TextLeft + col * CharW, RowTop(row), _pitch, Ink, _ribbon, Opts.Ink);
         Invalidate(new Rectangle((int)(TextLeft + col * CharW) - 2, (int)RowTop(row) - 2, (int)CharW + 6, (int)LineH + 4));
     }
 
@@ -324,6 +425,16 @@ internal sealed class TrafficReminderForm : Form
         float x0 = TextLeft - 2, x1 = TextLeft + _rows[row].Text.Length * CharW + 2;
         for (float x = x0; x <= x1; x += 8) pts.Add(new PointF(x, y + (float)(rnd.NextDouble() - 0.5) * 1.6f));
         if (pts.Count > 1) g.DrawLines(pen, pts.ToArray());
+    }
+
+    private void StrikeSource(int s)
+    {
+        _src[s].Struck = true;
+        using var g = Graphics.FromImage(_sheet);
+        g.SmoothingMode = SmoothingMode.AntiAlias;
+        var rnd = new Random(42);
+        for (int r = 0; r < _rows.Count; r++) if (_rows[r].Src == s) DrawStrike(g, r, rnd);
+        Invalidate();
     }
 
     // ---- the anchor lamp -----------------------------------------------------------
@@ -438,6 +549,55 @@ internal sealed class TrafficReminderForm : Form
         PitchChanged?.Invoke(_pitch);
     }
 
+    // ---- the printer options: right-click the paper (Mark, 2026-09-12) -------------------
+    private ContextMenuStrip _menu;
+
+    private void BuildMenu()
+    {
+        _menu = new ContextMenuStrip();
+        var ink = new ToolStripMenuItem("Ink");
+        foreach (var (label, w) in new[] { ("Light", 0), ("Normal", 1), ("Dark", 2), ("Black", 3) })
+        {
+            var it = new ToolStripMenuItem(label) { Checked = Opts.Ink == w, Tag = w };
+            it.Click += (_, __) => { Opts.Ink = w; ApplyOptions(); };
+            ink.DropDownItems.Add(it);
+        }
+        var speed = new ToolStripMenuItem("Speed");
+        foreach (var (label, v) in new[] { ("Normal", 0), ("Fast", 1), ("Fastest", 2) })
+        {
+            var it = new ToolStripMenuItem(label) { Checked = Opts.Speed == v, Tag = v };
+            it.Click += (_, __) => { Opts.Speed = v; ApplyOptions(); };
+            speed.DropDownItems.Add(it);
+        }
+        var bidi = new ToolStripMenuItem("Print in both directions") { Checked = Opts.Bidirectional, CheckOnClick = true };
+        bidi.Click += (_, __) => { Opts.Bidirectional = bidi.Checked; ApplyOptions(); };
+        var mixed = new ToolStripMenuItem("Upper and lower case") { Checked = Opts.MixedCase, CheckOnClick = true };
+        mixed.Click += (_, __) => { Opts.MixedCase = mixed.Checked; ApplyOptions(); };
+        _menu.Items.Add(ink);
+        _menu.Items.Add(speed);
+        _menu.Items.Add(new ToolStripSeparator());
+        _menu.Items.Add(bidi);
+        _menu.Items.Add(mixed);
+        _menu.Opening += (_, __) =>
+        {
+            foreach (ToolStripMenuItem it in ink.DropDownItems) it.Checked = (int)it.Tag == Opts.Ink;
+            foreach (ToolStripMenuItem it in speed.DropDownItems) it.Checked = (int)it.Tag == Opts.Speed;
+            bidi.Checked = Opts.Bidirectional; mixed.Checked = Opts.MixedCase;
+        };
+    }
+
+    /// <summary>A changed option takes effect on the paper at once, and is told to the launcher to keep.</summary>
+    private void ApplyOptions()
+    {
+        _clock.Interval = (int)CharMs;
+        bool wasPrinting = _printing && _clock.Enabled;
+        try { _sounds.StopPrinting(); _sounds.Dispose(); } catch { }
+        _sounds = new DotMatrix.Sounds(CharMs);
+        if (wasPrinting && _lineFeedPause == 0) _sounds.StartPrinting();
+        Relayout();
+        OptionsChanged?.Invoke(Opts.Clone());
+    }
+
     // ---- maximise / minimise -----------------------------------------------------------
     private bool _maximised;
     private Rectangle _normalBounds;
@@ -473,6 +633,7 @@ internal sealed class TrafficReminderForm : Form
                 slide.Stop(); slide.Dispose();
                 Hide(); Top = startTop; IsMinimised = true; _busy = false;
                 Minimised?.Invoke();
+                Flush();
             }
         };
         slide.Start();
@@ -497,6 +658,7 @@ internal sealed class TrafficReminderForm : Form
                 slide.Stop(); slide.Dispose();
                 Top = endTop; IsMinimised = false; _busy = false;
                 Restored?.Invoke();
+                Flush();
             }
         };
         slide.Start();
@@ -511,7 +673,8 @@ internal sealed class TrafficReminderForm : Form
         _clock.Start();
     }
 
-    private (int row, int col) HeadPos()
+    /// <summary>The row and the k-th step within it for the head's position in the current source line.</summary>
+    private (int row, int k) HeadPos()
     {
         for (int r = 0; r < _rows.Count; r++)
         {
@@ -529,11 +692,16 @@ internal sealed class TrafficReminderForm : Form
         if (_lineFeedPause > 0) { _lineFeedPause--; if (_lineFeedPause == 0) _sounds.StartPrinting(); return; }
         // The last source line (blank, for the RECORDED line) is not printed on its own.
         if (_headSrc >= _src.Count - 1) { FinishPrinting(); return; }
-        var text = _src[_headSrc].Text;
+        var text = Disp(_src[_headSrc].Text);
         if (_headChar < text.Length)
         {
-            var (row, col) = HeadPos();
-            if (row >= 0 && text[_headChar] != ' ') PrintCharAt(row, col, text[_headChar]);
+            var (row, k) = HeadPos();
+            if (row >= 0 && k < _rows[row].Text.Length)
+            {
+                int col = ColForStep(row, k);
+                char c = _rows[row].Text[col];
+                if (c != ' ') PrintCharAt(row, col, c);
+            }
             _headChar++;
             // A wrap inside the source line is a line feed too.
             var (row2, _) = HeadPos();
@@ -551,7 +719,7 @@ internal sealed class TrafficReminderForm : Form
         _printing = false;
         _sounds.StopPrinting();
         _clock.Stop();
-        TryApplyGraphics();
+        Flush();
     }
 
     /// <summary>Prints one more source line at printer speed, then calls back.</summary>
@@ -559,16 +727,22 @@ internal sealed class TrafficReminderForm : Form
     {
         _src[s].Text = text;
         Relayout();
-        int col = 0;
+        var disp = Disp(text);
+        int n = 0;
         var t = new System.Windows.Forms.Timer { Interval = (int)CharMs };
         _sounds.StartPrinting();
         t.Tick += (_, __) =>
         {
-            if (col < text.Length)
+            if (n < disp.Length)
             {
-                int r = _rows.FindIndex(x => x.Src == s && col >= x.Start && col < x.Start + x.Text.Length);
-                if (r >= 0 && text[col] != ' ') PrintCharAt(r, col - _rows[r].Start, text[col]);
-                col++; return;
+                int r = _rows.FindIndex(x => x.Src == s && n >= x.Start && n < x.Start + x.Text.Length);
+                if (r >= 0)
+                {
+                    int col = ColForStep(r, n - _rows[r].Start);
+                    char c = _rows[r].Text[col];
+                    if (c != ' ') PrintCharAt(r, col, c);
+                }
+                n++; return;
             }
             t.Stop(); t.Dispose();
             _sounds.StopPrinting(); _sounds.LineFeedNow();
@@ -587,12 +761,15 @@ internal sealed class TrafficReminderForm : Form
         return row >= 0 && row < _rows.Count ? _rows[row].Src : -1;
     }
 
-    private bool IsChoice(int s) => s >= 0 && s < _src.Count && _src[s].Click != Outcome.None && !_src[s].Struck;
+    private bool IsChoice(int s) => s >= 0 && s < _src.Count && _src[s].Click != Outcome.None && !_src[s].Struck
+                                    && !(_src[s].Click == Outcome.StartEngine && _engineStartAsked);
 
     protected override void OnMouseClick(MouseEventArgs e)
     {
         base.OnMouseClick(e);
         if (_busy) return;
+        if (e.Button == MouseButtons.Right) { _menu.Show(this, e.Location); return; }
+        if (e.Button != MouseButtons.Left) return;
         if (LampRect.Contains(e.Location)) { SetPinned(!Pinned); return; }
         var b = BtnAt(e.Location);
         if (b != null) { Press(b.Value); return; }
@@ -610,6 +787,13 @@ internal sealed class TrafficReminderForm : Form
         if (firstRow >= 0) PrintCharAt(firstRow, 1, 'X');
         _src[s].Text = "[X]" + _src[s].Text.Substring(3);
         if (outcome == Outcome.CloseYes || outcome == Outcome.CloseNo) { AnswerClose(outcome == Outcome.CloseYes); return; }
+        if (outcome == Outcome.StartEngine)
+        {
+            _engineStartAsked = true;
+            PrintLines(new[] { L("Starting " + _engineName + " - watch for its window.") });
+            EngineStartRequested?.Invoke();
+            return;
+        }
         Result = outcome;
         // No second choice after this one.
         foreach (var x in _src) if (x.Click == Outcome.Done || x.Click == Outcome.NotNow) x.Struck = true;
@@ -621,10 +805,14 @@ internal sealed class TrafficReminderForm : Form
                 t.Stop(); t.Dispose();
                 using (var g = Graphics.FromImage(_sheet)) { var rnd = new Random(42); for (int r = 0; r < _rows.Count; r++) if (_rows[r].Src == s) DrawStrike(g, r, rnd); }
                 Invalidate();
-                PrintSourceThen(_src.Count - 1, ("RECORDED " + DateTime.Now.ToString("HH:mm") + " BY " + _who).ToUpperInvariant(), () =>
+                _printing = true;
+                PrintSourceThen(_src.Count - 1, "Recorded " + DateTime.Now.ToString("HH:mm") + " by " + _who, () =>
                 {
-                    _headSrc = _src.Count; _headChar = 0;          // everything is printed now
+                    _src.Add(new Src { Text = "" });                 // a fresh blank for the feed
+                    _headSrc = _src.Count; _headChar = 0; _printing = false;
+                    Relayout();
                     Finished?.Invoke(Result);
+                    Flush();
                 });
             };
             t.Start();
@@ -688,6 +876,145 @@ internal sealed class TrafficReminderForm : Form
         if (_sheet != null) e.Graphics.DrawImageUnscaled(_sheet, 0, 0);
     }
 
+    // ---- the feed: lines that arrive after the sheet is printed --------------------------
+    // Anything that wants to print waits its turn: nothing prints over the
+    // sheet's own printing, an animation, or the close question.
+    private readonly Queue<Action> _later = new();
+
+    private void Later(Action a) { _later.Enqueue(a); Flush(); }
+
+    private void Flush()
+    {
+        if (IsDisposed || _later.Count == 0) return;
+        if (_printing || _busy || _askingClose) return;
+        var a = _later.Dequeue();
+        a();
+    }
+
+    private static Src L(string text, Outcome click = Outcome.None) => new() { Text = text, Click = click };
+
+    /// <summary>Grows the window for more rows, unless maximised or already tall enough.</summary>
+    private void EnsureRoom(int extraRows)
+    {
+        int need = TopMargin + (int)(LineH * (_rows.Count + extraRows)) + BottomMargin;
+        if (!_maximised && ClientSize.Height < need) { var sc = Screen.FromControl(this).WorkingArea; Height = Math.Min(need, sc.Height); if (Bottom > sc.Bottom) Top = Math.Max(sc.Top, sc.Bottom - Height); }
+    }
+
+    /// <summary>
+    /// Appends lines to the foot of the sheet and prints them at printer speed:
+    /// a blank line above (reusing one already there), the lines, then a fresh
+    /// blank for whatever comes next. Runs the next waiting item when done.
+    /// </summary>
+    private void PrintLines(Src[] lines, Action then = null)
+    {
+        int blank = _src.Count - 1;
+        if (blank < 0 || _src[blank].Text != "") { blank = _src.Count; _src.Add(new Src { Text = "" }); }
+        int first = _src.Count;
+        foreach (var l in lines) _src.Add(new Src { Text = "", Click = l.Click });
+        _src.Add(new Src { Text = "" });
+        EnsureRoom(lines.Length + 2);
+        _headSrc = Math.Max(_headSrc, blank + 1); _headChar = 0;
+        Relayout();
+        _printing = true;
+        int i = 0;
+        Action next = null;
+        next = () =>
+        {
+            if (i < lines.Length) { int s = first + i; string t = lines[i].Text; i++; PrintSourceThen(s, t, next); return; }
+            _headSrc = _src.Count; _headChar = 0; _printing = false;
+            then?.Invoke();
+            Flush();
+        };
+        next();
+    }
+
+    /// <summary>
+    /// The sim's graphics levels as read from its settings file just now. When
+    /// they come to agree with what the mode needs, the "must be" lines are
+    /// struck through and a confirmation prints - read from the sim, not
+    /// anyone's word. When they stop agreeing, that prints too. Then, the
+    /// first time they are right, the engine's START line is offered.
+    /// </summary>
+    public void GraphicsNow(SimSettings.TrafficGraphics g)
+    {
+        if (g == null || IsDisposed) return;
+        if (g.Matches(_reqAircraft, _reqParked) == _gfxOk) return;      // nothing changed
+        Later(() =>
+        {
+            bool ok = g.Matches(_reqAircraft, _reqParked);
+            if (ok == _gfxOk) return;
+            _gfxOk = ok;
+            var stamp = DateTime.Now.ToString("HH:mm");
+            if (ok)
+            {
+                _sounds.StrikeNow();
+                foreach (var s in _gfxLines) StrikeSource(s);
+                var lines = new List<Src>
+                {
+                    L("Graphics confirmed " + stamp + " - read from the sim:"),
+                    L("   Aircraft Traffic " + Word(g.Aircraft) + "   Parked " + Word(g.Parked))
+                };
+                if (_engineLineDue && !_engineRunning && _engineFound)
+                {
+                    _engineLineDue = false;
+                    lines.Add(L(""));
+                    lines.Add(L("[ ] Start " + _engineName + " now", Outcome.StartEngine));
+                }
+                PrintLines(lines.ToArray());
+            }
+            else
+            {
+                PrintLines(new[]
+                {
+                    L("!! Graphics changed " + stamp + " - the sim now says:"),
+                    L("   Aircraft Traffic " + Word(g.Aircraft) + "   Parked " + Word(g.Parked)),
+                    L("   Must be " + Word(_reqAircraft) + " and " + Word(_reqParked) + " - set them again.")
+                });
+            }
+        });
+    }
+
+    /// <summary>The engine's process seen up or gone, from the process list.</summary>
+    public void EngineNow(bool running)
+    {
+        if (IsDisposed || _engineName == null || running == _engineRunning) return;
+        _engineRunning = running;
+        Later(() =>
+        {
+            var stamp = DateTime.Now.ToString("HH:mm");
+            if (running)
+            {
+                _sounds.StrikeNow();
+                for (int s = 0; s < _src.Count; s++) if (_src[s].Click == Outcome.StartEngine && !_src[s].Struck) StrikeSource(s);
+                _engineLineDue = false;
+                PrintLines(new[] { L(_engineName + " running - confirmed " + stamp + ","), L("   its process is up.") });
+            }
+            else
+            {
+                _engineStartAsked = false;
+                var lines = new List<Src> { L("!! " + _engineName + " has stopped " + stamp + ".") };
+                if (_engineFound) lines.Add(L("[ ] Start " + _engineName + " again", Outcome.StartEngine));
+                else lines.Add(L("   Start it yourself; this sheet confirms it."));
+                PrintLines(lines.ToArray());
+            }
+        });
+    }
+
+    /// <summary>The launcher could not start the engine: said in print, and the offer stands.</summary>
+    public void EngineStartFailed(string why)
+    {
+        if (IsDisposed) return;
+        Later(() =>
+        {
+            _engineStartAsked = false;
+            PrintLines(new[]
+            {
+                L("!! Could not start " + _engineName + ": " + why),
+                L("[ ] Start " + _engineName + " again", Outcome.StartEngine)
+            });
+        });
+    }
+
     // ---- closing asks first (Mark, 2026-09-11) ---------------------------------------
     // The X, Alt+F4, the taskbar: all print the question at the foot of the
     // sheet, and only YES closes. More is going to come through this window
@@ -712,96 +1039,16 @@ internal sealed class TrafficReminderForm : Form
         _askingClose = true;
         _sounds.StrikeNow();
         _src.Add(new Src { Text = "" });
-        _src.Add(new Src { Text = "CLOSE THE PRINTOUT?" });
-        int yes = _src.Count; _src.Add(new Src { Text = "[ ] YES - CLOSE IT", Click = Outcome.CloseYes });
-        int no = _src.Count;  _src.Add(new Src { Text = "[ ] NO - KEEP IT", Click = Outcome.CloseNo });
+        _src.Add(new Src { Text = "Close the printout?" });
+        int yes = _src.Count; _src.Add(new Src { Text = "[ ] Yes - close it", Click = Outcome.CloseYes });
+        int no = _src.Count;  _src.Add(new Src { Text = "[ ] No - keep it", Click = Outcome.CloseNo });
         EnsureRoom(3);
         _headSrc = Math.Max(_headSrc, yes - 2); _headChar = 0;   // the blank line above the question counts as printed
         Relayout();
         _printing = true;
-        PrintSourceThen(yes - 1, "CLOSE THE PRINTOUT?", () =>
-            PrintSourceThen(yes, "[ ] YES - CLOSE IT", () =>
-                PrintSourceThen(no, "[ ] NO - KEEP IT", () => { _headSrc = _src.Count; _headChar = 0; _printing = false; })));
-    }
-
-    /// <summary>Grows the window for more rows, unless maximised or already tall enough.</summary>
-    private void EnsureRoom(int extraRows)
-    {
-        int need = TopMargin + (int)(LineH * (_rows.Count + extraRows)) + BottomMargin;
-        if (!_maximised && ClientSize.Height < need) { var sc = Screen.FromControl(this).WorkingArea; Height = Math.Min(need, sc.Height); if (Bottom > sc.Bottom) Top = Math.Max(sc.Top, sc.Bottom - Height); }
-    }
-
-    // ---- lines that arrive after the sheet is printed (the feed) -------------------
-    /// <summary>
-    /// Appends lines to the foot of the sheet and prints them at printer speed:
-    /// a blank line, the lines, then a fresh blank for whatever comes next.
-    /// The caller checks that nothing else is printing.
-    /// </summary>
-    private void PrintLines(string[] lines, Action then = null)
-    {
-        // One blank line above, reusing the one already there if the sheet ends with it.
-        int blank = _src.Count - 1;
-        if (blank < 0 || _src[blank].Text != "") { blank = _src.Count; _src.Add(new Src { Text = "" }); }
-        int first = _src.Count;
-        foreach (var l in lines) _src.Add(new Src { Text = l });
-        _src.Add(new Src { Text = "" });
-        EnsureRoom(lines.Length + 2);
-        _headSrc = Math.Max(_headSrc, blank + 1); _headChar = 0;
-        Relayout();
-        _printing = true;
-        int i = 0;
-        Action next = null;
-        next = () =>
-        {
-            if (i < lines.Length) { int s = first + i; string t = lines[i]; i++; PrintSourceThen(s, t, next); return; }
-            _headSrc = _src.Count; _headChar = 0; _printing = false;
-            then?.Invoke();
-        };
-        next();
-    }
-
-    /// <summary>
-    /// The sim's graphics levels as read from its settings file just now. When
-    /// they come to agree with what the mode needs, the "must be" lines are
-    /// struck through and a confirmation prints - read from the sim, not
-    /// anyone's word. When they stop agreeing, that prints too.
-    /// </summary>
-    public void GraphicsNow(SimSettings.TrafficGraphics g)
-    {
-        if (g == null || IsDisposed) return;
-        if (g.Matches(_reqAircraft, _reqParked) == _gfxOk) return;      // nothing changed
-        _pendingGfx = g;
-        TryApplyGraphics();
-    }
-
-    private void TryApplyGraphics()
-    {
-        if (_pendingGfx == null || IsDisposed) return;
-        if (_printing || _busy || _askingClose)
-        {
-            var t = new System.Windows.Forms.Timer { Interval = 300 };
-            t.Tick += (_, __) => { t.Stop(); t.Dispose(); TryApplyGraphics(); };
-            t.Start();
-            return;
-        }
-        var g = _pendingGfx; _pendingGfx = null;
-        bool ok = g.Matches(_reqAircraft, _reqParked);
-        if (ok == _gfxOk) return;
-        _gfxOk = ok;
-        var stamp = DateTime.Now.ToString("HH:mm");
-        if (ok)
-        {
-            _sounds.StrikeNow();
-            foreach (var s in _gfxLines) _src[s].Struck = true;
-            using (var gr = Graphics.FromImage(_sheet)) { var rnd = new Random(42); for (int r = 0; r < _rows.Count; r++) if (_gfxLines.Contains(_rows[r].Src)) DrawStrike(gr, r, rnd); }
-            Invalidate();
-            PrintLines(new[] { "GRAPHICS CONFIRMED " + stamp + " - READ FROM THE SIM:", "   AIRCRAFT TRAFFIC " + SimSettings.LevelWord(g.Aircraft) + "   PARKED " + SimSettings.LevelWord(g.Parked) });
-        }
-        else
-        {
-            PrintLines(new[] { "!! GRAPHICS CHANGED " + stamp + " - THE SIM NOW SAYS:", "   AIRCRAFT TRAFFIC " + SimSettings.LevelWord(g.Aircraft) + "   PARKED " + SimSettings.LevelWord(g.Parked),
-                "   MUST BE " + SimSettings.LevelWord(_reqAircraft) + " AND " + SimSettings.LevelWord(_reqParked) + " - SET THEM AGAIN." });
-        }
+        PrintSourceThen(yes - 1, "Close the printout?", () =>
+            PrintSourceThen(yes, "[ ] Yes - close it", () =>
+                PrintSourceThen(no, "[ ] No - keep it", () => { _headSrc = _src.Count; _headChar = 0; _printing = false; })));
     }
 
     /// <summary>The program replacing this sheet with a new one: no question asked.</summary>
@@ -819,8 +1066,10 @@ internal sealed class TrafficReminderForm : Form
         // NO: the question is torn off the foot of the sheet, and it stays.
         _askingClose = false;
         _src.RemoveRange(_src.Count - 4, 4);
+        _src.Add(new Src { Text = "" });
         _headSrc = _src.Count; _headChar = 0;
         Relayout();
+        Flush();
     }
 
     protected override void OnFormClosing(FormClosingEventArgs e)
@@ -840,6 +1089,7 @@ internal sealed class TrafficReminderForm : Form
         _clock.Stop(); _clock.Dispose();
         _sounds.Dispose();
         _sheet?.Dispose();
+        _menu?.Dispose();
     }
 
     // Keyboard: Enter = DONE, Escape = NOT NOW, same as the printed lines.

@@ -52,6 +52,14 @@ internal sealed class AppConfig
     // the monitor the simulator fills, so a restored launcher came up behind
     // the sim and could not be found (Mark, 2026-09-11).
     [JsonPropertyName("launcherBounds")]         public int[]  LauncherBounds         { get; set; } = null;
+    // The printout's printer options (Mark, 2026-09-12), from its right-click menu.
+    [JsonPropertyName("printoutInk")]            public int    PrintoutInk            { get; set; } = 1;      // 0 light .. 3 black
+    [JsonPropertyName("printoutBidirectional")]  public bool   PrintoutBidirectional  { get; set; } = false;
+    [JsonPropertyName("printoutMixedCase")]      public bool   PrintoutMixedCase      { get; set; } = false;
+    [JsonPropertyName("printoutSpeed")]          public int    PrintoutSpeed          { get; set; } = 0;      // 0 normal, 1 fast, 2 fastest
+    // Where BeyondATC was found (its exe), once found; empty until then. The
+    // FSLTL injector needs no record - it lives in the Community folder.
+    [JsonPropertyName("batcPath")]               public string BatcPath               { get; set; } = "";
 
     /// <summary>
     /// The two Graphics > Traffic levels the chosen mode needs (measured

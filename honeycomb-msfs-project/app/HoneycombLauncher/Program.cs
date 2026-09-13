@@ -48,18 +48,37 @@ internal static class Program
             // Sample facts, except the graphics levels, which are read from the
             // real settings file so the sheet can be watched confirming them.
             var need = AppConfig.GraphicsRequiredFor(mode) ?? (-1, -1);
+            // The engine is real too: found on this machine or not, running or not.
+            var engine = TrafficEngines.For(mode, null);
             var facts = new TrafficReminderForm.Facts
             {
                 Mode = mode, RequiredType = required, RecordedType = "Real-Time Online", RecordedBy = "midcon07", RecordedUtc = "2026-09-07T04:43:00Z", Who = Environment.UserName,
                 RequiredAircraft = need.aircraft, RequiredParked = need.parked,
-                Sim = SimSettings.ReadTrafficGraphics(out var gfxProblem), SimProblem = gfxProblem ?? ""
+                Sim = SimSettings.ReadTrafficGraphics(out var gfxProblem), SimProblem = gfxProblem ?? "",
+                EngineName = engine?.Name, EngineFound = engine?.Path != null, EngineRunning = engine?.IsRunning() ?? false,
+                ForeignEnginesRunning = engine != null ? Array.Empty<string>()
+                    : TrafficEngines.All(null).Where(e => e != null && e.IsRunning()).Select(e => e.Name).ToArray()
             };
-            var sheet = new TrafficReminderForm(facts);
+            // Printer options for the demo come from the environment, so each
+            // can be seen without a config: HONEYCOMB_PRINTOUT=ink,bidi,mixed,speed e.g. "3,1,1,2".
+            var opts = new TrafficReminderForm.Options();
+            var po = (Environment.GetEnvironmentVariable("HONEYCOMB_PRINTOUT") ?? "").Split(',');
+            if (po.Length == 4) { opts.Ink = int.Parse(po[0]); opts.Bidirectional = po[1] == "1"; opts.MixedCase = po[2] == "1"; opts.Speed = int.Parse(po[3]); }
+            var sheet = new TrafficReminderForm(facts, opts);
+            sheet.OptionsChanged += o => Log($"traffic sheet demo: options ink {o.Ink}, both directions {o.Bidirectional}, mixed case {o.MixedCase}, speed {o.Speed}");
+            sheet.EngineStartRequested += () =>
+            {
+                var why = TrafficEngines.Start(engine);
+                Log(why == null ? "traffic sheet demo: started " + engine.Name : "traffic sheet demo: could not start - " + why);
+                if (why != null) sheet.EngineStartFailed(why);
+            };
+            bool engineWas = facts.EngineRunning;
             // The demo watches the file too, so a change made in the sim prints.
             var seen = facts.Sim?.WrittenUtc ?? DateTime.MinValue;
             var clock = new System.Windows.Forms.Timer { Interval = 2000 };
             clock.Tick += (s_, e_) =>
             {
+                if (engine != null) { bool up = engine.IsRunning(); if (up != engineWas) { engineWas = up; Log("traffic sheet demo: engine " + (up ? "up" : "gone")); sheet.EngineNow(up); } }
                 var g = SimSettings.ReadTrafficGraphics(out string _);
                 if (g == null || g.WrittenUtc == seen) return;
                 seen = g.WrittenUtc; Log("traffic sheet demo: sim settings changed"); sheet.GraphicsNow(g);

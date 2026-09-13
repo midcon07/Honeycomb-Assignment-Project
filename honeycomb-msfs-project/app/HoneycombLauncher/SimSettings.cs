@@ -16,6 +16,7 @@ internal static class SimSettings
     {
         public int Aircraft;          // Graphics > Traffic > AircraftTrafficQuantity
         public int Parked;            // Graphics > Traffic > ParkedAircraftQuantity
+        public string Preset = "";    // Graphics > Preset: the Global Rendering Quality word (Ultra, High, ..., Custom once any level differs from a preset)
         public string Path;
         public DateTime WrittenUtc;   // the file's last write, i.e. when the sim last saved
         public bool Matches(int aircraft, int parked) => Aircraft == aircraft && Parked == parked;
@@ -77,6 +78,11 @@ internal static class SimSettings
         int end = text.IndexOf('}', at);
         if (end < 0) end = text.Length;
         var block = text.Substring(at, end - at);
+        // The Global Rendering Quality word sits in the {Graphics block above
+        // {Traffic (measured 2026-09-12: Custom while Aircraft Traffic was below
+        // the rest, Ultra once everything was Ultra).
+        var gfxAt = text.LastIndexOf("{Graphics", at, StringComparison.Ordinal);
+        var preset = gfxAt >= 0 ? Regex.Match(text.Substring(gfxAt, at - gfxAt), @"\bPreset\s+(\w+)") : Match.Empty;
         var a = Regex.Match(block, @"AircraftTrafficQuantity\s+(-?\d+)");
         var p = Regex.Match(block, @"ParkedAircraftQuantity\s+(-?\d+)");
         if (!a.Success || !p.Success) { problem = "the {Traffic block in " + path + " does not hold both AircraftTrafficQuantity and ParkedAircraftQuantity"; return null; }
@@ -84,6 +90,7 @@ internal static class SimSettings
         {
             Aircraft = int.Parse(a.Groups[1].Value),
             Parked = int.Parse(p.Groups[1].Value),
+            Preset = preset.Success ? preset.Groups[1].Value : "",
             Path = path,
             WrittenUtc = writtenUtc
         };

@@ -178,6 +178,60 @@ read that; a byte diff around a profile switch may make it readable.
   good". Save-and-back rewrites the file again with the same values, which
   the sheet ignores.
 
+## Built 2026-09-12 (evening): Mark's list from the session with midcon07
+
+Mark's notes, verbatim in order: 0) Global Rendering Quality; 1) darker
+font; 2) bidirectional; 3) mixed case; 4) faster print - each "make it a
+settable option?"; 5) an early laser printer option with its sounds; 6) once
+the graphics are right, prompt to start the AI traffic program; 7) the
+button still said "Simulator Starting" after the sim closed; 8) the printout
+did not pop when the sim came up again.
+
+- **0** (read as: the Graphics page's Global Rendering Quality drops to
+  Custom when the two traffic levels go Off, and someone might "fix" it):
+  `SimSettings` now reads the `Preset` word from the `{Graphics` block; the
+  sheet's part 1 says "Global Rendering Quality will say Custom - that is
+  right; leave it" whenever the mode wants Off. **Assumption - confirm with
+  Mark.**
+- **1-4**: printer options on the sheet's right-click menu, kept in
+  config.json (`printoutInk` 0-3, `printoutBidirectional`,
+  `printoutMixedCase`, `printoutSpeed` 0-2), applied at once. Ink weight =
+  a fresher ribbon and a fatter dot (`DotMatrix.DrawChar` weight). Both
+  directions = alternate rows print right to left (the head's k-th step maps
+  to a column per row direction; a reflow keeps the count). Mixed case =
+  every source line is now sentence case and `Disp()` upper-cases it unless
+  the option is on; 26 lowercase 5x7 glyphs added. Speed = 17 / 9 / 4 ms per
+  character; the print-loop sound is rebuilt for the new rhythm.
+  Demo: `HONEYCOMB_PRINTOUT=ink,bidi,mixed,speed` (e.g. `2,1,1,1`).
+- **5 (laser)**: NOT built. It is a second printer, not an option: white
+  sheet, no sprockets, a page at a time after a warm-up hum and a feed
+  whirr, a different face. Worth doing as `Printer = DotMatrix | Laser` in
+  the options with `DotMatrix.cs` split into a printer interface. Queued.
+- **6**: `TrafficEngines.cs` - BeyondATC found via a running copy, the
+  uninstall registry (Inno Setup), or `<drive>\BeyondATC\BeyondATC.exe`,
+  then remembered as `batcPath`; the FSLTL injector at
+  `<InstalledPackagesPath>\Community\fsltl-traffic-injector\fsltl-trafficinjector.exe`.
+  Sheet part 3: running / not running; `[ ] Start <engine> now` once the
+  graphics are right (printed later through the feed if they were wrong at
+  print time); the launcher starts it; the process watcher confirms
+  "<engine> running - confirmed hh:mm" and strikes the line, or prints
+  "!! <engine> has stopped" with a fresh START line. MSFS mode: "nothing to
+  start", and "!! <engine> is running - close it" for any injector up.
+  Rehearsed with a renamed ping.exe standing in for BeyondATC.exe (same
+  process name): up, confirmed, gone, offered again.
+- **7**: a process watcher in the launcher (3 s) pushes `simState`
+  (`simRunning`, `launchPending` = a Start press within the last 3 min);
+  the page's button says "Simulator Running" (disabled) while the sim is
+  up, "Simulator Starting" only while a launch is pending, else "Start
+  Simulator".
+- **8**: when the sim's process appears, a fresh sheet prints (or the one
+  still wanting something is brought back), any mode chosen. Also when an
+  engine the mode does not want comes up.
+- Everything on the sheet after the first print goes through one queue
+  (`Later`/`Flush`/`PrintLines`): nothing prints over the sheet's own print,
+  an animation, or the close question. This is the feed for whatever comes
+  next during a flight.
+
 ## Next
 
 1. Flight-time confirmation (second stage of the strike-through): once a
@@ -189,3 +243,5 @@ read that; a byte diff around a profile switch may make it readable.
 2. Preflight rows per mode: the engine running or not, BATC up to date
    from its Player.log, densities sane.
 3. Words for the graphics levels 0-2 - low value; -1 and 3 are measured.
+4. The laser printer (Mark's item 5, 2026-09-12): see above.
+5. Item 0 above is an assumption about what Mark meant - confirm.

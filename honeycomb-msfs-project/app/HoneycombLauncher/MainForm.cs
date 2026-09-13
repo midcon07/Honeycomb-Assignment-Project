@@ -272,7 +272,7 @@ internal sealed partial class MainForm : Form
             _slowPoll.Start();
             // Seen at start too, so it is read before the flight rather than
             // discovered over the runway; "not now" holds it until the sim starts.
-            try { WatchSimSettings(); ShowTrafficReminderIfNeeded("program started"); } catch (Exception ex) { Program.LogError("traffic reminder", ex); }
+            try { WatchSimSettings(); WatchProcesses(); await PushSimStateAsync(); ShowTrafficReminderIfNeeded("program started"); } catch (Exception ex) { Program.LogError("traffic reminder", ex); }
         };
 
         var ui = Path.Combine(AppContext.BaseDirectory, "ui", "index.html");
@@ -1141,11 +1141,79 @@ internal sealed partial class MainForm : Form
         Program.Log("FSUIPC7 at launch step: " + Runner.LaunchFsuipc(_cfg?.FsuipcRoot));
 
         Runner.LaunchSimulator();
+        _launchPressedUtc = DateTime.UtcNow;
         await Send(new { kind = "launched" });
+        WatchProcesses();
         // The one setting only a person can change, and only inside the sim:
         // the reminder goes up now, on top of the sim, so it is seen there.
         _trafficReminderDismissed = false;
         ShowTrafficReminderIfNeeded("simulator started");
+    }
+
+    // ---- the processes, watched ---------------------------------------------
+    // The simulator and the traffic engines, checked every three seconds by
+    // name. The page's button used to say "Simulator Starting" for ever after
+    // the sim was closed (Mark, 2026-09-12); now it follows the process. The
+    // sheet is told when an engine comes up or goes, and prints a fresh sheet
+    // when the sim comes up (Mark: "once sim is running again, printout
+    // didn't auto pop").
+    private readonly System.Windows.Forms.Timer _procClock = new() { Interval = 3000 };
+    private bool _procWatching, _simRunning, _batcRunning, _fsltlRunning;
+    private DateTime _launchPressedUtc = DateTime.MinValue;
+
+    private static bool ProcessUp(string name) { try { return System.Diagnostics.Process.GetProcessesByName(name).Length > 0; } catch { return false; } }
+    private bool LaunchPending => (DateTime.UtcNow - _launchPressedUtc) < TimeSpan.FromMinutes(3);
+
+    private void WatchProcesses()
+    {
+        if (_procWatching) return;
+        _procWatching = true;
+        _simRunning = ProcessUp("FlightSimulator2024");
+        _batcRunning = ProcessUp("BeyondATC");
+        _fsltlRunning = ProcessUp("fsltl-trafficinjector");
+        _procClock.Tick += async (_, __) =>
+        {
+            bool sim = ProcessUp("FlightSimulator2024"), batc = ProcessUp("BeyondATC"), fsltl = ProcessUp("fsltl-trafficinjector");
+            bool simChanged = sim != _simRunning;
+            if (simChanged) { _simRunning = sim; Program.Log("simulator process " + (sim ? "up" : "gone")); }
+            if (batc != _batcRunning) { _batcRunning = batc; Program.Log("BeyondATC process " + (batc ? "up" : "gone")); EngineChanged("BATC", batc); }
+            if (fsltl != _fsltlRunning) { _fsltlRunning = fsltl; Program.Log("FSLTL injector process " + (fsltl ? "up" : "gone")); EngineChanged("FSLTL", fsltl); }
+            if (simChanged || (LaunchPending && !sim))
+            {
+                try { await PushSimStateAsync(); } catch (Exception ex) { Program.LogError("push sim state", ex); }
+                if (simChanged && sim) OnSimAppeared();
+            }
+        };
+        _procClock.Start();
+    }
+
+    private Task PushSimStateAsync() => Send(new { kind = "simState", simRunning = _simRunning, launchPending = LaunchPending && !_simRunning });
+
+    /// <summary>An engine's process came up or went: the sheet says so, in the way its mode wants.</summary>
+    private void EngineChanged(string engineMode, bool running)
+    {
+        var mode = _cfg?.TrafficMode ?? "";
+        if (_trafficReminder == null || _trafficReminder.IsDisposed)
+        {
+            // No sheet: an engine the mode does not want, coming up, is a new occasion.
+            if (running && mode != "" && mode != engineMode) { _trafficReminderDismissed = false; ShowTrafficReminderIfNeeded(engineMode + " started"); }
+            return;
+        }
+        if (mode == engineMode) _trafficReminder.EngineNow(running);
+        else if (running) { _trafficReminderDismissed = false; PrintTrafficSheet(engineMode + " started"); }
+    }
+
+    /// <summary>The simulator's process has appeared: a sheet for the moment, unless the one up still wants something.</summary>
+    private void OnSimAppeared()
+    {
+        if (string.IsNullOrWhiteSpace(_cfg?.TrafficMode)) return;
+        _trafficReminderDismissed = false;
+        if (_trafficReminder != null && !_trafficReminder.IsDisposed && _trafficReminder.Unresolved)
+        {
+            if (_trafficReminder.IsMinimised) _trafficReminder.Restore(); else _trafficReminder.Activate();
+            return;
+        }
+        PrintTrafficSheet("simulator running");
     }
 
     /// <summary>The Graphics > Traffic levels as the sim's file has them now, against what the mode needs.</summary>
@@ -1190,7 +1258,12 @@ internal sealed partial class MainForm : Form
         var gfx = SimSettings.ReadTrafficGraphics(out _);
         var need = AppConfig.GraphicsRequiredFor(mode);
         var gfxOk = gfx != null && need != null && gfx.Matches(need.Value.aircraft, need.Value.parked);
-        if (typeOk && gfxOk) return;
+        // The engine: for BATC/FSLTL it must be up; for MSFS none must be.
+        var engine = TrafficEngines.For(mode, _cfg);
+        var engineOk = engine == null
+            ? !TrafficEngines.All(_cfg).Any(e => e != null && e.IsRunning())
+            : engine.IsRunning();
+        if (typeOk && gfxOk && engineOk) return;
         if (_trafficReminderDismissed) return;
         PrintTrafficSheet(why);
     }
@@ -1253,17 +1326,41 @@ internal sealed partial class MainForm : Form
         var pb = _cfg?.PrintoutBounds;
         if (pb != null && pb.Length == 4) remembered = new Rectangle(pb[0], pb[1], pb[2], pb[3]);
         var need = AppConfig.GraphicsRequiredFor(mode) ?? (-1, -1);
+        var engine = TrafficEngines.For(mode, _cfg);
         var facts = new TrafficReminderForm.Facts
         {
             Mode = mode, RequiredType = required, RecordedType = recorded,
             RecordedBy = _cfg?.TrafficTypeRecordedBy ?? "", RecordedUtc = _cfg?.TrafficTypeRecordedUtc ?? "", Who = Environment.UserName,
             RequiredAircraft = need.aircraft, RequiredParked = need.parked,
-            Sim = SimSettings.ReadTrafficGraphics(out var gfxProblem), SimProblem = gfxProblem ?? ""
+            Sim = SimSettings.ReadTrafficGraphics(out var gfxProblem), SimProblem = gfxProblem ?? "",
+            EngineName = engine?.Name, EngineFound = engine?.Path != null, EngineRunning = engine?.IsRunning() ?? false,
+            ForeignEnginesRunning = engine != null ? Array.Empty<string>()
+                : TrafficEngines.All(_cfg).Where(e => e != null && e.IsRunning()).Select(e => e.Name).ToArray()
         };
+        if (engine != null) Program.Log($"traffic sheet: engine {engine.Name} {(engine.Path == null ? "not found" : "at " + engine.Path)}, {(facts.EngineRunning ? "running" : "not running")}");
         Program.Log(facts.Sim == null ? "traffic sheet: sim settings unreadable - " + gfxProblem
             : $"traffic sheet: sim graphics aircraft {SimSettings.LevelWord(facts.Sim.Aircraft)}, parked {SimSettings.LevelWord(facts.Sim.Parked)}; needs {SimSettings.LevelWord(need.aircraft)}, {SimSettings.LevelWord(need.parked)}");
-        WatchSimSettings();
-        var f = new TrafficReminderForm(facts, true, pitch, remembered);
+        WatchSimSettings(); WatchProcesses();
+        var opts = new TrafficReminderForm.Options
+        {
+            Ink = _cfg?.PrintoutInk ?? 1, Bidirectional = _cfg?.PrintoutBidirectional ?? false,
+            MixedCase = _cfg?.PrintoutMixedCase ?? false, Speed = _cfg?.PrintoutSpeed ?? 0
+        };
+        var f = new TrafficReminderForm(facts, opts, true, pitch, remembered);
+        f.OptionsChanged += o =>
+        {
+            _cfg ??= new AppConfig();
+            _cfg.PrintoutInk = o.Ink; _cfg.PrintoutBidirectional = o.Bidirectional; _cfg.PrintoutMixedCase = o.MixedCase; _cfg.PrintoutSpeed = o.Speed;
+            try { _cfg.Save(); } catch (Exception ex) { Program.LogError("save printout options", ex); }
+            Program.Log($"printout options: ink {o.Ink}, both directions {o.Bidirectional}, mixed case {o.MixedCase}, speed {o.Speed}");
+        };
+        f.EngineStartRequested += () =>
+        {
+            var e = TrafficEngines.For(_cfg?.TrafficMode ?? "", _cfg);
+            var why = TrafficEngines.Start(e);
+            Program.Log(why == null ? $"started {e.Name} from {e.Path} (asked for on the printout)" : $"could not start {e?.Name}: {why}");
+            if (why != null) f.EngineStartFailed(why);
+        };
         f.BoundsSettled += r =>
         {
             _cfg ??= new AppConfig();

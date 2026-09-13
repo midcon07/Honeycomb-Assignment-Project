@@ -45,6 +45,34 @@ internal static class DotMatrix
         ['X'] = new[] { "X...X", "X...X", ".X.X.", "..X..", ".X.X.", "X...X", "X...X" },
         ['Y'] = new[] { "X...X", "X...X", ".X.X.", "..X..", "..X..", "..X..", "..X.." },
         ['Z'] = new[] { "XXXXX", "....X", "...X.", "..X..", ".X...", "X....", "XXXXX" },
+        // Lowercase (Mark, 2026-09-12: mixed case as an option). Descenders are
+        // squeezed into the seven rows, as a 5x7 head had to.
+        ['a'] = new[] { ".....", ".....", ".XXX.", "....X", ".XXXX", "X...X", ".XXXX" },
+        ['b'] = new[] { "X....", "X....", "X.XX.", "XX..X", "X...X", "X...X", "XXXX." },
+        ['c'] = new[] { ".....", ".....", ".XXX.", "X....", "X....", "X...X", ".XXX." },
+        ['d'] = new[] { "....X", "....X", ".XX.X", "X..XX", "X...X", "X...X", ".XXXX" },
+        ['e'] = new[] { ".....", ".....", ".XXX.", "X...X", "XXXXX", "X....", ".XXX." },
+        ['f'] = new[] { "..XX.", ".X..X", ".X...", "XXX..", ".X...", ".X...", ".X..." },
+        ['g'] = new[] { ".....", ".XXXX", "X...X", "X...X", ".XXXX", "....X", ".XXX." },
+        ['h'] = new[] { "X....", "X....", "X.XX.", "XX..X", "X...X", "X...X", "X...X" },
+        ['i'] = new[] { "..X..", ".....", ".XX..", "..X..", "..X..", "..X..", ".XXX." },
+        ['j'] = new[] { "...X.", ".....", "..XX.", "...X.", "...X.", "X..X.", ".XX.." },
+        ['k'] = new[] { "X....", "X....", "X..X.", "X.X..", "XX...", "X.X..", "X..X." },
+        ['l'] = new[] { ".XX..", "..X..", "..X..", "..X..", "..X..", "..X..", ".XXX." },
+        ['m'] = new[] { ".....", ".....", "XX.X.", "X.X.X", "X.X.X", "X...X", "X...X" },
+        ['n'] = new[] { ".....", ".....", "X.XX.", "XX..X", "X...X", "X...X", "X...X" },
+        ['o'] = new[] { ".....", ".....", ".XXX.", "X...X", "X...X", "X...X", ".XXX." },
+        ['p'] = new[] { ".....", ".....", "XXXX.", "X...X", "XXXX.", "X....", "X...." },
+        ['q'] = new[] { ".....", ".....", ".XXXX", "X...X", ".XXXX", "....X", "....X" },
+        ['r'] = new[] { ".....", ".....", "X.XX.", "XX..X", "X....", "X....", "X...." },
+        ['s'] = new[] { ".....", ".....", ".XXXX", "X....", ".XXX.", "....X", "XXXX." },
+        ['t'] = new[] { ".X...", ".X...", "XXX..", ".X...", ".X...", ".X..X", "..XX." },
+        ['u'] = new[] { ".....", ".....", "X...X", "X...X", "X...X", "X..XX", ".XX.X" },
+        ['v'] = new[] { ".....", ".....", "X...X", "X...X", "X...X", ".X.X.", "..X.." },
+        ['w'] = new[] { ".....", ".....", "X...X", "X...X", "X.X.X", "X.X.X", ".X.X." },
+        ['x'] = new[] { ".....", ".....", "X...X", ".X.X.", "..X..", ".X.X.", "X...X" },
+        ['y'] = new[] { ".....", ".....", "X...X", "X...X", ".XXXX", "....X", ".XXX." },
+        ['z'] = new[] { ".....", ".....", "XXXXX", "...X.", "..X..", ".X...", "XXXXX" },
         ['0'] = new[] { ".XXX.", "X...X", "X..XX", "X.X.X", "XX..X", "X...X", ".XXX." },
         ['1'] = new[] { "..X..", ".XX..", "..X..", "..X..", "..X..", "..X..", ".XXX." },
         ['2'] = new[] { ".XXX.", "X...X", "....X", "...X.", "..X..", ".X...", "XXXXX" },
@@ -84,8 +112,8 @@ internal static class DotMatrix
     /// <summary>The glyph for a character; lowercase prints as uppercase, unknown as a hollow box.</summary>
     public static string[] Glyph(char c)
     {
-        c = char.ToUpperInvariant(c);
         if (Glyphs.TryGetValue(c, out var g)) return g;
+        if (Glyphs.TryGetValue(char.ToUpperInvariant(c), out g)) return g;
         return new[] { "XXXXX", "X...X", "X...X", "X...X", "X...X", "X...X", "XXXXX" };
     }
 
@@ -94,16 +122,23 @@ internal static class DotMatrix
     /// dot is a small filled circle, darker in the middle of the glyph and a
     /// touch lighter at the edges, the way a used ribbon prints.
     /// </summary>
-    public static void DrawChar(Graphics g, char c, float x, float y, float pitch, Color ink, Random ribbon)
+    /// <summary>Ink weights for the darkness option: 0 light, 1 normal (the original), 2 dark, 3 black.</summary>
+    public const int Weights = 4;
+
+    public static void DrawChar(Graphics g, char c, float x, float y, float pitch, Color ink, Random ribbon, int weight = 1)
     {
         var rows = Glyph(c);
-        float d = pitch * 0.86f;
+        // Weight (Mark, 2026-09-12: "make the font darker"): a fresher ribbon
+        // and a harder strike - less fade dot to dot, and a fatter dot.
+        float d = pitch * weight switch { 0 => 0.80f, 2 => 0.93f, 3 => 1.0f, _ => 0.86f };
+        int baseA = weight switch { 0 => 150, 2 => 236, 3 => 255, _ => 205 };
+        int varyA = weight switch { 0 => 60, 2 => 19, 3 => 0, _ => 50 };
         for (int r = 0; r < 7; r++)
             for (int col = 0; col < 5; col++)
             {
                 if (rows[r][col] != 'X') continue;
                 // Ribbon wear: alpha varies dot to dot, never enough to lose one.
-                int a = 205 + ribbon.Next(0, 50);
+                int a = baseA + (varyA > 0 ? ribbon.Next(0, varyA) : 0);
                 using var b = new SolidBrush(Color.FromArgb(a, ink));
                 float jx = (float)(ribbon.NextDouble() - 0.5) * pitch * 0.12f;
                 g.FillEllipse(b, x + col * pitch + jx, y + r * pitch, d, d);

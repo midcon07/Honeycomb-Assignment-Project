@@ -52,15 +52,26 @@ Traffic
      BATC  - BeyondATC
      FSLTL - the FSLTL injector
      MSFS  - the simulator's own traffic
-  When the simulator's settings do not match your choice, a printout appears -
-  a sheet of green-bar printer paper that prints what to change, with the
-  printer's sounds. Two of the settings it can read from the simulator, and it
-  ticks them off by itself the moment you change them. The third, Traffic
-  Type, it cannot read, so it asks you to click DONE once you have set it.
-  The printout stays on top of the simulator. Drag it by its paper to move
-  it; the light in its corner is green while it is anchored on top. The
-  PRINTOUT button on the main window winds it up into a small square and
-  brings it back.
+  A printout appears when something needs doing - a sheet of green-bar printer
+  paper that prints, with the printer's sounds, in three parts:
+     1. Two settings on the simulator's Graphics page. The program can read
+        these, so it ticks them off by itself the moment you change them. The
+        page's Global Rendering Quality will then say Custom; that is right.
+     2. Traffic Type on the Online page. The program cannot read this one, so
+        it asks you to click DONE once you have set it.
+     3. The traffic program. Once the graphics are right, a line offers to
+        start BeyondATC or the FSLTL injector for you; the printout confirms
+        when it is running, and says so if it stops.
+  The printout appears again each time the simulator starts.
+  It stays on top of the simulator. Drag it by its paper to move it; the light
+  in its corner is green while it is anchored on top. The PRINTOUT button on
+  the main window winds it up into a small square and brings it back.
+  Right-click the paper to change the printer: darker ink, printing in both
+  directions, upper and lower case, or a faster print.
+
+The Start Simulator button
+  It says "Simulator Running" while the simulator is up and offers to start
+  it again once it is closed.
 
 If something looks wrong
   The program keeps a note of what it did. Send Mark this file:

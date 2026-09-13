@@ -810,7 +810,8 @@ var S = {
   plan: null,
   planBusy: false,
   selectedId: null,
-  launched: false
+  launched: false,
+  simRunning: false
 };
 
 function el(tag, cls, text) {
@@ -883,6 +884,14 @@ window.APP = {
         if (S.refreshAsked) { S.refreshAsked = false; warnUnknownPlanAircraft(); }
         break;
       case "launched":      S.launched = true; break;
+      /* The simulator's process, watched by the host every few seconds. Once
+         it is up the button says so; once it is gone the button offers to
+         start it again - it used to say "Simulator Starting" for ever after
+         the sim was closed (Mark, 2026-09-12). */
+      case "simState":
+        S.simRunning = !!msg.simRunning;
+        if (S.simRunning || !msg.launchPending) { S.launched = false; }
+        break;
       /* Shown directly rather than folded into the state and re-rendered:
          it is the outcome of something the user just did, and it must not
          be wiped by the next background preflight refresh. */
@@ -1217,6 +1226,7 @@ function renderLaunch() {
   var b = byId("startBtn");
   if (!b) { return; }
   b.disabled = !canLaunch();
+  if (S.simRunning) { b.disabled = true; setState("startBtn", "done"); b.textContent = "Simulator Running"; return; }
   setState("startBtn", S.launched ? "done" : (canLaunch() ? "todo" : null));
   if (S.launched) { b.textContent = "Simulator Starting"; return; }
   var a = craft(S.selectedId);
