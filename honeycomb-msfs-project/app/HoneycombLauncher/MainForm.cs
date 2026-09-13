@@ -922,6 +922,7 @@ internal sealed partial class MainForm : Form
             return;
         }
         await SendRaw("plan", json.Value);
+        RememberPlanForAmbience(json.Value);
     }
 
     /// <summary>
@@ -1245,6 +1246,42 @@ internal sealed partial class MainForm : Form
         };
     }
 
+    // ---- the airport under the printer: real departures from the plan's origin ----
+    // Mark, 2026-09-12: "if I have a simbrief plan loaded, look up departures
+    // for approximately the same time as my scheduled departure from that
+    // airport". Fetched once per plan (origin + departure time), kept, and
+    // handed to every sheet printed after; a sheet already up gets them too.
+    private List<Departures.Flight> _departures = new();
+    private string _departuresKey = "";
+
+    private void RememberPlanForAmbience(System.Text.Json.JsonElement plan)
+    {
+        try
+        {
+            string origin = plan.TryGetProperty("OriginIcao", out var o) && o.ValueKind == System.Text.Json.JsonValueKind.String ? o.GetString() : null;
+            string sched = plan.TryGetProperty("SchedOutUtc", out var s) && s.ValueKind == System.Text.Json.JsonValueKind.String ? s.GetString() : null;
+            if (string.IsNullOrWhiteSpace(origin) || string.IsNullOrWhiteSpace(sched)) return;
+            if (!DateTime.TryParse(sched, null, System.Globalization.DateTimeStyles.AdjustToUniversal | System.Globalization.DateTimeStyles.AssumeUniversal, out var when)) return;
+            var key = origin + "|" + when.ToString("yyyy-MM-dd HH:mm");
+            if (key == _departuresKey) return;
+            _departuresKey = key;
+            _ = Task.Run(async () =>
+            {
+                var list = await Departures.FetchAsync(origin, when);
+                try
+                {
+                    BeginInvoke(() =>
+                    {
+                        _departures = list;
+                        if (_trafficReminder != null && !_trafficReminder.IsDisposed) _trafficReminder.SetFlights(list);
+                    });
+                }
+                catch { }
+            });
+        }
+        catch (Exception ex) { Program.LogError("departures from plan", ex); }
+    }
+
     // ---- the traffic reminder ------------------------------------------------
 
     private TrafficReminderForm _trafficReminder;
@@ -1370,6 +1407,7 @@ internal sealed partial class MainForm : Form
             try { _cfg.Save(); } catch (Exception ex) { Program.LogError("save printout options", ex); }
             Program.Log($"printout options: {(o.Printer == 1 ? "LaserWriter, " + o.Face : "dot matrix")}, ink {o.Ink}, both directions {o.Bidirectional}, mixed case {o.MixedCase}, speed {o.Speed}");
         };
+        f.SetFlights(_departures);
         f.EngineStartRequested += () =>
         {
             var e = TrafficEngines.For(_cfg?.TrafficMode ?? "", _cfg);

@@ -815,12 +815,20 @@ internal sealed class TrafficReminderForm : Form
     // ---- the print head ----------------------------------------------------------------
     // ---- the airport under the printer ---------------------------------------------
     private Ambience _ambience;
+    private List<Departures.Flight> _flights = new();
+
+    /// <summary>The real departures for the announcements; kept for an airport started later.</summary>
+    public void SetFlights(List<Departures.Flight> flights)
+    {
+        _flights = flights ?? new List<Departures.Flight>();
+        _ambience?.SetFlights(_flights);
+    }
 
     private void SetAmbience(bool on)
     {
         if (on && !IsDisposed)
         {
-            if (_ambience == null) { _ambience = new Ambience(this); _ambience.Start(); }
+            if (_ambience == null) { _ambience = new Ambience(this); _ambience.SetFlights(_flights); _ambience.Start(); }
             _ambience.Volume = AmbienceLevel;
         }
         else if (_ambience != null) { _ambience.Dispose(); _ambience = null; }

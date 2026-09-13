@@ -245,51 +245,50 @@ internal static class DotMatrix
     /// against the guides - the page flapping out into the tray, and the motor
     /// winding down. No whine: Mark, 2026-09-12, "make it sound like a piece of
     /// paper being drawn out of the tray, then pushed through with rollers".
+    /// Measured 2026-09-12 from a recording of a LaserWriter 4/600 (youtube
+    /// V-yyxa4ioBo, analysed as a band-energy timeline): the level is flat for
+    /// the whole 84 s - a continuous machine hum with its weight in the 150-500
+    /// Hz band (30-45% of the energy), next to nothing between 500 Hz and 2 kHz
+    /// (so no whine), and every ~15 s (4 pages a minute) a 2-3 s burst with
+    /// more 500 Hz-6 kHz content as a sheet goes through. That is what this
+    /// is now: the hum from the motor's start, the brighter paper noise during
+    /// the transport, a click at the pickup and at the exit.
     /// Phase lengths in seconds.
     /// </summary>
     public static byte[] LaserPage(double think, double spin, double feed, double down)
     {
+        // The hum alone is the page now (Mark, 2026-09-12: "the background
+        // buzz needs to be reduced by 80%. the other sounds need to go
+        // away"): the motor's 150-500 Hz tone from the relay's moment, in
+        // over 0.3 s, out over the wind-down, at a fifth of the first cut.
+        // The paper rustle, the relay, the pickup and the exit clicks are gone.
         var rnd = new Random(11);
         double total = think + spin + feed + down + 0.15;
         int n = (int)(Rate * total);
         var pcm = new short[n];
-        double lp = 0, lp2 = 0, lp3 = 0;
-        double tRelay = think, tPick = think + spin, tDrop = think + spin + feed;
+        double lp3 = 0;
+        double tRelay = think, tDrop = think + spin + feed;
+        double ph = 0;
         for (int i = 0; i < n; i++)
         {
             double t = i / (double)Rate;
             double white = rnd.NextDouble() * 2 - 1;
-            lp3 += (white - lp3) * 0.25;                     // a broader rumble for the rollers
-            double hiss = white - lp3;                       // paper against the guides: the high part only
-            // No fan and no motor: they read as a jet engine (Mark, 2026-09-12).
-            // The airport ambience plays under the printer instead. What is
-            // left is the paper: the sheet drawn off the stack, the rollers
-            // carrying it through, and the drop into the tray.
+            lp3 += (white - lp3) * 0.25;
             double v = 0;
-            // the rollers carrying the sheet through: one low, steady buzz
-            // (Mark, 2026-09-12: the turning modulation read as da-da-da)
-            if (t >= tPick && t < tDrop + down)
+            double hum = 0;
+            if (t >= tRelay) hum = t < tDrop ? Math.Min(1, (t - tRelay) / 0.3) : Math.Max(0, 1 - (t - tDrop) / down);
+            if (hum > 0)
             {
-                double fade = t < tDrop ? Math.Min(1, (t - tPick) / 0.08) : Math.Max(0, 1 - (t - tDrop) / down);
-                double buzz = Math.Sin(2 * Math.PI * 47 * t) + 0.5 * Math.Sin(2 * Math.PI * 94 * t) + 0.25 * Math.Sin(2 * Math.PI * 141 * t);
-                v += 0.03 * fade * buzz;
-                v += 0.02 * fade * lp3;
-                v += 0.008 * fade * hiss;
+                // A deeper "brrrrr" (Mark, 2026-09-12): a 66 Hz fundamental with a
+                // full sawtooth set of harmonics, fluttering 26 times a second.
+                double f = 66 + 1.5 * Math.Sin(2 * Math.PI * 0.7 * t);
+                ph += 2 * Math.PI * f / Rate;
+                double tone = 0;
+                for (int h = 1; h <= 12; h++) tone += Math.Sin(h * ph + 0.3 * h) / h;
+                double flutter = 0.75 + 0.25 * Math.Sin(2 * Math.PI * 26 * t);
+                v += 0.016 * hum * tone * flutter * (1 + 0.1 * lp3);
+                v += 0.002 * hum * lp3;
             }
-            // the relay
-            double r = t - tRelay; if (r >= 0 && r < 0.012) v += 0.4 * white * Math.Exp(-r / 0.003);
-            // the sheet drawn off the stack: a sliding hiss, rising then falling, over a soft thump
-            double k = t - tPick;
-            if (k >= 0 && k < 0.30)
-            {
-                double env = k < 0.06 ? k / 0.06 : Math.Exp(-(k - 0.06) / 0.09);
-                v += 0.18 * env * hiss;
-                v += 0.16 * Math.Sin(2 * Math.PI * 80 * k) * Math.Exp(-k / 0.035);
-            }
-            // the page flapping out into the tray
-            double d = t - tDrop;
-            if (d >= 0 && d < 0.12) v += 0.16 * lp3 * Math.Exp(-d / 0.03) + 0.07 * hiss * Math.Exp(-d / 0.02);
-            // in and out gently
             double env2 = Math.Min(1, t / 0.15) * Math.Min(1, (total - t) / 0.15);
             pcm[i] = Clip(v * env2);
         }
