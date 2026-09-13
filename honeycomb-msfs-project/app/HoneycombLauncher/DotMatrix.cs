@@ -269,8 +269,8 @@ internal static class DotMatrix
             {
                 double fade = t < tDrop ? 1 : Math.Max(0, 1 - (t - tDrop) / down);
                 double turn = 0.5 + 0.5 * Math.Sin(2 * Math.PI * 9 * t);
-                v += 0.13 * fade * lp3 * turn;
-                v += 0.05 * fade * hiss * (0.6 + 0.4 * Math.Sin(2 * Math.PI * 9 * t + 1.1));
+                v += 0.035 * fade * lp3 * turn;
+                v += 0.014 * fade * hiss * (0.6 + 0.4 * Math.Sin(2 * Math.PI * 9 * t + 1.1));
             }
             // the relay
             double r = t - tRelay; if (r >= 0 && r < 0.012) v += 0.4 * white * Math.Exp(-r / 0.003);
@@ -279,12 +279,12 @@ internal static class DotMatrix
             if (k >= 0 && k < 0.30)
             {
                 double env = k < 0.06 ? k / 0.06 : Math.Exp(-(k - 0.06) / 0.09);
-                v += 0.32 * env * hiss;
-                v += 0.28 * Math.Sin(2 * Math.PI * 80 * k) * Math.Exp(-k / 0.035);
+                v += 0.18 * env * hiss;
+                v += 0.16 * Math.Sin(2 * Math.PI * 80 * k) * Math.Exp(-k / 0.035);
             }
             // the page flapping out into the tray
             double d = t - tDrop;
-            if (d >= 0 && d < 0.12) v += 0.3 * lp3 * Math.Exp(-d / 0.03) + 0.12 * hiss * Math.Exp(-d / 0.02);
+            if (d >= 0 && d < 0.12) v += 0.16 * lp3 * Math.Exp(-d / 0.03) + 0.07 * hiss * Math.Exp(-d / 0.02);
             // in and out gently
             double env2 = Math.Min(1, t / 0.15) * Math.Min(1, (total - t) / 0.15);
             pcm[i] = Clip(v * env2);

@@ -67,7 +67,7 @@ internal sealed class Ambience : IDisposable
             var pcm = prop ? Turboprop(6 + _rnd.NextDouble() * 4) : Jet(8 + _rnd.NextDouble() * 6);
             try { _acOut?.Stop(); _acOut?.Dispose(); } catch { }
             var src = new RawSourceWaveStream(new MemoryStream(pcm), new WaveFormat(Rate, 16, 1));
-            var vol = new VolumeSampleProvider(src.ToSampleProvider()) { Volume = _volume * (prop ? 0.22f : 0.26f) };
+            var vol = new VolumeSampleProvider(src.ToSampleProvider()) { Volume = _volume * (prop ? 0.11f : 0.09f) };
             _acOut = new WaveOutEvent { DesiredLatency = 200 };
             _acOut.Init(vol);
             _acOut.Play();
