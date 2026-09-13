@@ -57,6 +57,8 @@ internal sealed class AppConfig
     [JsonPropertyName("printoutBidirectional")]  public bool   PrintoutBidirectional  { get; set; } = false;
     [JsonPropertyName("printoutMixedCase")]      public bool   PrintoutMixedCase      { get; set; } = false;
     [JsonPropertyName("printoutSpeed")]          public int    PrintoutSpeed          { get; set; } = 0;      // 0 normal, 1 fast, 2 fastest
+    [JsonPropertyName("printoutPrinter")]        public int    PrintoutPrinter        { get; set; } = 0;      // 0 dot matrix, 1 LaserWriter
+    [JsonPropertyName("printoutFace")]           public string PrintoutFace           { get; set; } = "Helvetica";   // the LaserWriter's face
     // Where BeyondATC was found (its exe), once found; empty until then. The
     // FSLTL injector needs no record - it lives in the Community folder.
     [JsonPropertyName("batcPath")]               public string BatcPath               { get; set; } = "";

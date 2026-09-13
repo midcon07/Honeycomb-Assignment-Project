@@ -75,34 +75,77 @@ internal sealed class TrafficReminderForm : Form
         public bool Bidirectional;        // the head prints alternate lines right to left, as a real one did
         public bool MixedCase;            // upper and lower case; off = the all-capitals original
         public int Speed;                 // 0 normal, 1 fast, 2 fastest
+        public int Printer;               // 0 the dot matrix, 1 the LaserWriter (Mark, 2026-09-12)
+        public string Face = "Helvetica"; // the LaserWriter's face, by its PostScript name
         public Options Clone() => (Options)MemberwiseClone();
     }
+    private bool IsLaser => Opts.Printer == 1;
+
+    /// <summary>
+    /// The LaserWriter's resident faces (the LaserWriter Plus set, less Symbol
+    /// and Zapf), each with the Windows face that stands in for it. A face
+    /// whose stand-in is not installed is left out of the menu.
+    /// </summary>
+    public static readonly (string Name, string Windows)[] Faces =
+    {
+        ("Helvetica", "Arial"), ("Times", "Times New Roman"), ("Courier", "Courier New"), ("Palatino", "Palatino Linotype"),
+        ("Bookman", "Bookman Old Style"), ("New Century Schoolbook", "Century Schoolbook"), ("Avant Garde", "Century Gothic"), ("Helvetica Narrow", "Arial Narrow")
+    };
+    public static bool FaceInstalled(string windows)
+    {
+        try { using var ff = new FontFamily(windows); return ff.IsStyleAvailable(FontStyle.Regular); } catch { return false; }
+    }
+    private Font _laserFont; private float _laserFontPitch = -1; private string _laserFontFace = "";
+    private Font LaserFont
+    {
+        get
+        {
+            if (_laserFont != null && _laserFontPitch == _pitch && _laserFontFace == Opts.Face) return _laserFont;
+            _laserFont?.Dispose();
+            string win = "Arial";
+            foreach (var (name, w) in Faces) if (name == Opts.Face && FaceInstalled(w)) { win = w; break; }
+            _laserFont = new Font(win, _pitch * 10f, FontStyle.Regular, GraphicsUnit.Pixel);
+            _laserFontPitch = _pitch; _laserFontFace = Opts.Face;
+            return _laserFont;
+        }
+    }
+    private static readonly StringFormat Typo = MakeTypo();
+    private static StringFormat MakeTypo() { var sf = (StringFormat)StringFormat.GenericTypographic.Clone(); sf.FormatFlags |= StringFormatFlags.MeasureTrailingSpaces; return sf; }
+    private float MeasureW(Graphics g, string text) => text.Length == 0 ? 0 : g.MeasureString(text, LaserFont, PointF.Empty, Typo).Width;
+    // The page coming out: rows revealed so far during a LaserWriter print.
+    private float _reveal = float.MaxValue;
+    private System.Windows.Forms.Timer _laserTimer;
+    private static readonly double[][] LaserPhases = { new[] { 0.9, 1.1, 2.2, 0.7 }, new[] { 0.4, 0.6, 1.2, 0.4 }, new[] { 0.1, 0.3, 0.6, 0.2 } };
+    private double[] LaserPhase => LaserPhases[Math.Max(0, Math.Min(2, Opts.Speed))];
     public Options Opts { get; private set; }
     private static readonly double[] SpeedMs = { 17, 9, 4 };
     private static readonly Color[] InkByWeight =
     {
         Color.FromArgb(28, 34, 66), Color.FromArgb(28, 34, 66), Color.FromArgb(18, 22, 48), Color.FromArgb(6, 8, 22)
     };
-    private Color Ink => InkByWeight[Math.Max(0, Math.Min(3, Opts.Ink))];
+    private static readonly int[] TonerAlpha = { 165, 215, 240, 255 };
+    private Color Ink => IsLaser ? Color.FromArgb(TonerAlpha[Math.Max(0, Math.Min(3, Opts.Ink))], 18, 18, 18) : InkByWeight[Math.Max(0, Math.Min(3, Opts.Ink))];
     private double CharMs => SpeedMs[Math.Max(0, Math.Min(2, Opts.Speed))];
 
     // ---- paper geometry ------------------------------------------------------
     public static readonly float[] Pitches = { 2.0f, 2.3f, 2.6f, 3.0f, 3.4f, 3.9f, 4.4f };
     private float _pitch;                             // dot pitch in px: the text size
     private float CharW => _pitch * 6;                // 5 dots + 1 gap
-    private float LineH => _pitch * 10;               // 7 dots + 3 gap
+    private float LineH => IsLaser ? _pitch * 12.5f : _pitch * 10;   // 7 dots + 3 gap; the LaserWriter's leading
     private const int StripW = 42;                    // sprocket strip each side
     private const int TopMargin = 38, BottomMargin = 26, Edge = 7;
     private const int DefaultCols = 46;
     private int _cols = DefaultCols;
 
-    private static readonly Color Paper = Color.FromArgb(244, 241, 228);
+    private static readonly Color DmPaper = Color.FromArgb(244, 241, 228);
+    private static readonly Color LaserPaper = Color.FromArgb(252, 252, 250);
+    private Color Paper => IsLaser ? LaserPaper : DmPaper;
     private static readonly Color Bar = Color.FromArgb(214, 232, 208);
     private static readonly Color Perf = Color.FromArgb(200, 196, 180);
 
     // ---- what is printed -------------------------------------------------------
     // Source lines are kept in sentence case; Disp() gives what is printed.
-    private sealed class Src { public string Text = ""; public Outcome Click = Outcome.None; public bool Struck; }
+    private sealed class Src { public string Text = ""; public Outcome Click = Outcome.None; public bool Struck; public string Right; }   // Right: printed at the right edge (the header's date)
     private sealed class Row { public int Src; public string Text = ""; public int Start; }   // Start = index of this row's first char within the source text
     private readonly List<Src> _src = new();
     private readonly List<Row> _rows = new();
@@ -160,7 +203,7 @@ internal sealed class TrafficReminderForm : Form
         if (!string.IsNullOrWhiteSpace(recordedUtc) && DateTime.TryParse(recordedUtc, null, System.Globalization.DateTimeStyles.AdjustToUniversal | System.Globalization.DateTimeStyles.AssumeUniversal, out var dt))
             when = dt.ToLocalTime().ToString("dd MMM");
 
-        Add("Honeycomb Preflight".PadRight(DefaultCols - 15) + DateTime.Now.ToString("dd MMM yy HH:mm"));
+        Add("Honeycomb Preflight", right: DateTime.Now.ToString("dd MMM yy HH:mm"));
         Add(_resolved ? "*** Traffic - all as it should be ***" : "*** Action required in the simulator ***");
         Add("");
         Add("Traffic mode: " + mono);
@@ -268,7 +311,7 @@ internal sealed class TrafficReminderForm : Form
             if (onScreen) { Location = rb.Location; ClientSize = rb.Size; }
         }
 
-        _sounds = new DotMatrix.Sounds(CharMs);
+        _sounds = new DotMatrix.Sounds(CharMs, LaserPhase);
         _clock.Interval = (int)CharMs;
         _clock.Tick += (_, __) => Step();
         BuildMenu();
@@ -282,7 +325,7 @@ internal sealed class TrafficReminderForm : Form
         var s => s.ToLowerInvariant()
     };
 
-    private void Add(string text, Outcome click = Outcome.None) => _src.Add(new Src { Text = text, Click = click });
+    private void Add(string text, Outcome click = Outcome.None, string right = null) => _src.Add(new Src { Text = text, Click = click, Right = right });
 
     /// <summary>What a source line looks like on the paper: the original is all capitals; mixed case is the option.</summary>
     private string Disp(string text) => Opts.MixedCase ? text : text.ToUpperInvariant();
@@ -335,15 +378,48 @@ internal sealed class TrafficReminderForm : Form
     {
         _cols = Math.Max(20, (int)Math.Floor((ClientSize.Width - 2 * StripW - 24) / CharW + 0.01f));
         _rows.Clear();
+        if (IsLaser) { RelayoutLaser(); return; }
         for (int s = 0; s < _src.Count; s++)
         {
-            var text = Disp(_src[s].Text);
+            var src = _src[s];
+            var text = Disp(src.Right == null ? src.Text : src.Text.PadRight(Math.Max(0, DefaultCols - src.Right.Length)) + src.Right);
             int start = 0;
             while (true)
             {
                 if (text.Length - start <= _cols) { _rows.Add(new Row { Src = s, Text = text.Substring(start), Start = start }); break; }
                 int cut = text.LastIndexOf(' ', start + _cols - 1, _cols);
                 if (cut <= start) cut = start + _cols;
+                _rows.Add(new Row { Src = s, Text = text.Substring(start, cut - start), Start = start });
+                start = cut; while (start < text.Length && text[start] == ' ') start++;
+            }
+        }
+        _sheet?.Dispose();
+        _sheet = new Bitmap(Math.Max(1, ClientSize.Width), Math.Max(1, ClientSize.Height));
+        RedrawAll();
+        Invalidate();
+    }
+
+    /// <summary>The LaserWriter's page: proportional text, wrapped at spaces to the page's width.</summary>
+    private void RelayoutLaser()
+    {
+        using var g = Graphics.FromHwnd(IntPtr.Zero);
+        float avail = ClientSize.Width - 2 * StripW - 24;
+        for (int s = 0; s < _src.Count; s++)
+        {
+            var text = Disp(_src[s].Text);
+            int start = 0;
+            while (true)
+            {
+                if (MeasureW(g, text.Substring(start)) <= avail) { _rows.Add(new Row { Src = s, Text = text.Substring(start), Start = start }); break; }
+                // The last space at which the row still fits; failing that, the most characters that fit.
+                int cut = -1;
+                for (int i = start + 1; i < text.Length; i++)
+                    if (text[i] == ' ') { if (MeasureW(g, text.Substring(start, i - start)) <= avail) cut = i; else break; }
+                if (cut <= start)
+                {
+                    cut = start + 1;
+                    while (cut < text.Length && MeasureW(g, text.Substring(start, cut - start + 1)) <= avail) cut++;
+                }
                 _rows.Add(new Row { Src = s, Text = text.Substring(start, cut - start), Start = start });
                 start = cut; while (start < text.Length && text[start] == ' ') start++;
             }
@@ -369,7 +445,27 @@ internal sealed class TrafficReminderForm : Form
     {
         using var g = Graphics.FromImage(_sheet);
         g.SmoothingMode = SmoothingMode.AntiAlias;
+        g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
         g.Clear(Paper);
+        if (IsLaser)
+        {
+            // A cut sheet: a hairline at the edge and nothing else.
+            using (var edge = new Pen(Color.FromArgb(215, 212, 205), 1)) g.DrawRectangle(edge, 0, 0, _sheet.Width - 1, _sheet.Height - 1);
+            using var toner = new SolidBrush(Ink);
+            var rndL = new Random(42);
+            for (int r = 0; r < _rows.Count; r++)
+            {
+                var row = _rows[r];
+                if (row.Src >= _headSrc) continue;
+                g.DrawString(row.Text, LaserFont, toner, TextLeft, RowTop(r), Typo);
+                var right = _src[row.Src].Right;
+                if (right != null && row.Start == 0) { var rt = Disp(right); g.DrawString(rt, LaserFont, toner, _sheet.Width - StripW - 12 - MeasureW(g, rt), RowTop(r), Typo); }
+                if (_src[row.Src].Struck) DrawStrike(g, r, rndL);
+            }
+            DrawLamp(g);
+            DrawChrome(g);
+            return;
+        }
         using (var bar = new SolidBrush(Bar))
             for (int l = 0; RowTop(l) < _sheet.Height; l += 6)
                 g.FillRectangle(bar, StripW, RowTop(l) - _pitch * 1.5f, _sheet.Width - 2 * StripW, LineH * 3);
@@ -419,10 +515,10 @@ internal sealed class TrafficReminderForm : Form
 
     private void DrawStrike(Graphics g, int row, Random rnd)
     {
-        float y = RowTop(row) + _pitch * 3.5f;
+        float y = IsLaser ? RowTop(row) + _pitch * 4.2f : RowTop(row) + _pitch * 3.5f;
         using var pen = new Pen(Color.FromArgb(230, Ink), _pitch * 0.9f);
         var pts = new List<PointF>();
-        float x0 = TextLeft - 2, x1 = TextLeft + _rows[row].Text.Length * CharW + 2;
+        float x0 = TextLeft - 2, x1 = TextLeft + (IsLaser ? MeasureW(g, _rows[row].Text) : _rows[row].Text.Length * CharW) + 2;
         for (float x = x0; x <= x1; x += 8) pts.Add(new PointF(x, y + (float)(rnd.NextDouble() - 0.5) * 1.6f));
         if (pts.Count > 1) g.DrawLines(pen, pts.ToArray());
     }
@@ -569,10 +665,28 @@ internal sealed class TrafficReminderForm : Form
             it.Click += (_, __) => { Opts.Speed = v; ApplyOptions(); };
             speed.DropDownItems.Add(it);
         }
+        var printer = new ToolStripMenuItem("Printer");
+        foreach (var (label, v) in new[] { ("Dot matrix", 0), ("LaserWriter", 1) })
+        {
+            var it = new ToolStripMenuItem(label) { Checked = Opts.Printer == v, Tag = v };
+            it.Click += (_, __) => { Opts.Printer = v; ApplyOptions(); };
+            printer.DropDownItems.Add(it);
+        }
+        var face = new ToolStripMenuItem("Face");
+        foreach (var (name, win) in Faces)
+        {
+            if (!FaceInstalled(win)) continue;
+            var it = new ToolStripMenuItem(name) { Checked = Opts.Face == name, Tag = name, Font = new Font(win, 10f) };
+            it.Click += (_, __) => { Opts.Face = name; ApplyOptions(); };
+            face.DropDownItems.Add(it);
+        }
         var bidi = new ToolStripMenuItem("Print in both directions") { Checked = Opts.Bidirectional, CheckOnClick = true };
         bidi.Click += (_, __) => { Opts.Bidirectional = bidi.Checked; ApplyOptions(); };
         var mixed = new ToolStripMenuItem("Upper and lower case") { Checked = Opts.MixedCase, CheckOnClick = true };
         mixed.Click += (_, __) => { Opts.MixedCase = mixed.Checked; ApplyOptions(); };
+        _menu.Items.Add(printer);
+        _menu.Items.Add(face);
+        _menu.Items.Add(new ToolStripSeparator());
         _menu.Items.Add(ink);
         _menu.Items.Add(speed);
         _menu.Items.Add(new ToolStripSeparator());
@@ -580,6 +694,9 @@ internal sealed class TrafficReminderForm : Form
         _menu.Items.Add(mixed);
         _menu.Opening += (_, __) =>
         {
+            foreach (ToolStripMenuItem it in printer.DropDownItems) it.Checked = (int)it.Tag == Opts.Printer;
+            foreach (ToolStripMenuItem it in face.DropDownItems) it.Checked = (string)it.Tag == Opts.Face;
+            face.Enabled = IsLaser; bidi.Enabled = !IsLaser;
             foreach (ToolStripMenuItem it in ink.DropDownItems) it.Checked = (int)it.Tag == Opts.Ink;
             foreach (ToolStripMenuItem it in speed.DropDownItems) it.Checked = (int)it.Tag == Opts.Speed;
             bidi.Checked = Opts.Bidirectional; mixed.Checked = Opts.MixedCase;
@@ -590,11 +707,16 @@ internal sealed class TrafficReminderForm : Form
     private void ApplyOptions()
     {
         _clock.Interval = (int)CharMs;
-        bool wasPrinting = _printing && _clock.Enabled;
-        try { _sounds.StopPrinting(); _sounds.Dispose(); } catch { }
-        _sounds = new DotMatrix.Sounds(CharMs);
+        bool wasPrinting = _printing && _clock.Enabled && !IsLaser;
+        try { _sounds.StopPrinting(); _sounds.LaserStop(); _sounds.Dispose(); } catch { }
+        _sounds = new DotMatrix.Sounds(CharMs, LaserPhase);
         if (wasPrinting && _lineFeedPause == 0) _sounds.StartPrinting();
+        // A change of printer while the dot matrix was mid-line: the rest
+        // appears on the new page at once, and the head is at the foot.
+        if (IsLaser && _printing) { _clock.Stop(); _lineFeedPause = 0; _headSrc = _src.Count; _headChar = 0; _printing = false; }
+        if (!IsLaser && _laserTimer != null) { _laserTimer.Stop(); _laserTimer.Dispose(); _laserTimer = null; _reveal = float.MaxValue; _printing = false; }
         Relayout();
+        if (!_printing) Flush();
         OptionsChanged?.Invoke(Opts.Clone());
     }
 
@@ -668,9 +790,44 @@ internal sealed class TrafficReminderForm : Form
     protected override void OnShown(EventArgs e)
     {
         base.OnShown(e);
+        if (IsLaser) { _headSrc = _src.Count; _headChar = 0; LaserPrint(null); return; }
         _printing = true;
         _sounds.StartPrinting();
         _clock.Start();
+    }
+
+    /// <summary>
+    /// The LaserWriter printing the page as it now is: the pause, the motor,
+    /// the page coming out top first over the transport phase, the drop.
+    /// The head is already at the foot; the rows are revealed as it emerges.
+    /// </summary>
+    private void LaserPrint(Action then)
+    {
+        _printing = true;
+        Relayout();
+        _reveal = 0; Invalidate();
+        var ph = LaserPhase;
+        double think = ph[0], spin = ph[1], feed = ph[2], down = ph[3];
+        _sounds.LaserPageNow();
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        _laserTimer?.Stop(); _laserTimer?.Dispose();
+        var t = new System.Windows.Forms.Timer { Interval = 16 };
+        _laserTimer = t;
+        t.Tick += (_, __) =>
+        {
+            double s = sw.Elapsed.TotalSeconds;
+            double f = (s - think - spin) / feed;
+            _reveal = f <= 0 ? 0 : f >= 1 ? float.MaxValue : (float)(f * (_rows.Count + 1));
+            Invalidate();
+            if (s >= think + spin + feed + down)
+            {
+                t.Stop(); t.Dispose(); if (_laserTimer == t) _laserTimer = null;
+                _reveal = float.MaxValue; _printing = false;
+                then?.Invoke();
+                Flush();
+            }
+        };
+        t.Start();
     }
 
     /// <summary>The row and the k-th step within it for the head's position in the current source line.</summary>
@@ -688,7 +845,7 @@ internal sealed class TrafficReminderForm : Form
 
     private void Step()
     {
-        if (_busy) return;
+        if (_busy || IsLaser) return;
         if (_lineFeedPause > 0) { _lineFeedPause--; if (_lineFeedPause == 0) _sounds.StartPrinting(); return; }
         // The last source line (blank, for the RECORDED line) is not printed on its own.
         if (_headSrc >= _src.Count - 1) { FinishPrinting(); return; }
@@ -726,6 +883,7 @@ internal sealed class TrafficReminderForm : Form
     private void PrintSourceThen(int s, string text, Action then)
     {
         _src[s].Text = text;
+        if (IsLaser) { _headSrc = Math.Max(_headSrc, s + 1); _headChar = 0; LaserPrint(then); return; }
         Relayout();
         var disp = Disp(text);
         int n = 0;
@@ -784,8 +942,9 @@ internal sealed class TrafficReminderForm : Form
         _sounds.StrikeNow();
         var outcome = _src[s].Click;
         int firstRow = _rows.FindIndex(x => x.Src == s);
-        if (firstRow >= 0) PrintCharAt(firstRow, 1, 'X');
+        if (firstRow >= 0 && !IsLaser) PrintCharAt(firstRow, 1, 'X');
         _src[s].Text = "[X]" + _src[s].Text.Substring(3);
+        if (IsLaser) Relayout();
         if (outcome == Outcome.CloseYes || outcome == Outcome.CloseNo) { AnswerClose(outcome == Outcome.CloseYes); return; }
         if (outcome == Outcome.StartEngine)
         {
@@ -873,7 +1032,16 @@ internal sealed class TrafficReminderForm : Form
 
     protected override void OnPaint(PaintEventArgs e)
     {
-        if (_sheet != null) e.Graphics.DrawImageUnscaled(_sheet, 0, 0);
+        if (_sheet == null) return;
+        e.Graphics.DrawImageUnscaled(_sheet, 0, 0);
+        if (IsLaser && _reveal < _rows.Count + 1)
+        {
+            float y = TopMargin + _reveal * LineH;
+            using var blank = new SolidBrush(Paper);
+            e.Graphics.FillRectangle(blank, 1, y, _sheet.Width - 2, Math.Max(0, _sheet.Height - 1 - y));
+            using var slot = new Pen(Color.FromArgb(120, 90, 90, 85), 1);
+            e.Graphics.DrawLine(slot, 1, y, _sheet.Width - 2, y);
+        }
     }
 
     // ---- the feed: lines that arrive after the sheet is printed --------------------------
@@ -914,6 +1082,13 @@ internal sealed class TrafficReminderForm : Form
         _src.Add(new Src { Text = "" });
         EnsureRoom(lines.Length + 2);
         _headSrc = Math.Max(_headSrc, blank + 1); _headChar = 0;
+        if (IsLaser)
+        {
+            for (int j = 0; j < lines.Length; j++) _src[first + j].Text = lines[j].Text;
+            _headSrc = _src.Count; _headChar = 0;
+            LaserPrint(then);
+            return;
+        }
         Relayout();
         _printing = true;
         int i = 0;
@@ -1025,6 +1200,8 @@ internal sealed class TrafficReminderForm : Form
     private void CompletePrintNow()
     {
         if (!_printing) return;
+        if (_laserTimer != null) { _laserTimer.Stop(); _laserTimer.Dispose(); _laserTimer = null; _sounds.LaserStop(); }
+        _reveal = float.MaxValue;
         _clock.Stop(); _lineFeedPause = 0;
         _headSrc = _src.Count; _headChar = 0;
         _printing = false;
@@ -1044,6 +1221,7 @@ internal sealed class TrafficReminderForm : Form
         int no = _src.Count;  _src.Add(new Src { Text = "[ ] No - keep it", Click = Outcome.CloseNo });
         EnsureRoom(3);
         _headSrc = Math.Max(_headSrc, yes - 2); _headChar = 0;   // the blank line above the question counts as printed
+        if (IsLaser) { _headSrc = _src.Count; _headChar = 0; LaserPrint(null); return; }
         Relayout();
         _printing = true;
         PrintSourceThen(yes - 1, "Close the printout?", () =>
@@ -1090,6 +1268,8 @@ internal sealed class TrafficReminderForm : Form
         _sounds.Dispose();
         _sheet?.Dispose();
         _menu?.Dispose();
+        _laserFont?.Dispose();
+        _laserTimer?.Dispose();
     }
 
     // Keyboard: Enter = DONE, Escape = NOT NOW, same as the printed lines.

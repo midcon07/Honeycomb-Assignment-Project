@@ -66,8 +66,12 @@ Traffic
   It stays on top of the simulator. Drag it by its paper to move it; the light
   in its corner is green while it is anchored on top. The PRINTOUT button on
   the main window winds it up into a small square and brings it back.
-  Right-click the paper to change the printer: darker ink, printing in both
-  directions, upper and lower case, or a faster print.
+  Right-click the paper to change the printer. Dot matrix is the tractor-feed
+  paper; LaserWriter is a plain white page in Helvetica, Times, Courier or
+  the other faces the old Apple LaserWriter had, printed a whole page at a
+  time with that machine's sounds. Either way you can choose darker ink,
+  upper and lower case, or a faster print; the dot matrix can also print in
+  both directions.
 
 The Start Simulator button
   It says "Simulator Running" while the simulator is up and offers to start

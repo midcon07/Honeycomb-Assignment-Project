@@ -203,10 +203,29 @@ did not pop when the sim came up again.
   the option is on; 26 lowercase 5x7 glyphs added. Speed = 17 / 9 / 4 ms per
   character; the print-loop sound is rebuilt for the new rhythm.
   Demo: `HONEYCOMB_PRINTOUT=ink,bidi,mixed,speed` (e.g. `2,1,1,1`).
-- **5 (laser)**: NOT built. It is a second printer, not an option: white
-  sheet, no sprockets, a page at a time after a warm-up hum and a feed
-  whirr, a different face. Worth doing as `Printer = DotMatrix | Laser` in
-  the options with `DotMatrix.cs` split into a printer interface. Queued.
+- **5 (laser)**: built later the same evening as **the LaserWriter** (Mark:
+  "I'm reminiscing of the old Apple laser writers"; Canon CX/SX engine, 8
+  ppm, PostScript). Menu: Printer = Dot matrix / LaserWriter; Face = the
+  LaserWriter Plus resident faces with Windows stand-ins (Helvetica=Arial,
+  Times=Times New Roman, Courier=Courier New, Palatino=Palatino Linotype,
+  Bookman=Bookman Old Style, New Century Schoolbook=Century Schoolbook,
+  Avant Garde=Century Gothic, Helvetica Narrow=Arial Narrow), listed only
+  if installed; config `printoutPrinter`, `printoutFace`. Proportional
+  text wrapped by measured width (`RelayoutLaser`), the header's date at
+  the right edge (`Src.Right`), a white cut sheet with a hairline edge, ink
+  = toner density. The page prints whole: `LaserPrint()` plays the
+  sequence (fan throughout; the PostScript pause; relay click; motor
+  whining up; pickup clunk; transport whirr with the rollers ticking; the
+  page dropping; wind-down - `DotMatrix.LaserPage`, phases by speed 0.9/
+  1.1/2.2/0.7 s, 0.4/0.6/1.2/0.4, 0.1/0.3/0.6/0.2) and reveals the rows
+  top-down through the transport phase. **Every later line reprints the
+  page**, as a laser must (PrintSourceThen / PrintLines / AskClose take a
+  laser branch); the X in a box shows on the reprint. Demo:
+  `HONEYCOMB_PRINTOUT=ink,bidi,mixed,speed,printer,face`. Mark tried every
+  face on the demo within a minute of it existing and set the real one to
+  LaserWriter, Helvetica, black, fast.
+- **Standing direction (Mark, 2026-09-12): "80s - 90s vibe is our ultimate
+  visual UI goal."** Period hardware, paper and real machine sounds.
 - **6**: `TrafficEngines.cs` - BeyondATC found via a running copy, the
   uninstall registry (Inno Setup), or `<drive>\BeyondATC\BeyondATC.exe`,
   then remembered as `batcPath`; the FSLTL injector at
@@ -243,5 +262,6 @@ did not pop when the sim came up again.
 2. Preflight rows per mode: the engine running or not, BATC up to date
    from its Player.log, densities sane.
 3. Words for the graphics levels 0-2 - low value; -1 and 3 are measured.
-4. The laser printer (Mark's item 5, 2026-09-12): see above.
-5. Item 0 above is an assumption about what Mark meant - confirm.
+4. Item 0 above is an assumption about what Mark meant - confirm.
+5. The launcher's own page is the next thing to bring into the 80s/90s
+   vibe (Mark, 2026-09-12: "our ultimate visual UI goal").

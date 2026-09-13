@@ -233,6 +233,48 @@ internal static class DotMatrix
         return Wav(outp);
     }
 
+    /// <summary>
+    /// A LaserWriter printing one page (Mark, 2026-09-12: the Apple LaserWriter,
+    /// Canon CX/SX engine, 8 pages a minute). The fan runs throughout. Then: the
+    /// PostScript pause (fan only), a relay click, the main motor whining up to
+    /// speed, the pickup roller's clunk, the transport whirr with the rollers
+    /// ticking as the page goes through, the page dropping into the tray, and
+    /// the motor winding down. Phase lengths in seconds.
+    /// </summary>
+    public static byte[] LaserPage(double think, double spin, double feed, double down)
+    {
+        var rnd = new Random(11);
+        double total = think + spin + feed + down + 0.15;
+        int n = (int)(Rate * total);
+        var pcm = new short[n];
+        double lp = 0, lp2 = 0;
+        double tRelay = think, tPick = think + spin, tDrop = think + spin + feed;
+        for (int i = 0; i < n; i++)
+        {
+            double t = i / (double)Rate;
+            double white = rnd.NextDouble() * 2 - 1;
+            lp += (white - lp) * 0.04;                       // the fan: low, steady air noise
+            lp2 += (lp - lp2) * 0.04;
+            double v = lp2 * 1.6 + 0.025 * Math.Sin(2 * Math.PI * 118 * t);
+            // the main motor
+            double whine = 0, amp = 0;
+            if (t >= tRelay && t < tPick) { double p = (t - tRelay) / spin; whine = 380 + 1700 * p; amp = 0.10 * p; }
+            else if (t >= tPick && t < tDrop) { whine = 2080; amp = 0.10 * (1 + 0.28 * Math.Sin(2 * Math.PI * 27 * t)); }
+            else if (t >= tDrop) { double p = Math.Min(1, (t - tDrop) / down); whine = 2080 - 1800 * p; amp = 0.10 * (1 - p); }
+            if (amp > 0) v += amp * (0.6 * Math.Sin(2 * Math.PI * whine * t) + 0.4 * Math.Sin(2 * Math.PI * whine * 2.01 * t));
+            // rollers and the paper path
+            if (t >= tPick && t < tDrop) v += 0.05 * white * (0.5 + 0.5 * Math.Sin(2 * Math.PI * 13 * t));
+            // the relay, the pickup clunk, the page dropping
+            double r = t - tRelay; if (r >= 0 && r < 0.012) v += 0.45 * white * Math.Exp(-r / 0.003);
+            double k = t - tPick;  if (k >= 0 && k < 0.09)  v += 0.55 * Math.Sin(2 * Math.PI * 85 * k) * Math.Exp(-k / 0.03) + 0.2 * white * Math.Exp(-k / 0.006);
+            double d = t - tDrop;  if (d >= 0 && d < 0.05)  v += 0.30 * white * Math.Exp(-d / 0.008);
+            // in and out gently
+            double env = Math.Min(1, t / 0.15) * Math.Min(1, (total - t) / 0.15);
+            pcm[i] = Clip(v * env);
+        }
+        return Wav(pcm);
+    }
+
     /// <summary>A single hard strike, for the X in a box.</summary>
     public static byte[] Strike()
     {
@@ -270,11 +312,13 @@ internal static class DotMatrix
     /// </summary>
     public sealed class Sounds : IDisposable
     {
-        private readonly SoundPlayer _loop, _feed, _strike, _tear;
+        private readonly SoundPlayer _loop, _feed, _strike, _tear, _laser;
         public bool Muted { get; set; }
 
-        public Sounds(double charMs)
+        /// <param name="laser">LaserWriter phase lengths (think, spin, feed, down) in seconds; null for the defaults.</param>
+        public Sounds(double charMs, double[] laser = null)
         {
+            laser ??= new[] { 0.9, 1.1, 2.2, 0.7 };
             var dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "HoneycombAssignment", "sounds");
             Directory.CreateDirectory(dir);
             SoundPlayer Make(string name, byte[] wav)
@@ -289,7 +333,11 @@ internal static class DotMatrix
             _feed = Make("dotmatrix-linefeed.wav", LineFeed());
             _strike = Make("dotmatrix-strike.wav", Strike());
             _tear = Make("dotmatrix-tear.wav", Tear());
+            _laser = Make("laserwriter-page.wav", LaserPage(laser[0], laser[1], laser[2], laser[3]));
         }
+
+        public void LaserPageNow() => Try(() => _laser.Play());
+        public void LaserStop() => Try(() => _laser.Stop());
 
         private void Try(Action a) { if (Muted) return; try { a(); } catch { } }
         public void StartPrinting() => Try(() => _loop.PlayLooping());
@@ -297,6 +345,6 @@ internal static class DotMatrix
         public void LineFeedNow() => Try(() => _feed.Play());
         public void StrikeNow() => Try(() => _strike.Play());
         public void TearNow() => Try(() => _tear.Play());
-        public void Dispose() { foreach (var p in new[] { _loop, _feed, _strike, _tear }) { try { p.Stop(); p.Dispose(); } catch { } } }
+        public void Dispose() { foreach (var p in new[] { _loop, _feed, _strike, _tear, _laser }) { try { p.Stop(); p.Dispose(); } catch { } } }
     }
 }

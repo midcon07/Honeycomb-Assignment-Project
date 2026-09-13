@@ -60,12 +60,14 @@ internal static class Program
                     : TrafficEngines.All(null).Where(e => e != null && e.IsRunning()).Select(e => e.Name).ToArray()
             };
             // Printer options for the demo come from the environment, so each
-            // can be seen without a config: HONEYCOMB_PRINTOUT=ink,bidi,mixed,speed e.g. "3,1,1,2".
+            // can be seen without a config: HONEYCOMB_PRINTOUT=ink,bidi,mixed,speed[,printer[,face]] e.g. "3,1,1,2" or "1,0,1,0,1,Times".
             var opts = new TrafficReminderForm.Options();
             var po = (Environment.GetEnvironmentVariable("HONEYCOMB_PRINTOUT") ?? "").Split(',');
-            if (po.Length == 4) { opts.Ink = int.Parse(po[0]); opts.Bidirectional = po[1] == "1"; opts.MixedCase = po[2] == "1"; opts.Speed = int.Parse(po[3]); }
+            if (po.Length >= 4) { opts.Ink = int.Parse(po[0]); opts.Bidirectional = po[1] == "1"; opts.MixedCase = po[2] == "1"; opts.Speed = int.Parse(po[3]); }
+            if (po.Length >= 5) opts.Printer = int.Parse(po[4]);
+            if (po.Length >= 6) opts.Face = po[5];
             var sheet = new TrafficReminderForm(facts, opts);
-            sheet.OptionsChanged += o => Log($"traffic sheet demo: options ink {o.Ink}, both directions {o.Bidirectional}, mixed case {o.MixedCase}, speed {o.Speed}");
+            sheet.OptionsChanged += o => Log($"traffic sheet demo: options {(o.Printer == 1 ? "LaserWriter, " + o.Face : "dot matrix")}, ink {o.Ink}, both directions {o.Bidirectional}, mixed case {o.MixedCase}, speed {o.Speed}");
             sheet.EngineStartRequested += () =>
             {
                 var why = TrafficEngines.Start(engine);
