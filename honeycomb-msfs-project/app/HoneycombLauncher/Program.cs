@@ -34,6 +34,26 @@ internal static class Program
     [STAThread]
     private static void Main(string[] args)
     {
+        // "--sound <name> <file>" writes one of the printer's sounds to a WAV:
+        // hum | whir | whir-full (the recording's own 33 s) | print | feed | strike.
+        if (args.Length > 2 && args[0] == "--sound")
+        {
+            byte[] wav = args[1] switch
+            {
+                "hum" => DotMatrix.LaserPage(0.9, 1.1, 2.2, 0.7),
+                "whir" => DotMatrix.LaserWhir(0.9, 1.1, 2.2, 0.7),
+                "whir-full" => DotMatrix.LaserWhir(1.0, 6.0, 16.0, 9.0),
+                "print" => DotMatrix.PrintLoop(17),
+                "feed" => DotMatrix.LineFeed(),
+                "strike" => DotMatrix.Strike(),
+                _ => null
+            };
+            if (wav == null) { Console.Error.WriteLine("unknown sound: " + args[1]); return; }
+            File.WriteAllBytes(args[2], wav);
+            Console.WriteLine("wrote " + args[2] + " (" + wav.Length + " bytes)");
+            return;
+        }
+
         // "--traffic-sheet [mode]" prints the reminder sheet on its own, with
         // sample values, and records nothing: for seeing and hearing it
         // without a simulator, and for testing it.

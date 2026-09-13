@@ -295,6 +295,72 @@ internal static class DotMatrix
         return Wav(pcm);
     }
 
+    /// <summary>
+    /// A laser printer's page from a sound-effect recording Mark named
+    /// (youtube h4HzNAf4WtU, bigsoundbank, 33 s), measured 2026-09-12 as a
+    /// band-energy timeline: silence for a second; the machine starting loud
+    /// (-23 dB) with a whir whose energy sits in 500 Hz-2 kHz and a tone
+    /// around 400-650 Hz; after six seconds 6 dB quieter and steady, with
+    /// louder half-second bursts (more 150-500 Hz) as sheets go through; at
+    /// 23 s the motor stops and the fan is left alone, a near-pure 592 Hz
+    /// (-35 dB); from 27 s the fan winds down over five seconds, its pitch
+    /// sliding from 592 to about 120 Hz as it fades out.
+    /// Phases here map onto the sheet's: think = silence, spin = the loud
+    /// start, feed = the steady run with a burst, down = fan alone then the
+    /// wind-down. Call with the recording's own lengths (1, 6, 16, 9) to
+    /// hear it as recorded.
+    /// </summary>
+    public static byte[] LaserWhir(double think, double spin, double feed, double down)
+    {
+        var rnd = new Random(17);
+        double total = think + spin + feed + down + 0.1;
+        int n = (int)(Rate * total);
+        var pcm = new short[n];
+        double lp1 = 0, lp2 = 0, lo = 0, ph1 = 0, ph2 = 0, phFan = 0;
+        double tStart = think, tSteady = think + spin, tFan = think + spin + feed, tEnd = tFan + down;
+        double fanAlone = down * 0.4;                                 // the fan alone, then the wind-down
+        for (int i = 0; i < n; i++)
+        {
+            double t = i / (double)Rate;
+            double white = rnd.NextDouble() * 2 - 1;
+            lp1 += (white - lp1) * 0.42; lp2 += (lp1 - lp2) * 0.42;   // the whir's band: below about 2 kHz
+            lo += (white - lo) * 0.10;                                // below about 400 Hz
+            double band = lp2 - lo * 0.8;                             // 500 Hz - 2 kHz, mostly
+            double v = 0;
+            if (t >= tStart && t < tFan)
+            {
+                // the motor: a whir of noise with a tone in it, loud at the start, settled after
+                double level = t < tSteady ? 1.0 : 0.5;
+                double ramp = Math.Min(1, (t - tStart) / 0.25);
+                double f1 = 430 + 12 * Math.Sin(2 * Math.PI * 0.6 * t), f2 = 620;
+                ph1 += 2 * Math.PI * f1 / Rate; ph2 += 2 * Math.PI * f2 / Rate;
+                double tone = 0.5 * Math.Sin(ph1) + 0.25 * Math.Sin(2 * ph1) + 0.3 * Math.Sin(ph2);
+                v += ramp * level * (0.11 * band + 0.05 * tone + 0.03 * lo);
+                // a sheet going through: half a second with more of the low-mid, a few times in the run
+                double run = t - tSteady;
+                if (run >= 0)
+                {
+                    double period = Math.Max(2.0, feed / 3.0);
+                    double k = run % period;
+                    if (k < 0.5) v += 0.07 * Math.Sin(Math.PI * k / 0.5) * (lo * 1.5 + band * 0.5);
+                }
+            }
+            else if (t >= tFan && t < tEnd)
+            {
+                // the fan alone, then winding down: the tone slides from 592 Hz towards 120 Hz
+                double d = t - tFan;
+                double fan = d < fanAlone ? 592 : 592 * Math.Pow(120.0 / 592.0, (d - fanAlone) / (down - fanAlone));
+                double amp = d < fanAlone ? 0.03 : 0.03 * Math.Pow(1 - (d - fanAlone) / (down - fanAlone), 1.6);
+                phFan += 2 * Math.PI * fan / Rate;
+                v += amp * (Math.Sin(phFan) + 0.35 * Math.Sin(2 * phFan) + 0.15 * Math.Sin(3 * phFan));
+                v += amp * 0.5 * band;
+            }
+            double env = Math.Min(1, (t + 0.001) / 0.01) * Math.Min(1, (total - t) / 0.05);
+            pcm[i] = Clip(v * env);
+        }
+        return Wav(pcm);
+    }
+
     /// <summary>A single hard strike, for the X in a box.</summary>
     public static byte[] Strike()
     {
@@ -345,14 +411,15 @@ internal static class DotMatrix
         public float Volume { get; set; } = 1f;
 
         /// <param name="laser">LaserWriter phase lengths (think, spin, feed, down) in seconds; null for the defaults.</param>
-        public Sounds(double charMs, double[] laser = null)
+        /// <param name="laserSound">0 = the hum (LaserWriter 4/600, by Mark's ear), 1 = the whir (the sound-effect recording).</param>
+        public Sounds(double charMs, double[] laser = null, int laserSound = 0)
         {
             laser ??= new[] { 0.9, 1.1, 2.2, 0.7 };
             _loop = PrintLoop(charMs);
             _feed = LineFeed();
             _strike = Strike();
             _tear = Tear();
-            _laser = LaserPage(laser[0], laser[1], laser[2], laser[3]);
+            _laser = laserSound == 1 ? LaserWhir(laser[0], laser[1], laser[2], laser[3]) : LaserPage(laser[0], laser[1], laser[2], laser[3]);
         }
 
         private bool Off => Muted || Volume <= 0;

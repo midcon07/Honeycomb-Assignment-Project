@@ -1395,7 +1395,8 @@ internal sealed partial class MainForm : Form
             MixedCase = _cfg?.PrintoutMixedCase ?? false, Speed = _cfg?.PrintoutSpeed ?? 0,
             Printer = _cfg?.PrintoutPrinter ?? 0, Face = string.IsNullOrWhiteSpace(_cfg?.PrintoutFace) ? "Helvetica" : _cfg.PrintoutFace,
             Ambience = _cfg?.PrintoutAmbience ?? true,
-            PrinterVolume = _cfg?.PrintoutPrinterVolume ?? 2, AmbienceVolume = _cfg?.PrintoutAmbienceVolume ?? 2
+            PrinterVolume = _cfg?.PrintoutPrinterVolume ?? 2, AmbienceVolume = _cfg?.PrintoutAmbienceVolume ?? 2,
+            LaserSound = _cfg?.PrintoutLaserSound ?? 0
         };
         var f = new TrafficReminderForm(facts, opts, true, pitch, remembered);
         f.OptionsChanged += o =>
@@ -1403,7 +1404,7 @@ internal sealed partial class MainForm : Form
             _cfg ??= new AppConfig();
             _cfg.PrintoutInk = o.Ink; _cfg.PrintoutBidirectional = o.Bidirectional; _cfg.PrintoutMixedCase = o.MixedCase; _cfg.PrintoutSpeed = o.Speed;
             _cfg.PrintoutPrinter = o.Printer; _cfg.PrintoutFace = o.Face; _cfg.PrintoutAmbience = o.Ambience;
-            _cfg.PrintoutPrinterVolume = o.PrinterVolume; _cfg.PrintoutAmbienceVolume = o.AmbienceVolume;
+            _cfg.PrintoutPrinterVolume = o.PrinterVolume; _cfg.PrintoutAmbienceVolume = o.AmbienceVolume; _cfg.PrintoutLaserSound = o.LaserSound;
             try { _cfg.Save(); } catch (Exception ex) { Program.LogError("save printout options", ex); }
             Program.Log($"printout options: {(o.Printer == 1 ? "LaserWriter, " + o.Face : "dot matrix")}, ink {o.Ink}, both directions {o.Bidirectional}, mixed case {o.MixedCase}, speed {o.Speed}");
         };

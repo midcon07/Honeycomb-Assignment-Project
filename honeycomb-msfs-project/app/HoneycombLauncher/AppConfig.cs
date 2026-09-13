@@ -62,6 +62,7 @@ internal sealed class AppConfig
     [JsonPropertyName("printoutAmbience")]       public bool   PrintoutAmbience       { get; set; } = true;   // the airport under the printer
     [JsonPropertyName("printoutPrinterVolume")]  public int    PrintoutPrinterVolume  { get; set; } = 2;      // 0 off, 1 quiet, 2 normal, 3 loud
     [JsonPropertyName("printoutAmbienceVolume")] public int    PrintoutAmbienceVolume { get; set; } = 2;
+    [JsonPropertyName("printoutLaserSound")]     public int    PrintoutLaserSound     { get; set; } = 0;      // 0 hum, 1 whir
     // The main window's face: "80s" (the 1989 terminal) or "modern" (the
     // flight deck it wore before 2026-09-12). Mark asked for the toggle.
     [JsonPropertyName("uiEra")]                  public string UiEra                  { get; set; } = "80s";

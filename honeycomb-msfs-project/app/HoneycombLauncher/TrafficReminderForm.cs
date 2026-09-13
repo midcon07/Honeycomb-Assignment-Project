@@ -80,6 +80,7 @@ internal sealed class TrafficReminderForm : Form
         public bool Ambience = true;      // the airport under the printer (Mark, 2026-09-12)
         public int PrinterVolume = 2;     // 0 off, 1 quiet, 2 as built, 3 loud
         public int AmbienceVolume = 2;    // the same steps for the airport
+        public int LaserSound = 0;        // the LaserWriter's page: 0 the hum, 1 the whir from the recording (Mark, 2026-09-12)
         public Options Clone() => (Options)MemberwiseClone();
     }
     private bool IsLaser => Opts.Printer == 1;
@@ -317,7 +318,7 @@ internal sealed class TrafficReminderForm : Form
             if (onScreen) { Location = rb.Location; ClientSize = rb.Size; }
         }
 
-        _sounds = new DotMatrix.Sounds(CharMs, LaserPhase) { Volume = PrinterLevel };
+        _sounds = new DotMatrix.Sounds(CharMs, LaserPhase, Opts.LaserSound) { Volume = PrinterLevel };
         _clock.Interval = (int)CharMs;
         _clock.Tick += (_, __) => Step();
         BuildMenu();
@@ -686,6 +687,13 @@ internal sealed class TrafficReminderForm : Form
             it.Click += (_, __) => { Opts.Face = name; ApplyOptions(); };
             face.DropDownItems.Add(it);
         }
+        var lsound = new ToolStripMenuItem("LaserWriter page");
+        foreach (var (label, v) in new[] { ("Hum", 0), ("Whir (from the recording)", 1) })
+        {
+            var it = new ToolStripMenuItem(label) { Checked = Opts.LaserSound == v, Tag = v };
+            it.Click += (_, __) => { Opts.LaserSound = v; ApplyOptions(); };
+            lsound.DropDownItems.Add(it);
+        }
         var pvol = new ToolStripMenuItem("Printer sound");
         foreach (var (label, v) in new[] { ("Off", 0), ("Quiet", 1), ("Normal", 2), ("Loud", 3) })
         {
@@ -713,10 +721,13 @@ internal sealed class TrafficReminderForm : Form
         _menu.Items.Add(bidi);
         _menu.Items.Add(mixed);
         _menu.Items.Add(new ToolStripSeparator());
+        _menu.Items.Add(lsound);
         _menu.Items.Add(pvol);
         _menu.Items.Add(amb);
         _menu.Opening += (_, __) =>
         {
+            foreach (ToolStripMenuItem it in lsound.DropDownItems) it.Checked = (int)it.Tag == Opts.LaserSound;
+            lsound.Enabled = IsLaser;
             foreach (ToolStripMenuItem it in pvol.DropDownItems) it.Checked = (int)it.Tag == Opts.PrinterVolume;
             foreach (ToolStripMenuItem it in amb.DropDownItems) it.Checked = (int)it.Tag == Opts.AmbienceVolume;
             foreach (ToolStripMenuItem it in printer.DropDownItems) it.Checked = (int)it.Tag == Opts.Printer;
@@ -734,7 +745,7 @@ internal sealed class TrafficReminderForm : Form
         _clock.Interval = (int)CharMs;
         bool wasPrinting = _printing && _clock.Enabled && !IsLaser;
         try { _sounds.StopPrinting(); _sounds.LaserStop(); _sounds.Dispose(); } catch { }
-        _sounds = new DotMatrix.Sounds(CharMs, LaserPhase) { Volume = PrinterLevel };
+        _sounds = new DotMatrix.Sounds(CharMs, LaserPhase, Opts.LaserSound) { Volume = PrinterLevel };
         if (wasPrinting && _lineFeedPause == 0) _sounds.StartPrinting();
         // A change of printer while the dot matrix was mid-line: the rest
         // appears on the new page at once, and the head is at the foot.
