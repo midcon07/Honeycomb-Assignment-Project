@@ -226,6 +226,27 @@ did not pop when the sim came up again.
   LaserWriter, Helvetica, black, fast.
 - **Standing direction (Mark, 2026-09-12): "80s - 90s vibe is our ultimate
   visual UI goal."** Period hardware, paper and real machine sounds.
+- **Later the same night:** the video Mark named (youtube V-yyxa4ioBo, a
+  LaserWriter 4/600) was fetched and measured with a throwaway .NET tool
+  (scratchpad `ytaudio`: YoutubeExplode 6.6.2 + NAudio FFT, band-energy
+  timeline at 100 ms): the level is flat for 84 s, the energy in 150-500
+  Hz, next to nothing 500-2k (no whine), a brighter 2-3 s burst every ~15 s
+  (4 ppm). Rewritten to that, then by Mark's ear: "reduce the buzz by 80%,
+  the other sounds go away", "a deeper brrrrr" - the LaserWriter's page is
+  now a 66 Hz sawtooth hum fluttering at 26 Hz, faint, and nothing else.
+- **Announcements**: flight numbers as digits (SSML say-as characters:
+  "one two four five"); several announcers - every installed voice, women
+  four times in five, each in three pitch/pace settings. **Real departures
+  when a plan is loaded** (`Departures.cs`): Flightradar24's airport
+  schedule endpoint (unofficial, no key) for the plan's origin at its
+  departure time, fetched through Windows' own curl.exe because the same
+  request answered 403 to .NET's HttpClient (client fingerprinting below
+  the headers); a plan older than 12 h or more than 2 days ahead is taken
+  as its time of day today (the endpoint answered 400 for a date five days
+  back). 97 flights came back for KDEN at 20:40Z. Three in four
+  announcements use a real flight; the rest are the era's.
+- The era toggle's button was 34 px wide in the modern face and squashed
+  "1989"; sized like the Printout button in both faces.
 - **The launcher's page, same evening: the ops terminal, 1989.** The
   `<style>` block of `ui/index.html` was replaced whole (the DOM and the
   JS untouched): the sixteen VGA colours and nothing else, IBM Plex Mono
