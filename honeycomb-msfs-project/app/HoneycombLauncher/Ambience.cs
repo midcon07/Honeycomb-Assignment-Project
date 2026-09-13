@@ -202,7 +202,7 @@ internal sealed class Ambience : IDisposable
     {
         try { _paOut?.Stop(); _paOut?.Dispose(); } catch { }
         var src = new RawSourceWaveStream(new MemoryStream(pcm), new WaveFormat(Rate, 16, 1));
-        var vol = new VolumeSampleProvider(src.ToSampleProvider()) { Volume = _volume * 0.9f };
+        var vol = new VolumeSampleProvider(src.ToSampleProvider()) { Volume = _volume * 0.36f };
         _paOut = new WaveOutEvent { DesiredLatency = 200 };
         _paOut.Init(vol);
         _paOut.Play();
