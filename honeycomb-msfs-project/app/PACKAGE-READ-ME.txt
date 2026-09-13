@@ -1,0 +1,96 @@
+HONEYCOMB LAUNCHER
+==================
+
+What this is
+  The program Mark has been building. It checks that everything needed for a
+  flight is in place, shows your SimBrief plan, tells you which lever caps to
+  fit, sets up the throttle quadrant and the yoke, and starts the simulator.
+
+Installing it
+  1. If an older copy of this program is on this computer, close it.
+  2. Extract this whole folder somewhere you can find again - the Desktop is
+     fine. Keep all the files together; the program needs the tools, data and
+     ui folders that came with it. Replacing an older copy is fine: your
+     settings are kept elsewhere and are not touched.
+  3. Double-click   HoneycombLauncher.exe
+  4. If Windows shows a blue box saying "Windows protected your PC", click
+     "More info", then "Run anyway".
+
+Nothing else needs installing. The two things it depends on - the .NET 8
+desktop runtime and WebView2 - are already on this computer. It never fetches
+anything from the internet except your SimBrief plan and the weather.
+
+What it does when it starts
+  It starts FSUIPC7 for you, then checks the computer over and shows what it
+  finds. Green is fine. Amber means something still needs setting up and it
+  will say what. Red means do not fly yet, and it will say why.
+
+  The first time, expect several amber lines. That is correct - the throttle
+  quadrant has not been set up on this computer yet.
+
+Setting up the throttle quadrant, once per aircraft
+  1. Choose the aircraft.
+  2. Fit the lever caps as the picture shows, then press "Lever caps are set".
+  3. Press "Set up levers in FSUIPC". It closes FSUIPC, writes the settings,
+     and starts it again. It will tell you exactly what it wrote.
+  4. In the simulator, under Options then Controls, make sure the Bravo
+     Throttle Quadrant is using the profile called "Claude Empty". Then press
+     "Empty Bravo profile set" in this program so it remembers.
+
+The Bravo buttons, once
+  Press "Set up Bravo buttons in FSUIPC". The autopilot buttons, the knob, the
+  gear, flaps and trim, and the switches are then all assigned. Switch 6 is
+  the parking brake.
+
+The yoke
+  If the program says the yoke is not centred, press "Recalibrate the Alpha".
+  A window opens and walks you through it step by step: hands off, then full
+  left and right, then full forward and back. It takes about a minute.
+
+Traffic
+  The box marked TRAFFIC at the top is which program feeds the other aircraft:
+     BATC  - BeyondATC
+     FSLTL - the FSLTL injector
+     MSFS  - the simulator's own traffic
+  A printout appears when something needs doing - a sheet of green-bar printer
+  paper that prints, with the printer's sounds, in three parts:
+     1. Two settings on the simulator's Graphics page. The program can read
+        these, so it ticks them off by itself the moment you change them. The
+        page's Global Rendering Quality will then say Custom; that is right.
+     2. Traffic Type on the Online page. The program cannot read this one, so
+        it asks you to click DONE once you have set it.
+     3. The traffic program. Once the graphics are right, a line offers to
+        start BeyondATC or the FSLTL injector for you; the printout confirms
+        when it is running, and says so if it stops.
+  The printout appears again each time the simulator starts.
+  It stays on top of the simulator. Drag it by its paper to move it; the light
+  in its corner is green while it is anchored on top. The PRINTOUT button on
+  the main window winds it up into a small square and brings it back.
+  Right-click the paper to change the printer. Dot matrix is the tractor-feed
+  paper; LaserWriter is a plain white page in Helvetica, Times, Courier or
+  the other faces the old Apple LaserWriter had, printed a whole page at a
+  time with that machine's sounds. Either way you can choose darker ink,
+  upper and lower case, or a faster print; the dot matrix can also print in
+  both directions. "Airport ambience" puts the concourse under the printer:
+  a jet in the distance now and then, and the gate announcements. Untick it
+  for quiet.
+
+The main window
+  It is drawn as the airline ops terminal of 1989: a colour text screen.
+  Green is fine, amber needs attention, red means do not fly yet. Buttons
+  are the words in brackets; click them as before.
+  The button at the top marked "Modern" switches to the flight-deck look
+  it had before; it then reads "1989" to switch back. Either is fine.
+
+The Start Simulator button
+  It says "Simulator Running" while the simulator is up and offers to start
+  it again once it is closed.
+
+If something looks wrong
+  The program keeps a note of what it did. Send Mark this file:
+     %LOCALAPPDATA%\HoneycombAssignment\launcher.log
+  Paste that line into the address bar of a File Explorer window to find it.
+  The file VERSION.txt in this folder says which build this is; mention it.
+
+  It is written to be honest rather than reassuring. If it says something is
+  not right, believe it - that is the whole point of it.

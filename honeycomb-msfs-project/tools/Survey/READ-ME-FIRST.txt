@@ -1,0 +1,26 @@
+HONEYCOMB FLIGHT-SIM SURVEY
+===========================
+
+What this is
+  A small check of your computer that Mark needs before Saturday. It looks
+  at where the simulator and FSUIPC are, which aircraft you have, and which
+  controls are plugged in. It changes NOTHING on your computer.
+
+When to run it
+  Best: right after a flight, while FSUIPC7 is still running. The survey
+  reads which aircraft FSUIPC saw, and FSUIPC forgets that every time it is
+  restarted. If you have not flown today, run it anyway - it still helps.
+
+What to do
+  1. Put these three files together in one folder (the Desktop is fine).
+  2. Double-click   Survey-Machine.cmd
+  3. If Windows shows a blue box saying "Windows protected your PC", click
+     "More info", then "Run anyway". This is normal for a file sent by email.
+  4. A black window appears and runs for a few seconds. When it shows a green
+     message saying FINISHED, it is done. Press any key to close it.
+  5. Two new files are on your Desktop. Their names start with
+     HoneycombSurvey. Send BOTH of them to Mark by email.
+
+If something goes wrong
+  If the black window closes by itself straight away, or shows red text,
+  tell Mark what you saw. There is nothing to fix on your side.

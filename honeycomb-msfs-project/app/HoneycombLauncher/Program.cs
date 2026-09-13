@@ -1,0 +1,156 @@
+using System.Drawing;
+using System.Text;
+
+namespace HoneycombLauncher;
+
+internal static class Program
+{
+    /// <summary>
+    /// Beside the config, so a failure that happens before any window appears
+    /// still leaves something to read.
+    /// </summary>
+    public static string LogPath { get; } = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "HoneycombAssignment", "launcher.log");
+
+    public static void Log(string message)
+    {
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(LogPath));
+            File.AppendAllText(LogPath,
+                $"{DateTime.Now:yyyy-MM-dd HH:mm:ss}  {message}{Environment.NewLine}",
+                Encoding.UTF8);
+        }
+        catch { /* logging must never be the thing that breaks it */ }
+    }
+
+    public static void LogError(string where, Exception ex)
+    {
+        Log($"ERROR in {where}: {ex.GetType().FullName}: {ex.Message}");
+        Log(ex.ToString());
+    }
+
+    [STAThread]
+    private static void Main(string[] args)
+    {
+        // "--traffic-sheet [mode]" prints the reminder sheet on its own, with
+        // sample values, and records nothing: for seeing and hearing it
+        // without a simulator, and for testing it.
+        if (args.Length > 0 && args[0] == "--traffic-sheet")
+        {
+            ApplicationConfiguration.Initialize();
+            var mode = args.Length > 1 ? args[1] : "BATC";
+            var required = AppConfig.TrafficTypeRequiredFor(mode) ?? "Off";
+            // The whole window, as in the launcher: print, anchor, minimise to
+            // the square, restore, resize, text size. Close ends the demo.
+            var ctx = new ApplicationContext();
+            // Sample facts, except the graphics levels, which are read from the
+            // real settings file so the sheet can be watched confirming them.
+            var need = AppConfig.GraphicsRequiredFor(mode) ?? (-1, -1);
+            // The engine is real too: found on this machine or not, running or not.
+            var engine = TrafficEngines.For(mode, null);
+            var facts = new TrafficReminderForm.Facts
+            {
+                Mode = mode, RequiredType = required, RecordedType = "Real-Time Online", RecordedBy = "midcon07", RecordedUtc = "2026-09-07T04:43:00Z", Who = Environment.UserName,
+                RequiredAircraft = need.aircraft, RequiredParked = need.parked,
+                Sim = SimSettings.ReadTrafficGraphics(out var gfxProblem), SimProblem = gfxProblem ?? "",
+                EngineName = engine?.Name, EngineFound = engine?.Path != null, EngineRunning = engine?.IsRunning() ?? false,
+                ForeignEnginesRunning = engine != null ? Array.Empty<string>()
+                    : TrafficEngines.All(null).Where(e => e != null && e.IsRunning()).Select(e => e.Name).ToArray()
+            };
+            // Printer options for the demo come from the environment, so each
+            // can be seen without a config: HONEYCOMB_PRINTOUT=ink,bidi,mixed,speed[,printer[,face]] e.g. "3,1,1,2" or "1,0,1,0,1,Times".
+            var opts = new TrafficReminderForm.Options();
+            var po = (Environment.GetEnvironmentVariable("HONEYCOMB_PRINTOUT") ?? "").Split(',');
+            if (po.Length >= 4) { opts.Ink = int.Parse(po[0]); opts.Bidirectional = po[1] == "1"; opts.MixedCase = po[2] == "1"; opts.Speed = int.Parse(po[3]); }
+            if (po.Length >= 5) opts.Printer = int.Parse(po[4]);
+            if (po.Length >= 6) opts.Face = po[5];
+            if (po.Length >= 7) { opts.Ambience = po[6] != "0"; opts.AmbienceVolume = int.TryParse(po[6], out var av) ? av : 2; }
+            if (po.Length >= 8) opts.PrinterVolume = int.Parse(po[7]);
+            var sheet = new TrafficReminderForm(facts, opts);
+            sheet.OptionsChanged += o => Log($"traffic sheet demo: options {(o.Printer == 1 ? "LaserWriter, " + o.Face : "dot matrix")}, ink {o.Ink}, both directions {o.Bidirectional}, mixed case {o.MixedCase}, speed {o.Speed}");
+            sheet.EngineStartRequested += () =>
+            {
+                var why = TrafficEngines.Start(engine);
+                Log(why == null ? "traffic sheet demo: started " + engine.Name : "traffic sheet demo: could not start - " + why);
+                if (why != null) sheet.EngineStartFailed(why);
+            };
+            bool engineWas = facts.EngineRunning;
+            // The demo watches the file too, so a change made in the sim prints.
+            var seen = facts.Sim?.WrittenUtc ?? DateTime.MinValue;
+            var clock = new System.Windows.Forms.Timer { Interval = 2000 };
+            clock.Tick += (s_, e_) =>
+            {
+                if (engine != null) { bool up = engine.IsRunning(); if (up != engineWas) { engineWas = up; Log("traffic sheet demo: engine " + (up ? "up" : "gone")); sheet.EngineNow(up); } }
+                var g = SimSettings.ReadTrafficGraphics(out string _);
+                if (g == null || g.WrittenUtc == seen) return;
+                seen = g.WrittenUtc; Log("traffic sheet demo: sim settings changed"); sheet.GraphicsNow(g);
+            };
+            clock.Start();
+            sheet.Text = "Honeycomb Preflight - printout (demo)";   // never the same title as a real sheet
+            PrintoutIconForm icon = null;
+            sheet.PinChanged += p => Log("traffic sheet demo: " + (p ? "anchored" : "loose"));
+            sheet.PitchChanged += p => Log("traffic sheet demo: pitch " + p);
+            sheet.Finished += o => Log("traffic sheet demo: " + o);
+            sheet.Minimised += () =>
+            {
+                Log("traffic sheet demo: minimised");
+                if (icon == null || icon.IsDisposed) { icon = new PrintoutIconForm(sheet.RestingLocation); icon.Restore += () => sheet.Restore(); }
+                icon.Location = new Point(sheet.RestingLocation.X + sheet.Width - icon.Width, sheet.RestingLocation.Y);
+                icon.Show();
+            };
+            sheet.Restored += () => { Log("traffic sheet demo: restored"); icon?.Hide(); };
+            ctx.MainForm = sheet;
+            sheet.Show();
+            Application.Run(ctx);
+            return;
+
+
+        }
+
+        // An exception on a background task or a UI callback was killing the
+        // process with nothing shown and nothing written down. Catch everything
+        // at the edges, write it, and say so rather than vanishing.
+        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+        {
+            if (e.ExceptionObject is Exception ex) LogError("AppDomain", ex);
+            Show("Something went wrong and the program has to close.", ex: e.ExceptionObject as Exception);
+        };
+        Application.ThreadException += (_, e) =>
+        {
+            LogError("UI thread", e.Exception);
+            Show("Something went wrong.", ex: e.Exception);
+        };
+        TaskScheduler.UnobservedTaskException += (_, e) =>
+        {
+            LogError("background task", e.Exception);
+            e.SetObserved();
+        };
+
+        Log("---- starting ----");
+        try
+        {
+            ApplicationConfiguration.Initialize();
+            Application.Run(new MainForm());
+            Log("---- closed normally ----");
+        }
+        catch (Exception ex)
+        {
+            LogError("Main", ex);
+            Show("The program could not start.", ex: ex);
+        }
+    }
+
+    private static void Show(string headline, Exception ex)
+    {
+        var detail = ex is null ? "" : $"\n\n{ex.GetType().Name}: {ex.Message}";
+        try
+        {
+            MessageBox.Show(
+                $"{headline}{detail}\n\nDetails were written to:\n{LogPath}",
+                "Honeycomb Preflight", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+        catch { }
+    }
+}
